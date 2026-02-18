@@ -1,65 +1,104 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
 import { Home as HomeIcon, Shirt, Smile, Sparkles, BarChart2 } from 'lucide-react';
+import { WardrobeProvider } from './context/WardrobeContext';
+
+// Import pages
 import Home from './pages/Home';
 import Wardrobe from './pages/Wardrobe';
 import Mood from './pages/Mood';
 import Suggest from './pages/Suggest';
 import Insights from './pages/Insights';
 
-function App() {
-  return (
-    <Router>
-      <div className="min-h-screen bg-background text-gray-900 font-sans">
-        <nav className="bg-white shadow-md">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between h-16">
-              <div className="flex">
-                <div className="flex-shrink-0 flex items-center">
-                  <span className="text-xl font-bold text-primary">Wardrobe AI</span>
-                </div>
-                <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
-                  <Link to="/" className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-900 border-b-2 border-transparent hover:border-secondary">
-                    <HomeIcon className="w-4 h-4 mr-2" />
-                    Home
-                  </Link>
-                  <Link to="/wardrobe" className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300">
-                    <Shirt className="w-4 h-4 mr-2" />
-                    Wardrobe
-                  </Link>
-                  <Link to="/mood" className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300">
-                    <Smile className="w-4 h-4 mr-2" />
-                    Mood
-                  </Link>
-                  <Link to="/suggest" className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300">
-                    <Sparkles className="w-4 h-4 mr-2" />
-                    Suggest
-                  </Link>
-                  <Link to="/insights" className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300">
-                    <BarChart2 className="w-4 h-4 mr-2" />
-                    Insights
-                  </Link>
-                </div>
-              </div>
-            </div>
-          </div>
-        </nav>
+const Layout = () => {
+  console.log("App Layout Loaded - Production Version");
+  const location = useLocation();
 
-        <div className="py-10">
-          <main>
-            <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
-              <Routes>
-                <Route path="/" element={<Home />} />
-                <Route path="/wardrobe" element={<Wardrobe />} />
-                <Route path="/mood" element={<Mood />} />
-                <Route path="/suggest" element={<Suggest />} />
-                <Route path="/insights" element={<Insights />} />
-              </Routes>
-            </div>
+  const isActive = (path: string) => location.pathname === path;
+
+  // Add safe-area-inset support for mobile devices
+  const safeAreaBottom = 'env(safe-area-inset-bottom, 0px)';
+
+  const NavItem = ({ to, icon: Icon, label, mobile = false }: { to: string, icon: any, label: string, mobile?: boolean }) => {
+    const active = isActive(to);
+
+    if (mobile) {
+      return (
+        <Link to={to} className="relative flex flex-col items-center justify-center w-full py-2 group">
+          <div className={`
+            flex items-center justify-center w-10 h-10 rounded-2xl transition-all duration-300
+            ${active
+              ? 'bg-primary text-white shadow-md'
+              : 'text-gray-400 group-hover:text-secondary group-hover:bg-olive-100'
+            }
+          `}>
+            <Icon className="w-5 h-5" />
+          </div>
+          <span className={`text-[10px] font-medium mt-1 transition-colors ${active ? 'text-primary' : 'text-gray-400'}`}>
+            {label}
+          </span>
+        </Link>
+      );
+    }
+
+    return (
+      <Link
+        to={to}
+        className={`inline-flex items-center px-4 py-2 text-sm font-medium rounded-full transition-all duration-300 ${active
+          ? 'bg-primary text-white shadow-sm'
+          : 'text-gray-500 hover:text-primary hover:bg-olive-100'
+          }`}
+      >
+        <Icon className={`w-4 h-4 mr-2`} />
+        {label}
+      </Link>
+    );
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-100 flex justify-center font-sans">
+      {/* Mobile Container Simulator */}
+      <div className="w-full max-w-[480px] min-h-screen bg-surface flex flex-col relative shadow-2xl">
+
+        {/* Main Content Area */}
+        <div className="flex-grow overflow-y-auto scrollbar-hide">
+          <main className="px-4 py-6 pb-24">
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/wardrobe" element={<Wardrobe />} />
+              <Route path="/mood" element={<Mood />} />
+              <Route path="/suggest" element={<Suggest />} />
+              <Route path="/insights" element={<Insights />} />
+            </Routes>
           </main>
         </div>
+
+        {/* Mobile Navigation - Always Visible */}
+        <div className="fixed bottom-0 left-0 right-0 z-50 flex justify-center pointer-events-none">
+          {/* Constrain nav width to match container */}
+          <div className="w-full max-w-[480px] bg-white/90 backdrop-blur-lg border-t border-muted pointer-events-auto"
+            style={{ paddingBottom: safeAreaBottom }}>
+            <div className="flex justify-around items-center h-[72px] px-2">
+              <NavItem to="/" icon={HomeIcon} label="Home" mobile />
+              <NavItem to="/wardrobe" icon={Shirt} label="Wardrobe" mobile />
+              <NavItem to="/mood" icon={Smile} label="Mood" mobile />
+              <NavItem to="/suggest" icon={Sparkles} label="Suggest" mobile />
+              <NavItem to="/insights" icon={BarChart2} label="Insights" mobile />
+            </div>
+          </div>
+        </div>
+
       </div>
-    </Router>
+    </div>
+  );
+};
+
+function App() {
+  return (
+    <WardrobeProvider>
+      <Router>
+        <Layout />
+      </Router>
+    </WardrobeProvider>
   );
 }
 

@@ -13,18 +13,21 @@
     "@aws-sdk/client-bedrock-runtime": "^3.990.0",
     "@aws-sdk/client-dynamodb": "^3.990.0",
     "@aws-sdk/lib-dynamodb": "^3.990.0",
+    "@tailwindcss/postcss": "^4.1.18",
     "axios": "^1.13.5",
     "date-fns": "^4.1.0",
     "lucide-react": "^0.564.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "react-router-dom": "^7.13.0"
+    "react-router-dom": "^7.13.0",
+    "uuid": "^13.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
+    "@types/uuid": "^10.0.0",
     "@vitejs/plugin-react": "^5.1.1",
     "autoprefixer": "^10.4.24",
     "eslint": "^9.39.1",

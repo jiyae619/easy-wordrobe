@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Wardrobe Explorer</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#e6a219",
+                        "background-light": "#f8f7f6",
+                        "background-dark": "#211c11",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark text-[#181511] dark:text-white min-h-screen">
+<div class="relative flex min-h-screen w-full max-w-md mx-auto flex-col bg-white dark:bg-background-dark shadow-xl overflow-x-hidden">
+<!-- Header & Search -->
+<header class="sticky top-0 z-20 bg-white dark:bg-background-dark px-4 pt-6 pb-2">
+<div class="flex items-center justify-between mb-4">
+<h1 class="text-2xl font-bold tracking-tight">Wardrobe Explorer</h1>
+<button class="p-2 rounded-full hover:bg-primary/10 transition-colors">
+<span class="material-symbols-outlined text-2xl">notifications</span>
+</button>
+</div>
+<div class="relative group">
+<div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+<span class="material-symbols-outlined text-gray-400 group-focus-within:text-primary transition-colors">search</span>
+</div>
+<input class="block w-full pl-10 pr-4 py-3 bg-primary/5 border-none rounded-xl focus:ring-2 focus:ring-primary focus:bg-white transition-all placeholder:text-gray-400" placeholder="Search your collection..." type="text"/>
+</div>
+</header>
+<!-- Category Chips -->
+<div class="px-4 py-2">
+<div class="flex gap-2 overflow-x-auto hide-scrollbar pb-2">
+<button class="px-5 py-2 rounded-full bg-primary text-white text-sm font-semibold whitespace-nowrap shadow-sm">All</button>
+<button class="px-5 py-2 rounded-full bg-primary/10 text-primary dark:text-primary hover:bg-primary/20 text-sm font-medium whitespace-nowrap transition-colors">Tops</button>
+<button class="px-5 py-2 rounded-full bg-primary/10 text-primary dark:text-primary hover:bg-primary/20 text-sm font-medium whitespace-nowrap transition-colors">Bottoms</button>
+<button class="px-5 py-2 rounded-full bg-primary/10 text-primary dark:text-primary hover:bg-primary/20 text-sm font-medium whitespace-nowrap transition-colors">Outerwear</button>
+<button class="px-5 py-2 rounded-full bg-primary/10 text-primary dark:text-primary hover:bg-primary/20 text-sm font-medium whitespace-nowrap transition-colors">Shoes</button>
+<button class="px-5 py-2 rounded-full bg-primary/10 text-primary dark:text-primary hover:bg-primary/20 text-sm font-medium whitespace-nowrap transition-colors">Accessories</button>
+</div>
+</div>
+<!-- Filter/Sort Options -->
+<div class="px-4 py-2 border-b border-gray-100 dark:border-gray-800">
+<div class="flex justify-between items-center overflow-x-auto hide-scrollbar gap-6">
+<button class="flex items-center gap-1.5 py-2 text-sm font-semibold text-gray-600 dark:text-gray-300">
+<span class="material-symbols-outlined text-lg text-primary">palette</span>
+                    Color
+                    <span class="material-symbols-outlined text-sm">expand_more</span>
+</button>
+<button class="flex items-center gap-1.5 py-2 text-sm font-semibold text-gray-600 dark:text-gray-300">
+<span class="material-symbols-outlined text-lg text-primary">texture</span>
+                    Pattern
+                    <span class="material-symbols-outlined text-sm">expand_more</span>
+</button>
+<button class="flex items-center gap-1.5 py-2 text-sm font-semibold text-gray-600 dark:text-gray-300">
+<span class="material-symbols-outlined text-lg text-primary">cloud_queue</span>
+                    Season
+                    <span class="material-symbols-outlined text-sm">expand_more</span>
+</button>
+<button class="flex items-center gap-1.5 py-2 text-sm font-semibold text-gray-600 dark:text-gray-300">
+<span class="material-symbols-outlined text-lg text-primary">sort</span>
+                    Sort
+                </button>
+</div>
+</div>
+<!-- Clothing Grid -->
+<main class="flex-1 px-4 py-6 overflow-y-auto">
+<div class="grid grid-cols-2 gap-4">
+<!-- Item 1 -->
+<div class="group flex flex-col">
+<div class="relative aspect-[3/4] rounded-xl overflow-hidden bg-gray-100 mb-2">
+<img alt="Wool Blazer" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" data-alt="Premium navy wool blazer hanging on a rack" src="https://lh3.googleusercontent.com/aida-public/AB6AXuALxbSHYAdnk9OEpiU8Anl4P5VDDx9ZSteD724henk3JWLYI0bZYAKnKT5Cdm0sQMdx73vspL5ofR_IBUm0AvHUYS0sSwa1gWDLq44AlGbFwTJ-DRBaTfrMiS8fiANWWmRnTHpha-BEso6Glv55D0ITrzqQRxKhg0dsvlZZA8vf9VbH8zMLZJPhMpW9XR5q_7bDRz4uTjHijkZ1UDoPO9B8SvwfMnDSy0nxLWMOLuDHO5KonsI-96qiyOZTr-qGpo2wtSKS8DzZe_0"/>
+<div class="absolute bottom-2 right-2 flex items-center gap-1.5 bg-white/90 backdrop-blur px-2 py-1 rounded-full shadow-sm">
+<div class="w-3 h-3 rounded-full bg-[#000080]" title="Navy Blue"></div>
+<span class="text-[10px] font-bold text-gray-800 uppercase">Solid</span>
+</div>
+</div>
+<h3 class="font-semibold text-sm truncate">Wool Blazer</h3>
+<p class="text-xs text-gray-500">Outerwear • Premium</p>
+</div>
+<!-- Item 2 -->
+<div class="group flex flex-col">
+<div class="relative aspect-[3/4] rounded-xl overflow-hidden bg-gray-100 mb-2">
+<img alt="Slim Fit Jeans" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" data-alt="Folded light blue slim fit denim jeans" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAjpgoq_T5cxPcMlG0ZZxqtHNYnh5iAoQxG3jCLSQRxRov6aZ9yqdDLcF7YAYC-XLXTduasTdCaGPSDQYLO48JDHyCSB8DdBxjIbxkR9NHYDbaXQ4Vc7gjbpRIo4HqKly2ORrLqD37pdumquhSLhA2o_1zx2fL1yK3OA3xnvBqK_FhWgx-ykEfJgJEuqu39_SXNjTnuxZfMOcs2Z4Ds5ZgMF6rxqvz0_-NO4obQbVsmaYuXoMEQDnpbPPY1FmKJ_EGyrcLkYGWPY5Q"/>
+<div class="absolute bottom-2 right-2 flex items-center gap-1.5 bg-white/90 backdrop-blur px-2 py-1 rounded-full shadow-sm">
+<div class="w-3 h-3 rounded-full bg-[#87CEEB]" title="Sky Blue"></div>
+<span class="text-[10px] font-bold text-gray-800 uppercase">Denim</span>
+</div>
+</div>
+<h3 class="font-semibold text-sm truncate">Slim Fit Jeans</h3>
+<p class="text-xs text-gray-500">Bottoms • Casual</p>
+</div>
+<!-- Item 3 -->
+<div class="group flex flex-col">
+<div class="relative aspect-[3/4] rounded-xl overflow-hidden bg-gray-100 mb-2">
+<img alt="Cotton Tee" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" data-alt="Plain white high quality cotton t-shirt" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBUkXAM6QLsdi2FTZQkcyniHD80JGs0bjGlprePolcVENN4zg0u382_-gdKmlUDU3A6zH-UtC9tplb2ueckC6ftB2jwYEM-RvP-CmDkYsHuI29A18dkkP31gMqUU797fE2hl5Cko2u_8NxKR44slHbJkyDVCqI_L-dh2TQBCp9snzVqbYdSuiCeBn3mWmlucoGn2ma_Mb-JT6TuzAT-iIugI96sGv2izu3FXy9wUXF9CJJQIBLinrA--RQfdjXOEUE47dvNeMZiPBw"/>
+<div class="absolute bottom-2 right-2 flex items-center gap-1.5 bg-white/90 backdrop-blur px-2 py-1 rounded-full shadow-sm">
+<div class="w-3 h-3 rounded-full bg-white border border-gray-200" title="White"></div>
+<span class="text-[10px] font-bold text-gray-800 uppercase">Solid</span>
+</div>
+</div>
+<h3 class="font-semibold text-sm truncate">Cotton Essential Tee</h3>
+<p class="text-xs text-gray-500">Tops • Basics</p>
+</div>
+<!-- Item 4 -->
+<div class="group flex flex-col">
+<div class="relative aspect-[3/4] rounded-xl overflow-hidden bg-gray-100 mb-2">
+<img alt="Leather Boots" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" data-alt="Brown leather chelsea boots on a clean background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDSzDCsF5Q9IWXjl3NgLuo30k_-fJk-5jJNB2DFzAn9vI64SfH94_-l1_LW5IplKUgJ5Xc6O7BI6JNyd6eRBwovExUlmnlaVeB0rOpZ9nmMURZLhRxwEGm_OXFCXNQASxLw38EY6BEP72iih2paPT0U5X5U5RwHQypjWlMeOtpx6meX4_Hj9FzTDopss2TLt3kLb7cMT9vj2yK9mwJe6hnMgCXthtXTj3o6L8vJ0ZR5C-zvLm5bPYFIopZgz_LfdT79wYy4-5A3J28"/>
+<div class="absolute bottom-2 right-2 flex items-center gap-1.5 bg-white/90 backdrop-blur px-2 py-1 rounded-full shadow-sm">
+<div class="w-3 h-3 rounded-full bg-[#5C4033]" title="Dark Brown"></div>
+<span class="text-[10px] font-bold text-gray-800 uppercase">Leather</span>
+</div>
+</div>
+<h3 class="font-semibold text-sm truncate">Chelsea Boots</h3>
+<p class="text-xs text-gray-500">Shoes • Footwear</p>
+</div>
+<!-- Item 5 -->
+<div class="group flex flex-col">
+<div class="relative aspect-[3/4] rounded-xl overflow-hidden bg-gray-100 mb-2">
+<img alt="Flannel Shirt" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" data-alt="Red and black checkered flannel shirt" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBPzzBuRcc1eru7D70Gc6pOXDt8JF5jlQlG7LGAFDv-BpcDIeNdYCvc4kQ_yKgIQYunOPryPhT17q2QX-m1Tew8yZiggbzISRFIvoCYLMz1kQWZPbXzmwg47DeFJiCR3KDCU98YWEN7aAiUbPY63x4ej4G7GQYntCbkhRlxTm4LzRYU9_9f7FXPXKpRS-OmDPNT7WO8jia_yyi7JgbP9JT2vpWhIYNZjvNm-Sf1hbYx6xu4KzL_nn0J_-AWk19U0jJ2wbrGjS7Shus"/>
+<div class="absolute bottom-2 right-2 flex items-center gap-1.5 bg-white/90 backdrop-blur px-2 py-1 rounded-full shadow-sm">
+<div class="w-3 h-3 rounded-full bg-red-600" title="Red"></div>
+<span class="text-[10px] font-bold text-gray-800 uppercase">Plaid</span>
+</div>
+</div>
+<h3 class="font-semibold text-sm truncate">Flannel Overshirt</h3>
+<p class="text-xs text-gray-500">Tops • Seasonal</p>
+</div>
+<!-- Item 6 -->
+<div class="group flex flex-col">
+<div class="relative aspect-[3/4] rounded-xl overflow-hidden bg-gray-100 mb-2">
+<img alt="Chino Pants" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" data-alt="Khaki colored classic straight leg chinos" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDlzHXmIFDg9_JADrMMToj0AWExkmi6Z79Hxnu7j7Ut1rOUeDxYsGfPuZCsJwCQEsl1rMtU1tTILytbbMLoesRc59cGB__R-VNYkxGTeJnVFiUUczHiwI1C64KiJ6qgvULOmHe2e796nhHgxk7LHOvFH6czg5WPt7MHAX1iv2WXmx0sWwWgPKHpo_EE9wnlO9kXvNTFq0DsM1L9ESLl1Ark1JkJ9rJWSixlMLyhWTredGzeiKVZvf0Qj7JlwVYBbpE3YpyzwarJaq0"/>
+<div class="absolute bottom-2 right-2 flex items-center gap-1.5 bg-white/90 backdrop-blur px-2 py-1 rounded-full shadow-sm">
+<div class="w-3 h-3 rounded-full bg-[#C3B091]" title="Khaki"></div>
+<span class="text-[10px] font-bold text-gray-800 uppercase">Solid</span>
+</div>
+</div>
+<h3 class="font-semibold text-sm truncate">Classic Chinos</h3>
+<p class="text-xs text-gray-500">Bottoms • Smart Casual</p>
+</div>
+</div>
+<!-- Floating Action Button -->
+<button class="fixed bottom-24 right-6 w-14 h-14 bg-primary text-white rounded-full shadow-lg flex items-center justify-center hover:scale-110 transition-transform z-30">
+<span class="material-symbols-outlined text-3xl">add</span>
+</button>
+</main>
+<!-- Bottom Navigation Bar -->
+<nav class="sticky bottom-0 z-40 bg-white/95 dark:bg-background-dark/95 backdrop-blur-md border-t border-gray-100 dark:border-gray-800 flex justify-between items-center px-6 py-3">
+<a class="flex flex-col items-center gap-1 text-gray-400 hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined">home</span>
+<span class="text-[10px] font-medium">Home</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-primary" href="#">
+<span class="material-symbols-outlined fill-1">checkroom</span>
+<span class="text-[10px] font-bold">Wardrobe</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-gray-400 hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined">auto_fix_high</span>
+<span class="text-[10px] font-medium">Outfits</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-gray-400 hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined">shopping_bag</span>
+<span class="text-[10px] font-medium">Shop</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-gray-400 hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined">person</span>
+<span class="text-[10px] font-medium">Profile</span>
+</a>
+</nav>
+</div>
+</body></html>

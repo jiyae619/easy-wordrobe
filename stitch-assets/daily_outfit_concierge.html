@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Outfit Concierge - Daily Fashion</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#e6a219",
+                        "background-light": "#f8f7f6",
+                        "background-dark": "#211c11",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-filled {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 antialiased">
+<div class="relative flex min-h-screen w-full flex-col max-w-md mx-auto bg-white dark:bg-background-dark shadow-2xl overflow-hidden">
+<!-- Header -->
+<header class="flex items-center justify-between px-6 pt-8 pb-4 bg-white dark:bg-background-dark sticky top-0 z-10">
+<button class="p-2 -ml-2 hover:bg-slate-100 dark:hover:bg-white/10 rounded-full transition-colors">
+<span class="material-symbols-outlined text-2xl">menu</span>
+</button>
+<h1 class="text-xl font-bold tracking-tight">Concierge</h1>
+<div class="flex items-center gap-2">
+<button class="p-2 hover:bg-slate-100 dark:hover:bg-white/10 rounded-full transition-colors">
+<span class="material-symbols-outlined text-2xl">notifications</span>
+</button>
+</div>
+</header>
+<!-- Weather Section -->
+<section class="px-6 py-4">
+<div class="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary/10 to-primary/5 dark:from-primary/20 dark:to-transparent border border-primary/20 p-5">
+<div class="flex items-center justify-between relative z-10">
+<div>
+<div class="flex items-center gap-2 mb-1">
+<span class="material-symbols-outlined text-primary material-symbols-filled">light_mode</span>
+<span class="text-2xl font-bold tracking-tight">72°F | Sunny</span>
+</div>
+<p class="text-slate-600 dark:text-slate-400 font-medium">Perfect for light layers today.</p>
+</div>
+<div class="text-right">
+<p class="text-xs font-semibold uppercase tracking-wider text-primary">New York, NY</p>
+<p class="text-xs text-slate-500">Feels like 74°F</p>
+</div>
+</div>
+<!-- Decorative element -->
+<div class="absolute -right-4 -bottom-4 opacity-10">
+<span class="material-symbols-outlined text-[120px]">wb_sunny</span>
+</div>
+</div>
+</section>
+<!-- Outfit Carousel Section -->
+<main class="flex-1 overflow-y-auto pb-24">
+<div class="flex items-center justify-between px-6 pt-6 pb-4">
+<h2 class="text-xl font-bold tracking-tight">Daily Suggestions</h2>
+<button class="text-sm font-semibold text-primary hover:underline">See All</button>
+</div>
+<!-- Horizontal Scroll Area -->
+<div class="flex gap-4 overflow-x-auto px-6 no-scrollbar snap-x snap-mandatory">
+<!-- Outfit Card 1 -->
+<div class="flex-none w-[85%] snap-center group">
+<div class="bg-slate-50 dark:bg-white/5 rounded-xl overflow-hidden shadow-sm border border-slate-100 dark:border-white/10 transition-transform duration-300 active:scale-[0.98]">
+<div class="relative aspect-[3/4] bg-cover bg-center" data-alt="A stylish man wearing a navy blazer white t-shirt and blue jeans" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAAs3eBBTbZkBh5_Tia3e6sH8vTSJs5blvyLxMH8qeBTk1Oxj25IdJ9oXeSsFRiEfA_cXdxrmj3q4D0Y34lYDEXJBSZmAtcE4zWHffTxvnGC9awN3kmMesoY5G0WiqDco_WBmbS3YGUT63ETsqhy9aEjt5GaysAqgKCR3Ga5l7JrVwCBstpqgMqiyj4mFW5KlqEtgNve37jiVv_2bqQu3EqxXG5xEOKSvHT0FjV1AddVNorkm80uENP7h-zjyVJ1xiNTwqutk8My7Y')">
+<div class="absolute top-4 left-4">
+<span class="bg-white/90 dark:bg-black/80 backdrop-blur-md px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest text-slate-800 dark:text-white shadow-sm border border-white/20">Worn 2x this month</span>
+</div>
+</div>
+<div class="p-5 bg-white dark:bg-background-dark/50">
+<h3 class="text-lg font-bold mb-1">The Modern Professional</h3>
+<p class="text-sm text-slate-500 dark:text-slate-400 mb-4">Navy Blazer + White Tee + Selvedge Jeans</p>
+<button class="w-full bg-primary hover:bg-primary/90 text-white font-bold py-3 rounded-lg transition-colors flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-xl">check_circle</span>
+                                Wear This
+                            </button>
+</div>
+</div>
+</div>
+<!-- Outfit Card 2 -->
+<div class="flex-none w-[85%] snap-center group">
+<div class="bg-slate-50 dark:bg-white/5 rounded-xl overflow-hidden shadow-sm border border-slate-100 dark:border-white/10 transition-transform duration-300 active:scale-[0.98]">
+<div class="relative aspect-[3/4] bg-cover bg-center" data-alt="A person in a camel knit sweater and dark chinos leaning against a wall" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuB6kT1WL-lW-UiXgWFLvrUc87mhXFr9PTkpdbh9IZjRBtHzjIZKkSWt9DNq4T4yMxuvY1WeyDQi22GNThFuYahNS5sBFRF8nd_Nfy8SCFMyusYE_uihVflVWbghuaUUG2ilSvIEqO929b8Wy_sycPHBzfI-0Tl--NjcnKcS6GbPe9iersyPc-9GHfE5NDBb3nmnPvXcuVLK9I6X2TT7FXDJxaFgMr6IgZ27oBb2UtTPbo6J_0LcjtMCfOOUF6WrsV8qsIVW1wJpYVs')">
+<div class="absolute top-4 left-4">
+<span class="bg-white/90 dark:bg-black/80 backdrop-blur-md px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest text-slate-800 dark:text-white shadow-sm border border-white/20">Worn 1x this month</span>
+</div>
+</div>
+<div class="p-5 bg-white dark:bg-background-dark/50">
+<h3 class="text-lg font-bold mb-1">Casual Chic</h3>
+<p class="text-sm text-slate-500 dark:text-slate-400 mb-4">Knit Sweater + Dark Chinos + Leather Loafers</p>
+<button class="w-full bg-primary hover:bg-primary/90 text-white font-bold py-3 rounded-lg transition-colors flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-xl">check_circle</span>
+                                Wear This
+                            </button>
+</div>
+</div>
+</div>
+<!-- Outfit Card 3 -->
+<div class="flex-none w-[85%] snap-center group">
+<div class="bg-slate-50 dark:bg-white/5 rounded-xl overflow-hidden shadow-sm border border-slate-100 dark:border-white/10 transition-transform duration-300 active:scale-[0.98]">
+<div class="relative aspect-[3/4] bg-cover bg-center" data-alt="Model wearing an oversized denim jacket over a grey hoodie and joggers" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBY2gsf8-0edM3eg7QWnBkhzsd315_S-Z8Fh6UzdSLMoOQGvVOsfxecXzcDXVnHGSoX9zUui2d8m_qDWwRHG7PvguSZhECDxX8nDNilnarE7XAeleLvRyU5U8LMh7WiBKcPQifqQuFXIZDDTViNdhYuzKI31iCCFjGx4mPPnuBaCi6XyPELOvHrbHi2Xvvxz2o5C_8mebTpWSuB3NiAyFuFJdoH2JSSp-dF2WRGKbxTK2qS51mv7_PliJ1Wf7pmdOTUIgP0uFzTGtA')">
+<div class="absolute top-4 left-4">
+<span class="bg-white/90 dark:bg-black/80 backdrop-blur-md px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest text-slate-800 dark:text-white shadow-sm border border-white/20">Worn 0x this month</span>
+</div>
+</div>
+<div class="p-5 bg-white dark:bg-background-dark/50">
+<h3 class="text-lg font-bold mb-1">Weekend Active</h3>
+<p class="text-sm text-slate-500 dark:text-slate-400 mb-4">Denim Jacket + Grey Hoodie + Black Joggers</p>
+<button class="w-full bg-primary hover:bg-primary/90 text-white font-bold py-3 rounded-lg transition-colors flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-xl">check_circle</span>
+                                Wear This
+                            </button>
+</div>
+</div>
+</div>
+</div>
+<!-- Stylist Recommendation Tip -->
+<section class="mt-8 px-6">
+<div class="p-4 rounded-xl bg-slate-100 dark:bg-white/5 border-l-4 border-primary">
+<div class="flex gap-3">
+<span class="material-symbols-outlined text-primary">tips_and_updates</span>
+<div>
+<p class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Stylist Tip</p>
+<p class="text-sm leading-relaxed text-slate-700 dark:text-slate-300">
+                                Since it's clear skies, consider adding a pair of classic aviators to your <span class="text-primary font-semibold">Modern Professional</span> look for an effortless commute.
+                            </p>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- Bottom Navigation Bar -->
+<nav class="absolute bottom-0 left-0 right-0 bg-white/80 dark:bg-background-dark/80 backdrop-blur-xl border-t border-slate-100 dark:border-white/10 px-6 pb-6 pt-3 z-20">
+<div class="flex items-center justify-between max-w-sm mx-auto">
+<a class="flex flex-col items-center gap-1 group" href="#">
+<span class="material-symbols-outlined text-slate-400 group-hover:text-primary transition-colors">home</span>
+<span class="text-[10px] font-medium text-slate-400 group-hover:text-primary uppercase tracking-tighter">Home</span>
+</a>
+<a class="flex flex-col items-center gap-1 group" href="#">
+<span class="material-symbols-outlined text-slate-400 group-hover:text-primary transition-colors">checkroom</span>
+<span class="text-[10px] font-medium text-slate-400 group-hover:text-primary uppercase tracking-tighter">Wardrobe</span>
+</a>
+<a class="flex flex-col items-center gap-1 group relative -top-2" href="#">
+<div class="p-3 bg-primary rounded-full text-white shadow-lg shadow-primary/30">
+<span class="material-symbols-outlined material-symbols-filled">spark</span>
+</div>
+<span class="text-[10px] font-bold text-primary uppercase tracking-tighter mt-1">Concierge</span>
+</a>
+<a class="flex flex-col items-center gap-1 group" href="#">
+<span class="material-symbols-outlined text-slate-400 group-hover:text-primary transition-colors">calendar_today</span>
+<span class="text-[10px] font-medium text-slate-400 group-hover:text-primary uppercase tracking-tighter">Plan</span>
+</a>
+<a class="flex flex-col items-center gap-1 group" href="#">
+<span class="material-symbols-outlined text-slate-400 group-hover:text-primary transition-colors">person</span>
+<span class="text-[10px] font-medium text-slate-400 group-hover:text-primary uppercase tracking-tighter">Profile</span>
+</a>
+</div>
+</nav>
+</div>
+</body></html>
