@@ -9,24 +9,16 @@ import {
     type WearRecord
 } from "../types/index";
 import { v4 as uuidv4 } from 'uuid';
-import {
-    BedrockRuntimeClient,
-    ConverseCommand,
-} from "@aws-sdk/client-bedrock-runtime";
+// No AWS SDK needed — using direct HTTP with Bedrock API key (Bearer token)
 
 // ==========================================
-// Configuration & Client Initialization
+// Configuration
 // ==========================================
 
 const NOVA_MODEL_ID = "us.amazon.nova-2-lite-v1:0";
-
-const bedrockClient = new BedrockRuntimeClient({
-    region: import.meta.env.VITE_AWS_REGION || "us-east-2",
-    credentials: {
-        accessKeyId: import.meta.env.VITE_AWS_ACCESS_KEY_ID || "",
-        secretAccessKey: import.meta.env.VITE_AWS_SECRET_ACCESS_KEY || "",
-    },
-});
+const AWS_REGION = import.meta.env.VITE_AWS_REGION || "us-east-2";
+const BEDROCK_API_KEY = import.meta.env.VITE_BEDROCK_API_KEY || "";
+const BEDROCK_URL = `https://bedrock-runtime.${AWS_REGION}.amazonaws.com/model/${encodeURIComponent(NOVA_MODEL_ID)}/converse`;
 
 // ==========================================
 // Service Implementation
@@ -40,10 +32,10 @@ export const awsNovaService = {
 
     /**
      * Analyzes a clothing image using Amazon Nova Lite 2 via Bedrock Converse API.
-     * Switch models by changing NOVA_MODEL_ID — no other code changes needed.
+     * Uses Bedrock API key (Bearer token) — no AWS SDK or IAM credentials needed.
      */
     analyzeClothingImage: async (imageBase64: string): Promise<ClothingItem> => {
-        console.log("[AWS Nova Lite 2] Analyzing clothing image via Converse API...");
+        console.log("[AWS Nova Lite 2] Analyzing clothing image via Bedrock API key...");
 
         // Strip the data URI prefix (e.g. "data:image/jpeg;base64,") if present
         const base64Data = imageBase64.includes(",")
@@ -51,10 +43,10 @@ export const awsNovaService = {
             : imageBase64;
 
         // Detect format from the data URI
-        let format: "jpeg" | "png" | "gif" | "webp" = "jpeg";
+        let format = "jpeg";
         if (imageBase64.startsWith("data:")) {
             const match = imageBase64.match(/^data:image\/(\w+);/);
-            if (match) format = match[1] as typeof format;
+            if (match) format = match[1];
         }
 
         const prompt = `You are a fashion AI assistant. Analyze this clothing item image and return ONLY a JSON object with these fields:
@@ -70,15 +62,7 @@ export const awsNovaService = {
 Return ONLY valid JSON, no markdown, no explanation.`;
 
         try {
-            // Convert base64 string to Uint8Array for Converse API
-            const binaryStr = atob(base64Data);
-            const bytes = new Uint8Array(binaryStr.length);
-            for (let i = 0; i < binaryStr.length; i++) {
-                bytes[i] = binaryStr.charCodeAt(i);
-            }
-
-            const command = new ConverseCommand({
-                modelId: NOVA_MODEL_ID,
+            const payload = {
                 messages: [
                     {
                         role: "user",
@@ -86,7 +70,7 @@ Return ONLY valid JSON, no markdown, no explanation.`;
                             {
                                 image: {
                                     format,
-                                    source: { bytes },
+                                    source: { bytes: base64Data },
                                 },
                             },
                             {
@@ -99,12 +83,24 @@ Return ONLY valid JSON, no markdown, no explanation.`;
                     maxTokens: 512,
                     temperature: 0.2,
                 },
+            };
+
+            const response = await fetch(BEDROCK_URL, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${BEDROCK_API_KEY}`,
+                },
+                body: JSON.stringify(payload),
             });
 
-            const response = await bedrockClient.send(command);
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Bedrock API error ${response.status}: ${errorText}`);
+            }
 
-            // Converse API has a standardized response structure
-            const outputText = response.output?.message?.content?.[0]?.text || "";
+            const result = await response.json();
+            const outputText = result?.output?.message?.content?.[0]?.text || "";
 
             console.log("[AWS Nova Lite 2] Raw response:", outputText);
 
