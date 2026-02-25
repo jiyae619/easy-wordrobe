@@ -1,4 +1,5 @@
 import React, { useState, useRef, type ChangeEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Camera, Info, Zap, Grid3X3, Loader2, CheckCircle } from 'lucide-react';
 import { awsNovaService } from '../../services/awsNova';
 import { type ClothingItem, ClothingCategory, Season } from '../../types';
@@ -11,6 +12,7 @@ interface CameraScannerOverlayProps {
 
 export const CameraScannerOverlay: React.FC<CameraScannerOverlayProps> = ({ isOpen, onClose }) => {
     const { addClothingItem } = useWardrobe();
+    const navigate = useNavigate();
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [analyzedItem, setAnalyzedItem] = useState<Partial<ClothingItem> | null>(null);
@@ -35,10 +37,12 @@ export const CameraScannerOverlay: React.FC<CameraScannerOverlayProps> = ({ isOp
     const analyzeImage = async (base64: string) => {
         setIsAnalyzing(true);
         try {
+            console.log("[Scanner] Starting image analysis...");
             const result = await awsNovaService.analyzeClothingImage(base64);
+            console.log("[Scanner] Analysis result:", result);
             setAnalyzedItem(result);
         } catch (error) {
-            console.error("Analysis failed", error);
+            console.error("[Scanner] Analysis failed:", error);
             alert("Failed to analyze image. Please try again.");
             setSelectedImage(null);
         } finally {
@@ -48,22 +52,31 @@ export const CameraScannerOverlay: React.FC<CameraScannerOverlayProps> = ({ isOp
 
     const handleSave = () => {
         if (analyzedItem && selectedImage) {
-            const itemToSave: Omit<ClothingItem, 'id' | 'dateAdded'> = {
-                imageUrl: selectedImage,
-                category: analyzedItem.category || ClothingCategory.Tops,
-                subcategory: analyzedItem.subcategory || "Unknown",
-                color: analyzedItem.color || "Unknown",
-                colorHex: analyzedItem.colorHex || "#000000",
-                pattern: analyzedItem.pattern || "solid",
-                season: analyzedItem.season || [Season.Spring],
-                wearFrequency: 0,
-                lastWorn: null,
-                aiTags: analyzedItem.aiTags || [],
-                userNotes: analyzedItem.userNotes || ""
-            };
-            addClothingItem(itemToSave);
-            handleReset();
-            onClose();
+            try {
+                const itemToSave: Omit<ClothingItem, 'id' | 'dateAdded'> = {
+                    imageUrl: selectedImage,
+                    category: analyzedItem.category || ClothingCategory.Tops,
+                    subcategory: analyzedItem.subcategory || "Unknown",
+                    color: analyzedItem.color || "Unknown",
+                    colorHex: analyzedItem.colorHex || "#000000",
+                    pattern: analyzedItem.pattern || "solid",
+                    season: analyzedItem.season || [Season.Spring],
+                    wearFrequency: 0,
+                    lastWorn: null,
+                    aiTags: analyzedItem.aiTags || [],
+                    userNotes: analyzedItem.userNotes || ""
+                };
+                console.log("[Scanner] Saving item:", itemToSave.subcategory);
+                addClothingItem(itemToSave);
+                // Close overlay first, then navigate
+                onClose();
+                handleReset();
+                // Navigate to wardrobe so user sees their new item
+                navigate('/wardrobe');
+            } catch (error) {
+                console.error("[Scanner] Save failed:", error);
+                alert("Failed to save item. Please try again.");
+            }
         }
     };
 
@@ -147,14 +160,19 @@ export const CameraScannerOverlay: React.FC<CameraScannerOverlayProps> = ({ isOp
                             <p className="text-white/50 text-sm mt-1">Detecting color, pattern, and style.</p>
                         </div>
                     ) : analyzedItem ? (
-                        <div className="bg-black/70 backdrop-blur-xl rounded-2xl p-6 w-full max-w-md border border-white/10">
-                            <div className="flex items-center gap-2 text-secondary mb-4">
+                        <div className="bg-black/70 backdrop-blur-xl rounded-2xl p-5 w-full max-w-md border border-white/10 max-h-[65vh] overflow-y-auto">
+                            <div className="flex items-center gap-2 text-secondary mb-3">
                                 <CheckCircle className="w-5 h-5" />
                                 <span className="font-medium text-white">Analysis Complete</span>
                             </div>
 
+                            {/* Item name */}
+                            {analyzedItem.subcategory && analyzedItem.subcategory !== "Unknown" && (
+                                <p className="text-white text-lg font-semibold mb-3">{analyzedItem.subcategory}</p>
+                            )}
+
                             {/* Detected tags */}
-                            <div className="flex flex-wrap gap-2 mb-5">
+                            <div className="flex flex-wrap gap-2 mb-4">
                                 <div className="flex items-center gap-2 bg-white/10 backdrop-blur-md text-white px-3 py-1.5 rounded-lg border border-secondary/40">
                                     <CheckCircle className="w-4 h-4 text-secondary" />
                                     <span className="text-xs font-semibold uppercase tracking-wide capitalize">{analyzedItem.category}</span>
@@ -168,8 +186,32 @@ export const CameraScannerOverlay: React.FC<CameraScannerOverlayProps> = ({ isOp
                                 </div>
                             </div>
 
+                            {/* Season chips */}
+                            {analyzedItem.season && analyzedItem.season.length > 0 && (
+                                <div className="mb-4">
+                                    <label className="block text-xs font-medium text-white/60 mb-1.5">Seasons</label>
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {analyzedItem.season.map((s: string) => (
+                                            <span key={s} className="text-xs bg-secondary/20 text-secondary border border-secondary/30 px-2.5 py-1 rounded-full capitalize">{s}</span>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* AI Tags */}
+                            {analyzedItem.aiTags && analyzedItem.aiTags.length > 0 && (
+                                <div className="mb-4">
+                                    <label className="block text-xs font-medium text-white/60 mb-1.5">AI Tags</label>
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {analyzedItem.aiTags.map((tag: string) => (
+                                            <span key={tag} className="text-xs bg-white/10 text-white/80 px-2.5 py-1 rounded-full">#{tag}</span>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
                             {/* Edit fields */}
-                            <div className="space-y-3 mb-5">
+                            <div className="space-y-3 mb-4">
                                 <div>
                                     <label className="block text-xs font-medium text-white/60 mb-1">Category</label>
                                     <select
