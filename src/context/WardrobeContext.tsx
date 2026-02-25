@@ -229,11 +229,19 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
 
     // --- Persistence ---
     useEffect(() => {
-        localStorage.setItem('wardrobe_clothes', JSON.stringify(clothes));
+        try {
+            localStorage.setItem('wardrobe_clothes', JSON.stringify(clothes));
+        } catch (e) {
+            console.warn("[Wardrobe] localStorage quota exceeded, skipping save", e);
+        }
     }, [clothes]);
 
     useEffect(() => {
-        localStorage.setItem('wardrobe_outfits', JSON.stringify(outfits));
+        try {
+            localStorage.setItem('wardrobe_outfits', JSON.stringify(outfits));
+        } catch (e) {
+            console.warn("[Wardrobe] localStorage quota exceeded for outfits", e);
+        }
     }, [outfits]);
 
     // --- Actions ---
