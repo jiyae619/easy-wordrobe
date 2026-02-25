@@ -1,55 +1,118 @@
 import axios from 'axios';
 import { type WeatherData } from '../types';
 
-const API_KEY = import.meta.env.VITE_OPENWEATHER_API_KEY || "";
-const BASE_URL = "https://api.openweathermap.org/data/2.5/weather";
-const USE_MOCK = import.meta.env.VITE_USE_MOCK === "true";
+// ==========================================
+// NWS (National Weather Service) API — Free, no API key required
+// Docs: https://www.weather.gov/documentation/services-web-api
+// ==========================================
+
+const NWS_BASE = "https://api.weather.gov";
+const NWS_HEADERS = {
+    "User-Agent": "(WardrobeAI, wardrobe-ai-app)",
+    "Accept": "application/geo+json",
+};
+
+// Simple city → lat/lon lookup for common cities (avoids needing a geocoding API)
+const CITY_COORDS: Record<string, { lat: number; lon: number }> = {
+    "san francisco": { lat: 37.7749, lon: -122.4194 },
+    "new york": { lat: 40.7128, lon: -74.0060 },
+    "los angeles": { lat: 34.0522, lon: -118.2437 },
+    "chicago": { lat: 41.8781, lon: -87.6298 },
+    "seattle": { lat: 47.6062, lon: -122.3321 },
+    "miami": { lat: 25.7617, lon: -80.1918 },
+    "boston": { lat: 42.3601, lon: -71.0589 },
+    "denver": { lat: 39.7392, lon: -104.9903 },
+    "austin": { lat: 30.2672, lon: -97.7431 },
+    "portland": { lat: 45.5152, lon: -122.6784 },
+};
 
 export const weatherService = {
     /**
-     * Get current weather by latitude and longitude.
+     * Get current weather by latitude and longitude using NWS API.
+     * Flow: /points/{lat},{lon} → get forecast URL → fetch current period
      */
     getCurrentWeather: async (lat: number, lon: number): Promise<WeatherData> => {
-        if (USE_MOCK) {
-            return getMockWeather();
-        }
-
         try {
-            const response = await axios.get(BASE_URL, {
-                params: {
-                    lat,
-                    lon,
-                    appid: API_KEY,
-                    units: 'metric', // Census
-                },
-            });
-            return mapResponseToWeatherData(response.data);
+            // Step 1: Get grid point info from coordinates
+            const pointsUrl = `${NWS_BASE}/points/${lat.toFixed(4)},${lon.toFixed(4)}`;
+            const pointsResponse = await axios.get(pointsUrl, { headers: NWS_HEADERS });
+            const props = pointsResponse.data.properties;
+
+            // Step 2: Fetch the forecast using the URL from the points response
+            const forecastUrl = props.forecast;
+            const forecastResponse = await axios.get(forecastUrl, { headers: NWS_HEADERS });
+            const currentPeriod = forecastResponse.data.properties.periods[0];
+
+            // Step 3: Fetch observation station for humidity data
+            let humidity = 50; // default
+            try {
+                const stationsUrl = props.observationStations;
+                const stationsResponse = await axios.get(stationsUrl, { headers: NWS_HEADERS });
+                const stationId = stationsResponse.data.features[0]?.properties?.stationIdentifier;
+                if (stationId) {
+                    const obsUrl = `${NWS_BASE}/stations/${stationId}/observations/latest`;
+                    const obsResponse = await axios.get(obsUrl, { headers: NWS_HEADERS });
+                    const obsHumidity = obsResponse.data.properties?.relativeHumidity?.value;
+                    if (obsHumidity != null) humidity = Math.round(obsHumidity);
+                }
+            } catch {
+                // Humidity fetch is best-effort, use default
+            }
+
+            // NWS returns temperature in Fahrenheit by default — convert to Celsius
+            const tempF = currentPeriod.temperature;
+            const tempC = Math.round((tempF - 32) * 5 / 9);
+
+            // Estimate wind speed from the windSpeed string (e.g. "10 mph" or "5 to 15 mph")
+            const windMatch = currentPeriod.windSpeed?.match(/(\d+)/);
+            const windMph = windMatch ? parseInt(windMatch[1]) : 0;
+            const windKmh = Math.round(windMph * 1.609);
+
+            // Extract location name from the points response
+            const location = props.relativeLocation?.properties?.city
+                ? `${props.relativeLocation.properties.city}, ${props.relativeLocation.properties.state}`
+                : "Unknown";
+
+            return {
+                temperature: tempC,
+                feelsLike: tempC, // NWS doesn't provide feels-like in the forecast endpoint
+                condition: currentPeriod.shortForecast || "Unknown",
+                humidity,
+                windSpeed: windKmh,
+                location,
+            };
         } catch (error) {
-            console.error("Error fetching weather:", error);
-            throw new Error("Failed to fetch weather data.");
+            console.error("[NWS API] Error fetching weather:", error);
+            // Fall back to mock if NWS API fails
+            console.warn("[NWS API] Falling back to mock weather data");
+            return getMockWeather();
         }
     },
 
     /**
-     * Get current weather by city name.
+     * Get weather by city name. Looks up lat/lon from built-in map, then uses NWS.
+     * Falls back to browser geolocation if city is not in the map.
      */
     getWeatherByCity: async (city: string): Promise<WeatherData> => {
-        if (USE_MOCK) {
-            return getMockWeather(city);
+        const normalizedCity = city.toLowerCase().trim();
+        const coords = CITY_COORDS[normalizedCity];
+
+        if (coords) {
+            return weatherService.getCurrentWeather(coords.lat, coords.lon);
         }
 
+        // Try browser geolocation as fallback
         try {
-            const response = await axios.get(BASE_URL, {
-                params: {
-                    q: city,
-                    appid: API_KEY,
-                    units: 'metric',
-                },
+            const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+                navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
             });
-            return mapResponseToWeatherData(response.data);
-        } catch (error) {
-            console.error("Error fetching weather for city:", error);
-            throw new Error(`Failed to fetch weather for ${city}.`);
+            return weatherService.getCurrentWeather(
+                position.coords.latitude,
+                position.coords.longitude
+            );
+        } catch {
+            console.warn(`[NWS API] City "${city}" not found and geolocation unavailable, using mock`);
+            return getMockWeather(city);
         }
     },
 
@@ -80,7 +143,7 @@ export const weatherService = {
         }
 
         // Wind-based recommendations
-        if (weather.windSpeed > 20) { // arbitrary threshold for "windy" in km/h approx
+        if (weather.windSpeed > 20) {
             recommendations.push("Windbreaker or layered outfit");
         }
 
@@ -89,19 +152,8 @@ export const weatherService = {
 };
 
 // ==========================================
-// Helper Functions
+// Mock Data (fallback)
 // ==========================================
-
-function mapResponseToWeatherData(data: any): WeatherData {
-    return {
-        temperature: Math.round(data.main.temp),
-        feelsLike: Math.round(data.main.feels_like),
-        condition: data.weather[0]?.main || "Unknown",
-        humidity: data.main.humidity,
-        windSpeed: data.wind.speed, // m/s usually from API, keep as is or convert
-        location: data.name,
-    };
-}
 
 function getMockWeather(locationName: string = "San Francisco"): WeatherData {
     return {
