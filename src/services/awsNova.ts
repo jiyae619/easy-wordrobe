@@ -89,7 +89,7 @@ Return ONLY valid JSON, no markdown, no explanation.`;
                     },
                 ],
                 inferenceConfig: {
-                    maxNewTokens: 512,
+                    maxTokens: 512,
                     temperature: 0.2,
                 },
             };
