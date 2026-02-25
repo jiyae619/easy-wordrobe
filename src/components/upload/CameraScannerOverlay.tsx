@@ -4,6 +4,7 @@ import { ArrowLeft, Camera, Info, Zap, Grid3X3, Loader2, CheckCircle } from 'luc
 import { awsNovaService } from '../../services/awsNova';
 import { type ClothingItem, ClothingCategory, Season } from '../../types';
 import { useWardrobe } from '../../context/WardrobeContext';
+import { compressImage } from '../../utils/imageUtils';
 
 interface CameraScannerOverlayProps {
     isOpen: boolean;
@@ -50,11 +51,13 @@ export const CameraScannerOverlay: React.FC<CameraScannerOverlayProps> = ({ isOp
         }
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (analyzedItem && selectedImage) {
             try {
+                // Compress the image to ~30KB to avoid localStorage quota crash
+                const compressedImage = await compressImage(selectedImage, 400, 0.7);
                 const itemToSave: Omit<ClothingItem, 'id' | 'dateAdded'> = {
-                    imageUrl: selectedImage,
+                    imageUrl: compressedImage,
                     category: analyzedItem.category || ClothingCategory.Tops,
                     subcategory: analyzedItem.subcategory || "Unknown",
                     color: analyzedItem.color || "Unknown",
@@ -66,12 +69,10 @@ export const CameraScannerOverlay: React.FC<CameraScannerOverlayProps> = ({ isOp
                     aiTags: analyzedItem.aiTags || [],
                     userNotes: analyzedItem.userNotes || ""
                 };
-                console.log("[Scanner] Saving item:", itemToSave.subcategory);
+                console.log("[Scanner] Saving compressed item:", itemToSave.subcategory);
                 addClothingItem(itemToSave);
-                // Close overlay first, then navigate
                 onClose();
                 handleReset();
-                // Navigate to wardrobe so user sees their new item
                 navigate('/wardrobe');
             } catch (error) {
                 console.error("[Scanner] Save failed:", error);

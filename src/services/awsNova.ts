@@ -21,7 +21,7 @@ import {
 const NOVA_MODEL_ID = "us.amazon.nova-2-lite-v1:0";
 
 const bedrockClient = new BedrockRuntimeClient({
-    region: import.meta.env.VITE_AWS_REGION || "us-east-1",
+    region: import.meta.env.VITE_AWS_REGION || "us-east-2",
     credentials: {
         accessKeyId: import.meta.env.VITE_AWS_ACCESS_KEY_ID || "",
         secretAccessKey: import.meta.env.VITE_AWS_SECRET_ACCESS_KEY || "",
