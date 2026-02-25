@@ -11,7 +11,7 @@ import {
 import { v4 as uuidv4 } from 'uuid';
 import {
     BedrockRuntimeClient,
-    InvokeModelCommand,
+    ConverseCommand,
 } from "@aws-sdk/client-bedrock-runtime";
 
 // ==========================================
@@ -39,21 +39,22 @@ export const awsNovaService = {
     },
 
     /**
-     * Analyzes a clothing image using Amazon Nova Lite 2 via Bedrock to extract metadata.
+     * Analyzes a clothing image using Amazon Nova Lite 2 via Bedrock Converse API.
+     * Switch models by changing NOVA_MODEL_ID — no other code changes needed.
      */
     analyzeClothingImage: async (imageBase64: string): Promise<ClothingItem> => {
-        console.log("[AWS Nova Lite 2] Analyzing clothing image...");
+        console.log("[AWS Nova Lite 2] Analyzing clothing image via Converse API...");
 
         // Strip the data URI prefix (e.g. "data:image/jpeg;base64,") if present
         const base64Data = imageBase64.includes(",")
             ? imageBase64.split(",")[1]
             : imageBase64;
 
-        // Detect media type from the data URI
-        let mediaType = "image/jpeg";
+        // Detect format from the data URI
+        let format: "jpeg" | "png" | "gif" | "webp" = "jpeg";
         if (imageBase64.startsWith("data:")) {
-            const match = imageBase64.match(/^data:(image\/\w+);/);
-            if (match) mediaType = match[1];
+            const match = imageBase64.match(/^data:image\/(\w+);/);
+            if (match) format = match[1] as typeof format;
         }
 
         const prompt = `You are a fashion AI assistant. Analyze this clothing item image and return ONLY a JSON object with these fields:
@@ -69,17 +70,23 @@ export const awsNovaService = {
 Return ONLY valid JSON, no markdown, no explanation.`;
 
         try {
-            const requestBody = {
+            // Convert base64 string to Uint8Array for Converse API
+            const binaryStr = atob(base64Data);
+            const bytes = new Uint8Array(binaryStr.length);
+            for (let i = 0; i < binaryStr.length; i++) {
+                bytes[i] = binaryStr.charCodeAt(i);
+            }
+
+            const command = new ConverseCommand({
+                modelId: NOVA_MODEL_ID,
                 messages: [
                     {
                         role: "user",
                         content: [
                             {
                                 image: {
-                                    format: mediaType.split("/")[1], // "jpeg", "png", etc.
-                                    source: {
-                                        bytes: base64Data,
-                                    },
+                                    format,
+                                    source: { bytes },
                                 },
                             },
                             {
@@ -92,23 +99,12 @@ Return ONLY valid JSON, no markdown, no explanation.`;
                     maxTokens: 512,
                     temperature: 0.2,
                 },
-            };
-
-            const command = new InvokeModelCommand({
-                modelId: NOVA_MODEL_ID,
-                contentType: "application/json",
-                accept: "application/json",
-                body: JSON.stringify(requestBody),
             });
 
             const response = await bedrockClient.send(command);
-            const responseBody = JSON.parse(new TextDecoder().decode(response.body));
 
-            // Extract the text content from the Nova response
-            const outputText =
-                responseBody?.output?.message?.content?.[0]?.text ||
-                responseBody?.content?.[0]?.text ||
-                "";
+            // Converse API has a standardized response structure
+            const outputText = response.output?.message?.content?.[0]?.text || "";
 
             console.log("[AWS Nova Lite 2] Raw response:", outputText);
 
