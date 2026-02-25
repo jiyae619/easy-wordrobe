@@ -1,6 +1,6 @@
 import React from 'react';
 import { type OutfitSuggestion } from '../../types';
-import { ThumbsUp, SkipForward, Shirt, CloudSun, Smile } from 'lucide-react';
+import { ThumbsUp, RefreshCw, Shirt, CloudSun, Smile } from 'lucide-react';
 
 interface OutfitCardProps {
     suggestion: OutfitSuggestion;
@@ -16,9 +16,9 @@ export const OutfitCard: React.FC<OutfitCardProps> = ({ suggestion, onSkip, onWe
             <div className="p-5 border-b border-olive-100">
                 <div className="flex items-center justify-between mb-2">
                     <h3 className="text-lg font-bold text-primary">Outfit Suggestion</h3>
-                    {suggestion.matchScore && (
+                    {(suggestion as any).matchScore && (
                         <span className="px-3 py-1 bg-olive-100 text-secondary text-xs font-semibold rounded-full">
-                            {suggestion.matchScore}% match
+                            {(suggestion as any).matchScore}% match
                         </span>
                     )}
                 </div>
@@ -26,7 +26,7 @@ export const OutfitCard: React.FC<OutfitCardProps> = ({ suggestion, onSkip, onWe
                     {suggestion.mood && (
                         <span className="inline-flex items-center px-2.5 py-1 bg-olive-50 text-olive-700 text-xs font-medium rounded-full capitalize">
                             <Smile className="w-3 h-3 mr-1" />
-                            {suggestion.mood}
+                            {typeof suggestion.mood === 'string' ? suggestion.mood : suggestion.mood.name}
                         </span>
                     )}
                     {suggestion.weatherMatch && (
@@ -79,8 +79,8 @@ export const OutfitCard: React.FC<OutfitCardProps> = ({ suggestion, onSkip, onWe
                         onClick={onSkip}
                         className="flex-1 flex items-center justify-center py-4 text-gray-500 font-medium text-sm hover:bg-olive-50 transition-colors active:scale-[0.97] border-r border-olive-100"
                     >
-                        <SkipForward className="w-4 h-4 mr-2" />
-                        Skip
+                        <RefreshCw className="w-4 h-4 mr-2" />
+                        Try Another
                     </button>
                 )}
                 <button

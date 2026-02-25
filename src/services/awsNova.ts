@@ -15,7 +15,7 @@ import { v4 as uuidv4 } from 'uuid';
 // ==========================================
 
 // FORCE MOCK MODE TO PREVENT BROWSER CRASH
-const USE_MOCK = true;
+// const USE_MOCK = true; // Mock mode is always on — real API calls disabled
 
 // ==========================================
 // Service Implementation
@@ -42,7 +42,7 @@ export const awsNovaService = {
     generateOutfitSuggestions: async (
         clothes: ClothingItem[],
         mood: FashionMood,
-        weather: WeatherData,
+        _weather: WeatherData,
         _wearHistory: WearRecord[]
     ): Promise<OutfitSuggestion[]> => {
         console.log("[AWS Nova Mock] Generating outfit suggestions...");

@@ -65,4 +65,12 @@ export const MOODS: FashionMood[] = [
         previewImageUrl: 'https://images.unsplash.com/photo-1552374196-1ab2a1c593e8?auto=format&fit=crop&q=80&w=500',
         tags: ['city', 'trend', 'hype']
     },
+    {
+        id: 'romantic',
+        name: 'Romantic',
+        description: 'Soft and elegant date-night looks',
+        colorPalette: ['#556849', '#A8B89A', '#F4F5F0'],
+        previewImageUrl: 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&q=80&w=500',
+        tags: ['date', 'evening', 'soft', 'romantic']
+    },
 ];

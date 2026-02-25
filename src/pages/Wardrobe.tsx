@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useWardrobe } from '../context/WardrobeContext';
 import { WardrobeGrid } from '../components/wardrobe/WardrobeGrid';
-import { Search, SlidersHorizontal, Plus, ArrowDownAZ } from 'lucide-react';
+import { Search, ArrowDownAZ } from 'lucide-react';
 import { ClothingCategory } from '../types';
 
 const categoryChips = [
@@ -91,8 +91,8 @@ const Wardrobe: React.FC = () => {
                         key={chip.value}
                         onClick={() => setActiveCategory(chip.value)}
                         className={`flex-none px-4 py-2 rounded-full text-sm font-semibold transition-all active:scale-[0.95] whitespace-nowrap ${activeCategory === chip.value
-                                ? 'bg-primary text-white shadow-sm'
-                                : 'bg-olive-100 text-secondary hover:bg-olive-200'
+                            ? 'bg-primary text-white shadow-sm'
+                            : 'bg-olive-100 text-secondary hover:bg-olive-200'
                             }`}
                     >
                         {chip.label}
@@ -135,14 +135,6 @@ const Wardrobe: React.FC = () => {
 
             {/* Grid */}
             <WardrobeGrid items={filteredItems} isLoading={isLoading} />
-
-            {/* FAB */}
-            <a
-                href="/"
-                className="fixed bottom-24 md:bottom-8 right-5 md:right-8 w-14 h-14 bg-primary text-white rounded-full shadow-lg shadow-primary/30 flex items-center justify-center hover:scale-110 transition-transform z-30 active:scale-95"
-            >
-                <Plus className="w-6 h-6" />
-            </a>
         </div>
     );
 };

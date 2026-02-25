@@ -1,19 +1,26 @@
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
-import { Home as HomeIcon, Shirt, Smile, Sparkles, BarChart2 } from 'lucide-react';
+import { Home as HomeIcon, Shirt, Camera, Sparkles, BarChart2 } from 'lucide-react';
 import { WardrobeProvider } from './context/WardrobeContext';
-
+import { useState, useEffect } from 'react';
 // Import pages
 import Home from './pages/Home';
 import Wardrobe from './pages/Wardrobe';
-import Mood from './pages/Mood';
 import Suggest from './pages/Suggest';
 import Insights from './pages/Insights';
+import { CameraScannerOverlay } from './components/upload/CameraScannerOverlay';
 
 const Layout = () => {
   console.log("App Layout Loaded - Production Version");
   const location = useLocation();
-
+  const [showScanner, setShowScanner] = useState(false);
   const isActive = (path: string) => location.pathname === path;
+
+  // Allow child pages to open the camera scanner via a custom event
+  useEffect(() => {
+    const handler = () => setShowScanner(true);
+    window.addEventListener('open-scanner', handler);
+    return () => window.removeEventListener('open-scanner', handler);
+  }, []);
 
   // Add safe-area-inset support for mobile devices
   const safeAreaBottom = 'env(safe-area-inset-bottom, 0px)';
@@ -65,7 +72,6 @@ const Layout = () => {
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/wardrobe" element={<Wardrobe />} />
-              <Route path="/mood" element={<Mood />} />
               <Route path="/suggest" element={<Suggest />} />
               <Route path="/insights" element={<Insights />} />
             </Routes>
@@ -80,12 +86,24 @@ const Layout = () => {
             <div className="flex justify-around items-center h-[72px] px-2">
               <NavItem to="/" icon={HomeIcon} label="Home" mobile />
               <NavItem to="/wardrobe" icon={Shirt} label="Wardrobe" mobile />
-              <NavItem to="/mood" icon={Smile} label="Mood" mobile />
+              {/* Camera Button */}
+              <button
+                onClick={() => setShowScanner(true)}
+                className="relative flex flex-col items-center justify-center w-full py-2 group"
+              >
+                <div className="flex items-center justify-center w-12 h-12 -mt-5 rounded-full bg-primary text-white shadow-lg shadow-primary/30 transition-all duration-300 group-hover:scale-110 group-active:scale-95">
+                  <Camera className="w-5 h-5" />
+                </div>
+                <span className="text-[10px] font-medium mt-1 text-gray-400">Scan</span>
+              </button>
               <NavItem to="/suggest" icon={Sparkles} label="Suggest" mobile />
               <NavItem to="/insights" icon={BarChart2} label="Insights" mobile />
             </div>
           </div>
         </div>
+
+        {/* Camera Scanner Overlay */}
+        <CameraScannerOverlay isOpen={showScanner} onClose={() => setShowScanner(false)} />
 
       </div>
     </div>
