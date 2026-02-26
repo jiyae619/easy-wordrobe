@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useWardrobe } from '../context/WardrobeContext';
 import { Lightbulb, Cloud, Activity, Heart, Info, Sparkles, ChevronDown } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -7,7 +7,7 @@ import { WeeklyOutfitTimeline } from '../components/insights/WeeklyOutfitTimelin
 const Insights: React.FC = () => {
     const { clothes, getInsights } = useWardrobe();
     const insights = useMemo(() => getInsights(), [clothes]);
-    const [showCurate, setShowCurate] = React.useState(false);
+    const [showCurate, setShowCurate] = useState(false);
 
     // Top nudge
     const topNudge = insights.suggestedVariations[0] || "Add more items to your wardrobe to get personalized insights!";
@@ -150,24 +150,6 @@ const Insights: React.FC = () => {
                 </div>
             </section>
 
-            {/* Color Palette Summary */}
-            {insights.mostWornColors.length > 0 && (
-                <section>
-                    <h2 className="text-lg font-bold text-primary mb-4">Your Color Palette</h2>
-                    <div className="flex gap-2 flex-wrap">
-                        {insights.mostWornColors.slice(0, 8).map((color, i) => (
-                            <div key={i} className="flex items-center gap-2 bg-white rounded-full px-3 py-1.5 border border-muted shadow-sm">
-                                <div
-                                    className="w-4 h-4 rounded-full border border-black/10"
-                                    style={{ backgroundColor: color.hex }}
-                                />
-                                <span className="text-xs font-medium text-primary capitalize">{color.color}</span>
-                                <span className="text-[10px] text-olive-400">×{color.count}</span>
-                            </div>
-                        ))}
-                    </div>
-                </section>
-            )}
 
             {/* How We Curate — Collapsible */}
             <section className="rounded-2xl bg-olive-900 text-white overflow-hidden">
@@ -196,6 +178,8 @@ const Insights: React.FC = () => {
                     </div>
                 )}
             </section>
+
+
         </div>
     );
 };

@@ -1,15 +1,14 @@
 import React from 'react';
 import { type OutfitSuggestion } from '../../types';
-import { ThumbsUp, RefreshCw, Shirt, CloudSun, Smile } from 'lucide-react';
+import { ThumbsUp, Shirt, CloudSun, Smile, X } from 'lucide-react';
 
 interface OutfitCardProps {
     suggestion: OutfitSuggestion;
-    onSkip: () => void;
     onWear: () => void;
-    isLast?: boolean;
+    onSkip?: () => void;
 }
 
-export const OutfitCard: React.FC<OutfitCardProps> = ({ suggestion, onSkip, onWear, isLast }) => {
+export const OutfitCard: React.FC<OutfitCardProps> = ({ suggestion, onWear, onSkip }) => {
     return (
         <div className="bg-white rounded-2xl border border-muted shadow-sm overflow-hidden animate-scale-in">
             {/* Header */}
@@ -54,9 +53,6 @@ export const OutfitCard: React.FC<OutfitCardProps> = ({ suggestion, onSkip, onWe
                                     <Shirt className="w-8 h-8 text-olive-300" />
                                 </div>
                             )}
-                            <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 to-transparent p-2">
-                                <p className="text-white text-xs font-medium capitalize truncate">{item.subcategory}</p>
-                            </div>
                         </div>
                     ))}
                 </div>
@@ -72,20 +68,23 @@ export const OutfitCard: React.FC<OutfitCardProps> = ({ suggestion, onSkip, onWe
                 )}
             </div>
 
-            {/* Actions */}
+            {/* Actions — Maybe Next Time | Wear This */}
             <div className="flex border-t border-olive-100">
-                {!isLast && (
-                    <button
-                        onClick={onSkip}
-                        className="flex-1 flex items-center justify-center py-4 text-gray-500 font-medium text-sm hover:bg-olive-50 transition-colors active:scale-[0.97] border-r border-olive-100"
-                    >
-                        <RefreshCw className="w-4 h-4 mr-2" />
-                        Try Another
-                    </button>
+                {onSkip && (
+                    <>
+                        <button
+                            onClick={onSkip}
+                            className="flex-1 flex items-center justify-center py-4 bg-white text-olive-500 font-semibold text-sm hover:bg-olive-50 transition-colors active:scale-[0.97] rounded-bl-2xl"
+                        >
+                            <X className="w-4 h-4 mr-2" />
+                            Maybe Next Time
+                        </button>
+                        <div className="w-px bg-olive-100"></div>
+                    </>
                 )}
                 <button
                     onClick={onWear}
-                    className={`flex-1 flex items-center justify-center py-4 bg-primary text-white font-semibold text-sm hover:bg-olive-700 transition-colors active:scale-[0.97] ${isLast ? 'rounded-b-2xl' : ''}`}
+                    className={`flex-1 flex items-center justify-center py-4 bg-primary text-white font-semibold text-sm hover:bg-olive-700 transition-colors active:scale-[0.97] ${onSkip ? 'rounded-br-2xl' : 'rounded-b-2xl'}`}
                 >
                     <ThumbsUp className="w-4 h-4 mr-2" />
                     Wear This

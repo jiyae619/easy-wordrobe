@@ -35,7 +35,20 @@ const Home: React.FC = () => {
     useEffect(() => {
         const loadData = async () => {
             try {
-                const weatherData = await weatherService.getWeatherByCity('San Francisco');
+                // Request geolocation consent and fetch weather by coords
+                let weatherData: WeatherData;
+                try {
+                    const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+                        navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 8000 });
+                    });
+                    weatherData = await weatherService.getCurrentWeather(
+                        position.coords.latitude,
+                        position.coords.longitude
+                    );
+                } catch {
+                    // Location denied or unavailable — fallback to default
+                    weatherData = await weatherService.getWeatherByCity('San Francisco');
+                }
                 setWeather(weatherData);
 
                 if (clothes.length > 0) {
@@ -58,7 +71,6 @@ const Home: React.FC = () => {
     const temp = weather?.temperature ?? 72;
     const condition = weather?.condition ?? 'Sunny';
     const location = weather?.location ?? 'New York, NY';
-    const feelsLike = weather?.feelsLike ?? 74;
 
     return (
         <div className="space-y-8">
@@ -104,9 +116,7 @@ const Home: React.FC = () => {
                                             <Sparkles className="w-6 h-6 text-olive-300" />
                                         </div>
                                     )}
-                                    <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 to-transparent p-2">
-                                        <p className="text-white text-[10px] font-medium capitalize truncate">{item.subcategory}</p>
-                                    </div>
+
                                 </div>
                             ))}
                         </div>
@@ -159,38 +169,32 @@ const Home: React.FC = () => {
                 )}
             </section>
 
-            {/* Weather Section */}
+            {/* Weather & Stylist Tip Section */}
             <section>
                 <div className="rounded-2xl bg-gradient-to-br from-olive-100/80 to-olive-50 border border-olive-200/60 p-6">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-start justify-between mb-4">
                         <div>
                             <div className="flex items-center gap-2 mb-1">
                                 {getWeatherIcon()}
-                                <span className="text-2xl font-bold tracking-tight text-primary">
+                                <span className="text-lg font-medium tracking-tight text-primary">
                                     {temp}°F | {condition}
                                 </span>
                             </div>
-                            <p className="text-olive-600 font-medium text-sm">
-                                Perfect for light layers today.
-                            </p>
+
                         </div>
                         <div className="text-right">
                             <p className="text-xs font-semibold uppercase tracking-wider text-secondary">
                                 {location}
                             </p>
-                            <p className="text-xs text-olive-400">Feels like {feelsLike}°F</p>
+
                         </div>
                     </div>
-                </div>
-            </section>
 
-            {/* Stylist Tip */}
-            <section>
-                <div className="p-4 rounded-2xl bg-olive-50 border-l-4 border-secondary">
-                    <div className="flex gap-3">
+                    {/* Integrated Stylist Tip */}
+                    <div className="pt-4 mt-4 border-t border-olive-200/60 flex gap-3">
                         <Lightbulb className="w-5 h-5 text-secondary flex-shrink-0 mt-0.5" />
                         <div>
-                            <p className="text-xs font-bold uppercase tracking-wider text-olive-400 mb-1">
+                            <p className="text-xs font-bold uppercase tracking-wider text-olive-500 mb-1">
                                 Stylist Tip
                             </p>
                             <p className="text-sm leading-relaxed text-olive-700">

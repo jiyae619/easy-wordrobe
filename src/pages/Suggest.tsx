@@ -1,12 +1,12 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useWardrobe } from '../context/WardrobeContext';
 import { awsNovaService } from '../services/awsNova';
 import { weatherService } from '../services/weatherService';
 import { OutfitCard } from '../components/suggestions/OutfitCard';
-import { WeatherSummary } from '../components/suggestions/WeatherSummary';
+
 import { type OutfitSuggestion, type WeatherData } from '../types';
-import { Sparkles, Loader2, RefreshCw, Frown, ArrowLeft, ChevronDown } from 'lucide-react';
+import { Sparkles, Loader2, RefreshCw, Frown, ArrowLeft, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 
 import { MOODS } from '../data/moods';
 
@@ -36,19 +36,22 @@ const Suggest: React.FC = () => {
     const [weather, setWeather] = useState<WeatherData | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [currentIndex, setCurrentIndex] = useState(0);
     const [logged, setLogged] = useState(false);
     const [isRegenerating, setIsRegenerating] = useState(false);
     const [showAllMoods, setShowAllMoods] = useState(false);
+    const [currentIndex, setCurrentIndex] = useState(0);
 
-    // Pick 2 featured moods on page visit (mount only — does NOT re-randomize on mood change)
+    // Touch handling for swipe
+    const touchStartX = useRef(0);
+    const touchEndX = useRef(0);
+
+    // Pick 2 featured moods on page visit
     const featuredMoods = useMemo(() => {
         const shuffled = [...MOODS].sort(() => Math.random() - 0.5);
         return shuffled.slice(0, 2);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // Remaining moods for the dropdown
     const remainingMoods = useMemo(() => {
         const featuredIds = new Set(featuredMoods.map(m => m.id));
         return MOODS.filter(m => !featuredIds.has(m.id));
@@ -58,6 +61,7 @@ const Suggest: React.FC = () => {
         const fetchSuggestions = async () => {
             setIsLoading(true);
             setError(null);
+            setCurrentIndex(0);
 
             try {
                 const weatherData = await weatherService.getWeatherByCity('San Francisco');
@@ -71,7 +75,6 @@ const Suggest: React.FC = () => {
 
                 const outfits = await awsNovaService.suggestOutfits(clothes, mood, weatherData);
                 setSuggestions(outfits);
-                setCurrentIndex(0);
             } catch (err) {
                 console.error("Suggestion error:", err);
                 setError('Failed to generate suggestions. Please try again.');
@@ -82,12 +85,6 @@ const Suggest: React.FC = () => {
 
         fetchSuggestions();
     }, [clothes, mood]);
-
-    const handleSkip = () => {
-        if (currentIndex < suggestions.length - 1) {
-            setCurrentIndex(prev => prev + 1);
-        }
-    };
 
     const handleRegenerate = async () => {
         if (!weather) return;
@@ -116,6 +113,33 @@ const Suggest: React.FC = () => {
         setShowAllMoods(false);
     };
 
+    const goToNext = useCallback(() => {
+        setCurrentIndex(prev => Math.min(prev + 1, suggestions.length - 1));
+    }, [suggestions.length]);
+
+    const goToPrev = useCallback(() => {
+        setCurrentIndex(prev => Math.max(prev - 1, 0));
+    }, []);
+
+    // Swipe handlers
+    const handleTouchStart = (e: React.TouchEvent) => {
+        touchStartX.current = e.targetTouches[0].clientX;
+    };
+
+    const handleTouchMove = (e: React.TouchEvent) => {
+        touchEndX.current = e.targetTouches[0].clientX;
+    };
+
+    const handleTouchEnd = () => {
+        const diff = touchStartX.current - touchEndX.current;
+        const threshold = 50;
+        if (diff > threshold) {
+            goToNext();
+        } else if (diff < -threshold) {
+            goToPrev();
+        }
+    };
+
     return (
         <div className="space-y-5 md:space-y-8">
             {/* Header */}
@@ -129,7 +153,6 @@ const Suggest: React.FC = () => {
             {/* Inline Mood Picker */}
             <section>
                 <div className="flex items-center gap-2 flex-wrap">
-                    {/* Featured mood chips */}
                     {featuredMoods.map(m => (
                         <button
                             key={m.id}
@@ -144,7 +167,6 @@ const Suggest: React.FC = () => {
                         </button>
                     ))}
 
-                    {/* "More" toggle */}
                     <button
                         onClick={() => setShowAllMoods(prev => !prev)}
                         className="inline-flex items-center gap-1 px-3 py-2.5 rounded-full text-sm font-semibold text-olive-500 bg-olive-50 hover:bg-olive-100 transition-all active:scale-[0.95]"
@@ -154,7 +176,6 @@ const Suggest: React.FC = () => {
                     </button>
                 </div>
 
-                {/* Dropdown: remaining moods in 2-col grid */}
                 {showAllMoods && (
                     <div className="mt-3 grid grid-cols-2 gap-2 animate-fade-in-up">
                         {remainingMoods.map(m => (
@@ -180,9 +201,6 @@ const Suggest: React.FC = () => {
                     </div>
                 )}
             </section>
-
-            {/* Weather */}
-            {weather && <WeatherSummary weather={weather} />}
 
             {/* Loading */}
             {isLoading && (
@@ -233,43 +251,77 @@ const Suggest: React.FC = () => {
                 </div>
             )}
 
-            {/* Suggestions */}
+            {/* Suggestions Carousel */}
             {!isLoading && !error && suggestions.length > 0 && (
-                <div className="space-y-6 animate-fade-in-up">
-                    <OutfitCard
-                        suggestion={suggestions[currentIndex]}
-                        onSkip={handleSkip}
-                        onWear={() => handleWear(suggestions[currentIndex])}
-                        isLast={currentIndex === suggestions.length - 1}
-                    />
-                    <div className="flex justify-center">
-                        <div className="flex space-x-2">
-                            {suggestions.map((_, i) => (
-                                <button
-                                    key={i}
-                                    onClick={() => setCurrentIndex(i)}
-                                    className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${i === currentIndex
-                                        ? 'bg-primary w-7'
-                                        : 'bg-olive-200 hover:bg-olive-300'
-                                        }`}
-                                />
-                            ))}
-                        </div>
+                <div className="animate-fade-in-up">
+                    {/* Intro text + mood badge */}
+                    <div className="flex items-center justify-between mb-4">
+                        <p className="text-sm font-semibold text-olive-600">
+                            {suggestions.length} {suggestions.length === 1 ? 'Outfit' : 'Outfits'} for you
+                        </p>
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 text-primary text-xs font-bold rounded-full capitalize">
+                            {getMoodIcon(moodId)} {mood.name}
+                        </span>
                     </div>
-                    {/* Generate More — shown when on last suggestion */}
-                    {currentIndex === suggestions.length - 1 && (
-                        <div className="text-center">
+
+                    {/* Swipe area */}
+                    <div
+                        onTouchStart={handleTouchStart}
+                        onTouchMove={handleTouchMove}
+                        onTouchEnd={handleTouchEnd}
+                    >
+                        <OutfitCard
+                            key={suggestions[currentIndex].id}
+                            suggestion={suggestions[currentIndex]}
+                            onWear={() => handleWear(suggestions[currentIndex])}
+                            onSkip={suggestions.length > 1 ? goToNext : undefined}
+                        />
+                    </div>
+
+                    {/* Pagination dots + arrows */}
+                    {suggestions.length > 1 && (
+                        <div className="flex items-center justify-center gap-4 mt-5">
                             <button
-                                onClick={handleRegenerate}
-                                disabled={isRegenerating}
-                                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full border border-olive-300 text-secondary text-sm font-semibold hover:bg-olive-50 transition-all active:scale-[0.97] disabled:opacity-50"
+                                onClick={goToPrev}
+                                disabled={currentIndex === 0}
+                                className="p-2 rounded-full text-olive-400 hover:text-primary hover:bg-olive-100 transition-colors disabled:opacity-30 disabled:cursor-default"
                             >
-                                {isRegenerating
-                                    ? <><Loader2 className="w-4 h-4 animate-spin" /> Generating...</>
-                                    : <><Sparkles className="w-4 h-4" /> Generate More</>}
+                                <ChevronLeft className="w-5 h-5" />
+                            </button>
+                            <div className="flex gap-2">
+                                {suggestions.map((_, i) => (
+                                    <button
+                                        key={i}
+                                        onClick={() => setCurrentIndex(i)}
+                                        className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${i === currentIndex
+                                                ? 'bg-primary w-6'
+                                                : 'bg-olive-200 hover:bg-olive-300'
+                                            }`}
+                                    />
+                                ))}
+                            </div>
+                            <button
+                                onClick={goToNext}
+                                disabled={currentIndex === suggestions.length - 1}
+                                className="p-2 rounded-full text-olive-400 hover:text-primary hover:bg-olive-100 transition-colors disabled:opacity-30 disabled:cursor-default"
+                            >
+                                <ChevronRight className="w-5 h-5" />
                             </button>
                         </div>
                     )}
+
+                    {/* Generate More */}
+                    <div className="text-center pt-6">
+                        <button
+                            onClick={handleRegenerate}
+                            disabled={isRegenerating}
+                            className="inline-flex items-center gap-2 px-6 py-3 rounded-full border border-olive-300 text-secondary text-sm font-semibold hover:bg-olive-50 transition-all active:scale-[0.97] disabled:opacity-50"
+                        >
+                            {isRegenerating
+                                ? <><Loader2 className="w-4 h-4 animate-spin" /> Generating...</>
+                                : <><Sparkles className="w-4 h-4" /> Generate More</>}
+                        </button>
+                    </div>
                 </div>
             )}
 
