@@ -1,13 +1,27 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useWardrobe } from '../context/WardrobeContext';
-import { Lightbulb, Cloud, Activity, Heart, Info, Sparkles, ChevronDown } from 'lucide-react';
+import { Lightbulb, Cloud, Activity, Heart, Info, Sparkles, ChevronDown, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { WeeklyOutfitTimeline } from '../components/insights/WeeklyOutfitTimeline';
 
 const Insights: React.FC = () => {
-    const { clothes, getInsights } = useWardrobe();
-    const insights = useMemo(() => getInsights(), [clothes]);
+    const { clothes, insights, fetchInsights, isLoading } = useWardrobe();
     const [showCurate, setShowCurate] = useState(false);
+
+    useEffect(() => {
+        if (!insights && clothes.length > 0) {
+            fetchInsights();
+        }
+    }, [clothes.length]);
+
+    if (!insights || isLoading) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
+                <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                <p className="text-olive-600 font-medium">Generating your style insights...</p>
+            </div>
+        );
+    }
 
     // Top nudge
     const topNudge = insights.suggestedVariations[0] || "Add more items to your wardrobe to get personalized insights!";

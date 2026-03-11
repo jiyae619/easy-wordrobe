@@ -28,7 +28,7 @@ function getMoodIcon(id: string): string {
 
 const Suggest: React.FC = () => {
     const [searchParams, setSearchParams] = useSearchParams();
-    const { clothes, logOutfitWear } = useWardrobe();
+    const { clothes, logOutfitWear, userSettings } = useWardrobe();
     const moodId = searchParams.get('mood') || 'casual';
     const mood = MOODS.find(m => m.id === moodId) || MOODS[1];
 
@@ -73,7 +73,14 @@ const Suggest: React.FC = () => {
                     return;
                 }
 
-                const outfits = await awsNovaService.suggestOutfits(clothes, mood, weatherData);
+                // Prepare user profile data if available
+                const userProfile = userSettings ? {
+                    gender: userSettings.gender,
+                    height: userSettings.height,
+                    weight: userSettings.weight
+                } : undefined;
+
+                const outfits = await awsNovaService.suggestOutfits(clothes, mood, weatherData, userProfile);
                 setSuggestions(outfits);
             } catch (err) {
                 console.error("Suggestion error:", err);
@@ -90,7 +97,14 @@ const Suggest: React.FC = () => {
         if (!weather) return;
         setIsRegenerating(true);
         try {
-            const newOutfits = await awsNovaService.suggestOutfits(clothes, mood, weather);
+            // Prepare user profile data if available
+            const userProfile = userSettings ? {
+                gender: userSettings.gender,
+                height: userSettings.height,
+                weight: userSettings.weight
+            } : undefined;
+
+            const newOutfits = await awsNovaService.suggestOutfits(clothes, mood, weather, userProfile);
             setSuggestions(newOutfits);
             setCurrentIndex(0);
         } catch (err) {
@@ -294,8 +308,8 @@ const Suggest: React.FC = () => {
                                         key={i}
                                         onClick={() => setCurrentIndex(i)}
                                         className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${i === currentIndex
-                                                ? 'bg-primary w-6'
-                                                : 'bg-olive-200 hover:bg-olive-300'
+                                            ? 'bg-primary w-6'
+                                            : 'bg-olive-200 hover:bg-olive-300'
                                             }`}
                                     />
                                 ))}

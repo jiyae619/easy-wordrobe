@@ -1,12 +1,34 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { LogOut, User, Settings, X, Lock, Camera } from 'lucide-react';
+import { useWardrobe } from '../../context/WardrobeContext';
+import { LogOut, User, Settings, X, Lock, Camera, Sparkles, Loader2 } from 'lucide-react';
 
 const UserMenu: React.FC = () => {
     const { user, logout } = useAuth();
+    const { userSettings, updateUserSettings, populateDemoData, isLoading } = useWardrobe();
     const [isOpen, setIsOpen] = useState(false);
     const [showProfileModal, setShowProfileModal] = useState(false);
+
+    // Local state for profile form
+    const [height, setHeight] = useState(userSettings?.height || '');
+    const [weight, setWeight] = useState(userSettings?.weight || '');
+    const [gender, setGender] = useState(userSettings?.gender || '');
+
     const menuRef = useRef<HTMLDivElement>(null);
+
+    // Sync local state when userSettings load
+    useEffect(() => {
+        if (userSettings) {
+            setHeight(userSettings.height || '');
+            setWeight(userSettings.weight || '');
+            setGender(userSettings.gender || '');
+        }
+    }, [userSettings]);
+
+    const handleSaveProfile = async () => {
+        await updateUserSettings({ height, weight, gender });
+        setShowProfileModal(false);
+    };
 
     // Close dropdown when clicking outside
     useEffect(() => {
@@ -179,11 +201,26 @@ const UserMenu: React.FC = () => {
                                 <h4 className="text-xs font-bold text-olive-400 uppercase tracking-wider mb-4">Settings</h4>
                                 <div className="space-y-4">
                                     <div>
+                                        <label className="block text-sm font-semibold text-primary mb-1">Gender</label>
+                                        <select
+                                            value={gender}
+                                            onChange={(e) => setGender(e.target.value)}
+                                            className="w-full px-4 py-3 bg-olive-50 border border-olive-200 rounded-xl text-primary font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none transition-all"
+                                        >
+                                            <option value="">Not specified</option>
+                                            <option value="female">Female</option>
+                                            <option value="male">Male</option>
+                                            <option value="non-binary">Non-binary</option>
+                                        </select>
+                                    </div>
+                                    <div>
                                         <label className="block text-sm font-semibold text-primary mb-1">Height</label>
                                         <div className="relative">
                                             <input
                                                 type="number"
-                                                defaultValue={165}
+                                                value={height}
+                                                onChange={(e) => setHeight(e.target.value)}
+                                                placeholder="e.g. 165"
                                                 className="w-full px-4 py-3 bg-olive-50 border border-olive-200 rounded-xl text-primary font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
                                             />
                                             <span className="absolute right-4 top-1/2 -translate-y-1/2 text-olive-400 font-medium text-sm">cm</span>
@@ -194,7 +231,9 @@ const UserMenu: React.FC = () => {
                                         <div className="relative">
                                             <input
                                                 type="number"
-                                                defaultValue={55}
+                                                value={weight}
+                                                onChange={(e) => setWeight(e.target.value)}
+                                                placeholder="e.g. 55"
                                                 className="w-full px-4 py-3 bg-olive-50 border border-olive-200 rounded-xl text-primary font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
                                             />
                                             <span className="absolute right-4 top-1/2 -translate-y-1/2 text-olive-400 font-medium text-sm">kg</span>
@@ -212,12 +251,34 @@ const UserMenu: React.FC = () => {
                                     </div>
                                 </div>
                             </section>
+
+                            {/* Divider */}
+                            <div className="h-px bg-olive-100" />
+
+                            {/* === Developer Section === */}
+                            <section>
+                                <h4 className="text-xs font-bold text-red-400 uppercase tracking-wider mb-4">Developer Actions</h4>
+                                <button
+                                    onClick={() => {
+                                        populateDemoData();
+                                        setShowProfileModal(false);
+                                    }}
+                                    disabled={isLoading}
+                                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-50 text-red-600 border border-red-100 rounded-xl text-sm font-semibold hover:bg-red-100 transition-colors disabled:opacity-50"
+                                >
+                                    {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                                    Populate Demo Data
+                                </button>
+                                <p className="mt-2 text-[10px] text-gray-400 text-center">
+                                    This will add sample items and history to your account.
+                                </p>
+                            </section>
                         </div>
 
                         {/* Save Button — Fixed at bottom */}
                         <div className="p-5 border-t border-olive-100 flex-shrink-0">
                             <button
-                                onClick={() => setShowProfileModal(false)}
+                                onClick={handleSaveProfile}
                                 className="w-full py-3.5 bg-primary text-white font-bold rounded-xl active:scale-[0.98] transition-transform hover:bg-olive-900"
                             >
                                 Save Changes

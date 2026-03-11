@@ -43,7 +43,7 @@ export const ImageUpload: React.FC = () => {
         }
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (analyzedItem && selectedImage) {
             const itemToSave: Omit<ClothingItem, 'id' | 'dateAdded'> = {
                 imageUrl: selectedImage,
@@ -58,7 +58,7 @@ export const ImageUpload: React.FC = () => {
                 aiTags: analyzedItem.aiTags || [],
                 userNotes: analyzedItem.userNotes || ""
             };
-            addClothingItem(itemToSave);
+            await addClothingItem(itemToSave);
             setSelectedImage(null);
             setAnalyzedItem(null);
         }

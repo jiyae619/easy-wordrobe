@@ -5,6 +5,8 @@
  * Each type represents a core data structure for managing the wardrobe, outfits, weather, and user insights.
  */
 
+import { type UserSettings } from '../services/firestoreService';
+
 // ==========================================
 // 1. Enums & Constants
 // ==========================================
@@ -37,10 +39,6 @@ export const Season = {
 } as const;
 
 export type Season = typeof Season[keyof typeof Season];
-
-// ==========================================
-// 2. Core Data Models
-// ==========================================
 
 /**
  * Represents a single item of clothing in the user's wardrobe.
@@ -181,25 +179,25 @@ export interface WardrobeContextType {
     /** Error message if any operation fails */
     error: string | null;
 
-    // --- CRUD Operations ---
+    // --- CRUD Operations (async — writes to Firestore) ---
 
     /** Add a new clothing item to the wardrobe */
-    addClothingItem: (item: Omit<ClothingItem, 'id' | 'dateAdded'>) => void;
+    addClothingItem: (item: Omit<ClothingItem, 'id' | 'dateAdded'>) => Promise<void>;
 
     /** Update an existing clothing item */
-    updateClothingItem: (id: string, updates: Partial<ClothingItem>) => void;
+    updateClothingItem: (id: string, updates: Partial<ClothingItem>) => Promise<void>;
 
     /** Delete a clothing item by ID */
-    deleteClothingItem: (id: string) => void;
+    deleteClothingItem: (id: string) => Promise<void>;
 
     /** Manually increment wear count (for adjustments) */
-    incrementWearCount: (id: string) => void;
+    incrementWearCount: (id: string) => Promise<void>;
 
     /** Manually decrement wear count (for adjustments) */
-    decrementWearCount: (id: string) => void;
+    decrementWearCount: (id: string) => Promise<void>;
 
     /** Log an outfit as worn today */
-    logOutfitWear: (outfitItems: string[], moodId: string, weather: WeatherData) => void;
+    logOutfitWear: (outfitItems: string[], moodId: string, weather: WeatherData) => Promise<void>;
 
     // --- State & Analysis ---
 
@@ -209,11 +207,14 @@ export interface WardrobeContextType {
     /** Refresh weather data based on location */
     refreshWeather: (lat: number, lon: number) => Promise<void>;
 
+    /** Current AI-generated insights */
+    insights: UserInsight | null;
+
     /** Calculate and return user insights based on current wardrobe state */
-    getInsights: () => UserInsight;
+    fetchInsights: () => Promise<void>;
 
     /** Populate wardrobe with diverse demo data */
-    populateDemoData: () => void;
+    populateDemoData: () => Promise<void>;
 
     /** IDs of items bookmarked to try next week */
     bookmarkedItems: string[];
@@ -223,4 +224,10 @@ export interface WardrobeContextType {
 
     /** Remove a bookmark */
     unbookmarkItem: (id: string) => void;
+
+    /** User profile settings from Firestore */
+    userSettings: UserSettings | null;
+
+    /** Update user profile settings */
+    updateUserSettings: (updates: Partial<UserSettings>) => Promise<void>;
 }

@@ -140,7 +140,7 @@ export const CameraScannerOverlay: React.FC<CameraScannerOverlayProps> = ({ isOp
                     ],
                     userNotes: analyzedItem.userNotes || ""
                 };
-                addClothingItem(itemToSave);
+                await addClothingItem(itemToSave);
                 onClose();
                 handleReset();
                 navigate('/wardrobe');
@@ -277,8 +277,8 @@ export const CameraScannerOverlay: React.FC<CameraScannerOverlayProps> = ({ isOp
                                                 key={s}
                                                 onClick={() => toggleSeason(s)}
                                                 className={`text-xs px-3 py-1.5 rounded-full capitalize font-semibold transition-all active:scale-95 ${selectedSeasons.includes(s)
-                                                        ? 'bg-secondary text-white border border-secondary shadow-md'
-                                                        : 'bg-white/10 text-white/60 border border-white/20 hover:border-white/40'
+                                                    ? 'bg-secondary text-white border border-secondary shadow-md'
+                                                    : 'bg-white/10 text-white/60 border border-white/20 hover:border-white/40'
                                                     }`}
                                             >
                                                 {s}
@@ -296,8 +296,8 @@ export const CameraScannerOverlay: React.FC<CameraScannerOverlayProps> = ({ isOp
                                                 key={m.id}
                                                 onClick={() => setSelectedMood(prev => prev === m.id ? null : m.id)}
                                                 className={`text-xs px-3 py-1.5 rounded-full font-semibold transition-all active:scale-95 ${selectedMood === m.id
-                                                        ? 'bg-primary text-white border border-primary shadow-md'
-                                                        : 'bg-white/10 text-white/60 border border-white/20 hover:border-white/40'
+                                                    ? 'bg-primary text-white border border-primary shadow-md'
+                                                    : 'bg-white/10 text-white/60 border border-white/20 hover:border-white/40'
                                                     }`}
                                             >
                                                 {m.name}
