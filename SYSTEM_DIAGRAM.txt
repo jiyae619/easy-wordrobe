@@ -1,0 +1,625 @@
+╔════════════════════════════════════════════════════════════════════════════════════════════════════╗
+║                              WARDROBE AI - SYSTEM ARCHITECTURE                                     ║
+╚════════════════════════════════════════════════════════════════════════════════════════════════════╝
+
+┌────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                    FRONTEND LAYER (React)                                          │
+├────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                                    │
+│  ┌─────────────────┐     ┌──────────────────────────────────────────────────────────────┐        │
+│  │  AuthContext    │────▶│  User Authentication State                                    │        │
+│  │  (Firebase Auth)│     │  - user: AuthUser | null                                     │        │
+│  └─────────────────┘     │  - signIn, signUp, signOut, resetPassword                    │        │
+│                          └──────────────────────────────────────────────────────────────┘        │
+│                                                                                                    │
+│  ┌─────────────────┐     ┌──────────────────────────────────────────────────────────────┐        │
+│  │ WardrobeContext │────▶│  Wardrobe & Outfit State                                     │        │
+│  │   (Core State)  │     │  - clothes: ClothingItem[]                                   │        │
+│  └─────────────────┘     │  - outfits: WearRecord[]                                     │        │
+│                          │  - weather: WeatherData                                       │        │
+│                          │  - insights: UserInsight                                      │        │
+│                          │  - currentMood: FashionMood                                   │        │
+│                          └──────────────────────────────────────────────────────────────┘        │
+│                                                                                                    │
+│  ┌──────────────────────────────────────────────────────────────────────────────────────────┐    │
+│  │                              MAIN PAGES (React Router)                                   │    │
+│  │                                                                                          │    │
+│  │  /login        /         /wardrobe      /suggest       /insights                        │    │
+│  │  ┌──────┐    ┌──────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐                    │    │
+│  │  │Login │    │ Home │   │ Wardrobe │   │ Suggest  │   │ Insights │                    │    │
+│  │  │ Page │    │ Page │   │   Grid   │   │Mood+AI   │   │Analytics │                    │    │
+│  │  └──────┘    └──────┘   └──────────┘   └──────────┘   └──────────┘                    │    │
+│  │                  │            │              │              │                            │    │
+│  │                  │            │              │              │                            │    │
+│  │         ┌────────┴────────────┴──────────────┴──────────────┴────────┐                 │    │
+│  │         │              CameraScannerOverlay (Global)                  │                 │    │
+│  │         │              Image Capture & Upload Component               │                 │    │
+│  │         └─────────────────────────────────────────────────────────────┘                 │    │
+│  └──────────────────────────────────────────────────────────────────────────────────────────┘    │
+│                                                                                                    │
+└────────────────────────────────────────────────────────────────────────────────────────────────────┘
+                                                 │
+                                                 │ HTTP/HTTPS Requests
+                                                 ▼
+┌────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                   BACKEND SERVICES LAYER                                           │
+├────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                                    │
+│  ┌───────────────────────────────────────────────────────────────────────────────────────┐       │
+│  │                           FIREBASE (Google Cloud Platform)                            │       │
+│  │                                                                                        │       │
+│  │  ┌─────────────────┐    ┌─────────────────┐    ┌──────────────────────┐             │       │
+│  │  │  Firebase Auth  │    │   Firestore DB  │    │  Cloud Storage       │             │       │
+│  │  │  ──────────────  │    │  ───────────────│    │  ────────────────────│             │       │
+│  │  │  • Email/Pass   │    │  /users/{uid}/  │    │  /wardrobe/{uid}/    │             │       │
+│  │  │  • Google OAuth │    │    - wardrobe/  │    │    - {itemId}.jpg    │             │       │
+│  │  │  • Session Mgmt │    │    - outfits/   │    │                      │             │       │
+│  │  │                 │    │    - settings/  │    │  Returns: Download   │             │       │
+│  │  │  Returns:       │    │                 │    │  URLs for images     │             │       │
+│  │  │  • uid          │    │  Stores:        │    │                      │             │       │
+│  │  │  • email        │    │  • ClothingItem │    │  Handles:            │             │       │
+│  │  │  • displayName  │    │  • WearRecord   │    │  • uploadString()    │             │       │
+│  │  │  • idToken      │    │  • UserSettings │    │  • getDownloadURL()  │             │       │
+│  │  └─────────────────┘    └─────────────────┘    └──────────────────────┘             │       │
+│  └───────────────────────────────────────────────────────────────────────────────────────┘       │
+│                                                                                                    │
+│  ┌───────────────────────────────────────────────────────────────────────────────────────┐       │
+│  │                         AWS BEDROCK (AI Services - us-east-2)                         │       │
+│  │                                                                                        │       │
+│  │  Model: Amazon Nova 2 Lite (us.amazon.nova-2-lite-v1:0)                              │       │
+│  │  Auth: Bearer Token (VITE_BEDROCK_API_KEY)                                            │       │
+│  │                                                                                        │       │
+│  │  ┌──────────────────┐   ┌──────────────────┐   ┌──────────────────────┐             │       │
+│  │  │  IntakeAgent     │   │  StylistAgent    │   │  BehavioralAgent     │             │       │
+│  │  │  ──────────────  │   │  ──────────────  │   │  ──────────────────  │             │       │
+│  │  │  Purpose:        │   │  Purpose:        │   │  Purpose:            │             │       │
+│  │  │  Analyze clothing│   │  Generate outfit │   │  Analyze wear        │             │       │
+│  │  │  from images     │   │  suggestions     │   │  patterns & insights │             │       │
+│  │  │                  │   │                  │   │                      │             │       │
+│  │  │  Input:          │   │  Input:          │   │  Input:              │             │       │
+│  │  │  • Base64 image  │   │  • Wardrobe[]    │   │  • Wardrobe[]        │             │       │
+│  │  │                  │   │  • FashionMood   │   │  • WearRecord[]      │             │       │
+│  │  │  Output:         │   │  • WeatherData   │   │    (last 14 days)    │             │       │
+│  │  │  • category      │   │                  │   │                      │             │       │
+│  │  │  • color/colorHex│   │  Output:         │   │  Output:             │             │       │
+│  │  │  • pattern       │   │  • 3x Outfit     │   │  • mostWornColors    │             │       │
+│  │  │  • season[]      │   │    Suggestions   │   │  • mostWornItems     │             │       │
+│  │  │  • aiTags[]      │   │  • weatherMatch  │   │  • leastWornItems    │             │       │
+│  │  │  • subcategory   │   │  • wearScore     │   │  • nudges[]          │             │       │
+│  │  └──────────────────┘   │  • explanation   │   │  • weeklyPattern     │             │       │
+│  │                         └──────────────────┘   └──────────────────────┘             │       │
+│  └───────────────────────────────────────────────────────────────────────────────────────┘       │
+│                                                                                                    │
+└────────────────────────────────────────────────────────────────────────────────────────────────────┘
+                                                 │
+                                                 │ HTTP Requests
+                                                 ▼
+┌────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                   EXTERNAL APIs LAYER                                              │
+├────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                                    │
+│  ┌───────────────────────────────────────────────────────────────────────────────────────┐       │
+│  │                    National Weather Service (NWS) API                                 │       │
+│  │                                                                                        │       │
+│  │  Base URL: https://api.weather.gov                                                    │       │
+│  │  Auth: None (Public API, requires User-Agent header)                                  │       │
+│  │                                                                                        │       │
+│  │  Endpoints:                                                                            │       │
+│  │  1. GET /points/{lat},{lon}           → Get forecast URL & grid data                 │       │
+│  │  2. GET /gridpoints/{office}/{x},{y}  → Get detailed forecast periods                │       │
+│  │  3. GET /stations/{id}/observations   → Get current humidity & conditions            │       │
+│  │                                                                                        │       │
+│  │  Returns: WeatherData                                                                 │       │
+│  │  • temperature (Celsius)                                                              │       │
+│  │  • feelsLike                                                                          │       │
+│  │  • condition (Sunny, Rainy, etc.)                                                     │       │
+│  │  • humidity (0-100%)                                                                  │       │
+│  │  • windSpeed (km/h)                                                                   │       │
+│  │  • location (city, state)                                                             │       │
+│  └───────────────────────────────────────────────────────────────────────────────────────┘       │
+│                                                                                                    │
+└────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+════════════════════════════════════════════════════════════════════════════════════════════════════
+                                         DATA FLOWS
+════════════════════════════════════════════════════════════════════════════════════════════════════
+
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ FLOW 1: USER AUTHENTICATION                                                                      │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+User visits app
+      │
+      ▼
+┌─────────────────┐
+│  Login Page     │
+│  /login         │
+└─────────────────┘
+      │
+      │ User enters credentials OR clicks "Sign in with Google"
+      ▼
+┌──────────────────────────────────────────┐
+│  authService.signInWithEmail()           │
+│       OR                                 │
+│  authService.signInWithGoogle()          │
+└──────────────────────────────────────────┘
+      │
+      │ HTTP POST
+      ▼
+┌──────────────────────────────────────────┐
+│  Firebase Authentication                 │
+│  • Validates credentials                 │
+│  • Creates/retrieves user session        │
+│  • Returns: uid, email, idToken          │
+└──────────────────────────────────────────┘
+      │
+      │ Success
+      ▼
+┌──────────────────────────────────────────┐
+│  AuthContext.setUser()                   │
+│  • Store user in context                 │
+│  • Trigger onAuthStateChanged            │
+└──────────────────────────────────────────┘
+      │
+      │ Redirect
+      ▼
+┌──────────────────────────────────────────┐
+│  Home Page (/)                           │
+│  • Protected Route                       │
+│  • Load user data from Firestore         │
+└──────────────────────────────────────────┘
+
+
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ FLOW 2: ADD CLOTHING ITEM (Camera → AI Analysis → Storage)                                      │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+User taps Camera button in Navigation
+      │
+      ▼
+┌──────────────────────────────────────────┐
+│  CameraScannerOverlay opens              │
+│  • Camera permission requested           │
+│  • Live preview displayed                │
+└──────────────────────────────────────────┘
+      │
+      │ User captures photo OR uploads file
+      ▼
+┌──────────────────────────────────────────┐
+│  ImageUpload component                   │
+│  • Convert image to base64               │
+│  • Compress if needed                    │
+└──────────────────────────────────────────┘
+      │
+      │ base64ImageData
+      ▼
+┌──────────────────────────────────────────┐
+│  IntakeAgent.analyzeClothingImage()      │
+│  • Prepare multimodal prompt             │
+│  • Include image + instructions          │
+└──────────────────────────────────────────┘
+      │
+      │ POST /model/{modelId}/converse
+      ▼
+┌──────────────────────────────────────────┐
+│  AWS Bedrock (Nova 2 Lite)               │
+│  • Vision + Language model               │
+│  • Analyzes: category, color, pattern    │
+│  • Returns: JSON with metadata           │
+└──────────────────────────────────────────┘
+      │
+      │ ClothingItem metadata (category, color, season, tags)
+      ▼
+┌──────────────────────────────────────────┐
+│  Create ClothingItem object              │
+│  • Generate UUID                         │
+│  • Set dateAdded, wearFrequency: 0       │
+└──────────────────────────────────────────┘
+      │
+      │ Parallel operations
+      ├─────────────────────┬────────────────────┐
+      ▼                     ▼                    ▼
+┌─────────────────┐  ┌──────────────────┐  ┌──────────────────────┐
+│ Upload to Cloud │  │ Save to Firestore│  │ Update Context       │
+│ Storage         │  │                  │  │                      │
+│ • /wardrobe/    │  │ /users/{uid}/    │  │ WardrobeContext      │
+│   {uid}/        │  │  wardrobe/{id}   │  │ .clothes.push(item)  │
+│   {id}.jpg      │  │                  │  │                      │
+│                 │  │ Returns: docRef  │  │ Triggers re-render   │
+│ Returns: imgURL │  │                  │  │                      │
+└─────────────────┘  └──────────────────┘  └──────────────────────┘
+      │                     │                    │
+      └─────────────────────┴────────────────────┘
+                            │
+                            ▼
+                ┌─────────────────────────┐
+                │  Wardrobe Page updates  │
+                │  • New item visible     │
+                │  • Grid re-rendered     │
+                └─────────────────────────┘
+
+
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ FLOW 3: OUTFIT SUGGESTION (Mood + Weather → AI → Suggestions)                                   │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+User navigates to /suggest page
+      │
+      ▼
+┌──────────────────────────────────────────┐
+│  Suggest Page loads                      │
+│  • Display mood selector                 │
+│  • Load wardrobe from context            │
+└──────────────────────────────────────────┘
+      │
+      │ User selects a mood (e.g., "Minimal Chic")
+      ▼
+┌──────────────────────────────────────────┐
+│  setMood(selectedMood)                   │
+│  • Store in WardrobeContext              │
+└──────────────────────────────────────────┘
+      │
+      │ Parallel: Fetch weather
+      ├─────────────────────────────────────┐
+      ▼                                     ▼
+┌────────────────────┐         ┌──────────────────────────┐
+│ Get user location  │         │ weatherService           │
+│ • Geolocation API  │────────▶│ .getCurrentWeather()     │
+│ • lat, lon         │         │                          │
+└────────────────────┘         └──────────────────────────┘
+                                        │
+                                        │ GET /points/{lat},{lon}
+                                        ▼
+                               ┌──────────────────────────┐
+                               │ NWS API                  │
+                               │ • Get forecast URL       │
+                               │ • Get observation station│
+                               └──────────────────────────┘
+                                        │
+                                        │ WeatherData (temp, condition, humidity, wind)
+                                        ▼
+                               ┌──────────────────────────┐
+                               │ Store in WardrobeContext │
+                               │ .weather = weatherData   │
+                               └──────────────────────────┘
+      │
+      │ Both mood & weather available
+      ▼
+┌──────────────────────────────────────────┐
+│  StylistAgent.generateOutfitSuggestions()│
+│  • Prepare prompt with:                  │
+│    - Wardrobe inventory (IDs, metadata)  │
+│    - Selected mood (name, description)   │
+│    - Weather (temp, condition)           │
+│    - User preferences                    │
+└──────────────────────────────────────────┘
+      │
+      │ POST /model/{modelId}/converse
+      ▼
+┌──────────────────────────────────────────┐
+│  AWS Bedrock (Nova 2 Lite)               │
+│  • Generate 3 outfit combinations        │
+│  • Calculate weatherMatch score          │
+│  • Prioritize least-worn items           │
+│  • Return JSON array                     │
+└──────────────────────────────────────────┘
+      │
+      │ OutfitSuggestion[] (3 suggestions)
+      ▼
+┌──────────────────────────────────────────┐
+│  Map item IDs to ClothingItem objects    │
+│  • Look up each ID in context.clothes    │
+│  • Prepare OutfitCard data               │
+└──────────────────────────────────────────┘
+      │
+      │ Display 3 OutfitCard components
+      ▼
+┌──────────────────────────────────────────┐
+│  User reviews suggestions                │
+│  • See outfit preview                    │
+│  • Read AI explanation                   │
+│  • Click "Wear this"                     │
+└──────────────────────────────────────────┘
+      │
+      │ User confirms outfit
+      ▼
+┌──────────────────────────────────────────┐
+│  logOutfitWear(outfit)                   │
+│  • Create WearRecord                     │
+│  • Increment wearFrequency for each item │
+│  • Update lastWorn dates                 │
+└──────────────────────────────────────────┘
+      │
+      │ Parallel operations
+      ├─────────────────────┬────────────────────┐
+      ▼                     ▼                    ▼
+┌─────────────────┐  ┌──────────────────┐  ┌──────────────────────┐
+│ Save to         │  │ Update Firestore │  │ Update Context       │
+│ Firestore       │  │ • Batch update   │  │ • clothes[]          │
+│ /users/{uid}/   │  │   all items      │  │ • outfits[]          │
+│  outfits/{id}   │  │ • wearFrequency  │  │                      │
+│                 │  │ • lastWorn       │  │ Triggers re-render   │
+└─────────────────┘  └──────────────────┘  └──────────────────────┘
+
+
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ FLOW 4: INSIGHTS GENERATION (Wear History → AI → Analytics)                                     │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+User navigates to /insights page
+      │
+      ▼
+┌──────────────────────────────────────────┐
+│  Insights Page loads                     │
+│  • Check if insights cached in context   │
+│  • If stale, trigger fetchInsights()     │
+└──────────────────────────────────────────┘
+      │
+      │ Need fresh insights
+      ▼
+┌──────────────────────────────────────────┐
+│  fetchInsights()                         │
+│  • Collect wardrobe data (last 14 days)  │
+│  • Collect wear history (all outfits)    │
+└──────────────────────────────────────────┘
+      │
+      │ Wardrobe[] + WearRecord[]
+      ▼
+┌──────────────────────────────────────────┐
+│  BehavioralAgent.generateInsights()      │
+│  • Prepare detailed prompt with:         │
+│    - Full wardrobe inventory             │
+│    - Wear frequency per item             │
+│    - Date worn history                   │
+│    - Mood preferences                    │
+└──────────────────────────────────────────┘
+      │
+      │ POST /model/{modelId}/converse
+      ▼
+┌──────────────────────────────────────────┐
+│  AWS Bedrock (Nova 2 Lite)               │
+│  • Analyze wear patterns                 │
+│  • Identify most/least worn items        │
+│  • Generate 3 behavioral nudges          │
+│  • Calculate weekly wear distribution    │
+│  • Return JSON with insights             │
+└──────────────────────────────────────────┘
+      │
+      │ UserInsight object
+      ▼
+┌──────────────────────────────────────────┐
+│  Update WardrobeContext.insights         │
+│  • Store insights                        │
+│  • Timestamp for cache invalidation      │
+└──────────────────────────────────────────┘
+      │
+      │ Trigger re-render with new data
+      ▼
+┌──────────────────────────────────────────┐
+│  Render Insight Visualizations           │
+│  • ColorDistribution chart               │
+│  • WearFrequencyChart                    │
+│  • WeeklyTimeline                        │
+│  • NudgeCard (3 behavioral nudges)       │
+│  • WeeklyOutfitTimeline                  │
+└──────────────────────────────────────────┘
+
+
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ FLOW 5: WEATHER INTEGRATION                                                                      │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+Home page loads OR Suggest page requests weather
+      │
+      ▼
+┌──────────────────────────────────────────┐
+│  Check WardrobeContext.weather           │
+│  • Is cached? (< 30 min old)             │
+└──────────────────────────────────────────┘
+      │
+      │ Need fresh weather
+      ▼
+┌──────────────────────────────────────────┐
+│  Request browser geolocation permission  │
+└──────────────────────────────────────────┘
+      │
+      ├─────── Permission GRANTED ──────┐
+      ▼                                 ▼
+┌─────────────────────┐      ┌─────────────────────────┐
+│ navigator           │      │ weatherService          │
+│ .geolocation        │─────▶│ .getCurrentWeather(     │
+│ .getCurrentPosition │      │   lat, lon              │
+│                     │      │ )                       │
+└─────────────────────┘      └─────────────────────────┘
+                                      │
+                                      │ Step 1: GET /points/{lat},{lon}
+                                      ▼
+                             ┌─────────────────────────┐
+                             │ NWS API                 │
+                             │ • Returns: forecastUrl  │
+                             │ • Returns: station IDs  │
+                             └─────────────────────────┘
+                                      │
+                                      │ Step 2: GET {forecastUrl}
+                                      ▼
+                             ┌─────────────────────────┐
+                             │ NWS Forecast API        │
+                             │ • Current period        │
+                             │ • Temperature           │
+                             │ • Condition             │
+                             └─────────────────────────┘
+                                      │
+                                      │ Step 3: GET /stations/{id}/observations
+                                      ▼
+                             ┌─────────────────────────┐
+                             │ NWS Observation API     │
+                             │ • Humidity              │
+                             │ • Wind speed            │
+                             └─────────────────────────┘
+                                      │
+                                      │ Combine data
+                                      ▼
+                             ┌─────────────────────────┐
+                             │ WeatherData object      │
+                             │ • temperature           │
+                             │ • feelsLike             │
+                             │ • condition             │
+                             │ • humidity              │
+                             │ • windSpeed             │
+                             │ • location              │
+                             └─────────────────────────┘
+                                      │
+                                      ▼
+                             ┌─────────────────────────┐
+                             │ Store in WardrobeContext│
+                             │ .weather = weatherData  │
+                             └─────────────────────────┘
+      │
+      └─────── Permission DENIED ───────┐
+                                        ▼
+                              ┌─────────────────────────┐
+                              │ Fallback: Use default   │
+                              │ city (San Francisco)    │
+                              │ OR mock weather data    │
+                              └─────────────────────────┘
+
+
+════════════════════════════════════════════════════════════════════════════════════════════════════
+                                      KEY DATA STRUCTURES
+════════════════════════════════════════════════════════════════════════════════════════════════════
+
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ ClothingItem                                                                                     │
+├──────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ {                                                                                                │
+│   id: string (UUID)                                                                              │
+│   imageUrl: string (Firebase Cloud Storage URL)                                                  │
+│   category: "tops" | "bottoms" | "outerwear" | "dresses" | "shoes" | "accessories" | "bags"     │
+│   subcategory: string (e.g., "Crew Neck T-Shirt", "Slim Fit Jeans")                             │
+│   color: string (e.g., "Navy Blue", "Forest Green")                                              │
+│   colorHex: string (e.g., "#1B2A4A")                                                             │
+│   pattern: string (e.g., "solid", "striped", "floral", "geometric")                              │
+│   season: string[] (["spring", "summer", "fall", "winter"])                                      │
+│   wearFrequency: number (incremented each time worn)                                             │
+│   lastWorn: Date | null                                                                          │
+│   dateAdded: Date                                                                                │
+│   aiTags: string[] (mood/style tags: ["casual", "professional", "minimalist"])                   │
+│   userNotes?: string (optional user-added notes)                                                 │
+│ }                                                                                                │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ OutfitSuggestion                                                                                 │
+├──────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ {                                                                                                │
+│   items: ClothingItem[] (array of 3-5 items: top, bottom, shoes, optional outerwear/bag)        │
+│   weatherMatch: number (0-100 score indicating weather appropriateness)                          │
+│   wearScore: number (priority score based on least-worn items)                                   │
+│   explanation: string (why this outfit works: "Perfect for 18°C sunny weather...")               │
+│   comment: string (engaging message: "This combo will turn heads!")                              │
+│   mood: string (matches selected mood: "Minimal Chic")                                           │
+│ }                                                                                                │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ UserInsight                                                                                      │
+├──────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ {                                                                                                │
+│   mostWornColors: Array<{                                                                        │
+│     color: string (e.g., "Navy Blue")                                                            │
+│     hex: string (e.g., "#1B2A4A")                                                                │
+│     count: number (times worn in period)                                                         │
+│   }>                                                                                             │
+│   mostWornItems: Array<{                                                                         │
+│     item: ClothingItem                                                                           │
+│     count: number                                                                                │
+│   }>                                                                                             │
+│   leastWornItems: ClothingItem[] (items with low wearFrequency)                                  │
+│   suggestedVariations: string[] (3 behavioral nudges from AI)                                    │
+│   weeklyWearPattern: Array<{                                                                     │
+│     day: "Mon" | "Tue" | "Wed" | "Thu" | "Fri" | "Sat" | "Sun"                                  │
+│     count: number (outfits worn on that day)                                                     │
+│   }>                                                                                             │
+│ }                                                                                                │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ WeatherData                                                                                      │
+├──────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ {                                                                                                │
+│   temperature: number (Celsius, e.g., 18.5)                                                      │
+│   feelsLike: number (Celsius, accounts for wind chill)                                           │
+│   condition: string ("Sunny", "Partly Cloudy", "Rainy", "Windy", "Snow")                        │
+│   humidity: number (0-100, percentage)                                                           │
+│   windSpeed: number (km/h)                                                                       │
+│   location: string ("San Francisco, CA", "New York, NY")                                         │
+│ }                                                                                                │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ WearRecord                                                                                       │
+├──────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ {                                                                                                │
+│   id: string (UUID)                                                                              │
+│   date: Date (when outfit was worn)                                                              │
+│   items: ClothingItem[] (array of items in outfit)                                               │
+│   mood: string (mood at time of wearing)                                                         │
+│   weather: WeatherData (weather conditions that day)                                             │
+│ }                                                                                                │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+════════════════════════════════════════════════════════════════════════════════════════════════════
+                                    INTEGRATION SUMMARY
+════════════════════════════════════════════════════════════════════════════════════════════════════
+
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ SERVICE INTEGRATION MATRIX                                                                       │
+├─────────────────────────┬──────────────────────┬──────────────────────┬────────────────────────┤
+│ Service                 │ Authentication       │ Data Format          │ Rate Limits            │
+├─────────────────────────┼──────────────────────┼──────────────────────┼────────────────────────┤
+│ Firebase Auth           │ idToken (JWT)        │ JSON                 │ 10 req/sec             │
+│ Firestore               │ Firebase Auth        │ JSON + subcollections│ 10K writes/day (free)  │
+│ Cloud Storage           │ Firebase Auth        │ Binary (JPEG/PNG)    │ 5GB storage (free)     │
+│ AWS Bedrock             │ Bearer token         │ JSON (Converse API)  │ 100 req/min            │
+│ NWS Weather API         │ User-Agent header    │ JSON (GeoJSON)       │ None (public)          │
+└─────────────────────────┴──────────────────────┴──────────────────────┴────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ FIRESTORE COLLECTION STRUCTURE                                                                   │
+├──────────────────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                                  │
+│ /users                                                                                           │
+│   /{uid}                                (User document - created on signup)                      │
+│     /wardrobe                           (Subcollection - clothing items)                         │
+│       /{itemId}                         → ClothingItem document                                  │
+│     /outfits                            (Subcollection - wear records)                           │
+│       /{outfitId}                       → WearRecord document                                    │
+│     /settings                           (Subcollection - user preferences)                       │
+│       /preferences                      → UserSettings document                                  │
+│                                                                                                  │
+│ Indexes:                                                                                         │
+│   • wardrobe: indexed by category, dateAdded, wearFrequency                                      │
+│   • outfits: indexed by date (descending)                                                        │
+│                                                                                                  │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ ERROR HANDLING & FALLBACKS                                                                       │
+├──────────────────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                                  │
+│ • Firebase Auth errors → Translate to user-friendly messages in AuthContext                      │
+│ • Firestore failures → Retry with exponential backoff (built-in SDK)                             │
+│ • Cloud Storage quota → Compress images before upload, show error if quota exceeded              │
+│ • Bedrock API timeout → Show "AI is thinking..." with 30s timeout, retry once                    │
+│ • NWS API failure → Fallback to mock weather data (San Francisco, 18°C, Sunny)                   │
+│ • Geolocation denied → Use default city coordinates (San Francisco)                              │
+│ • No internet → Show cached data from context (no auto-refresh)                                  │
+│                                                                                                  │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+════════════════════════════════════════════════════════════════════════════════════════════════════
+                                         END OF DIAGRAM
+════════════════════════════════════════════════════════════════════════════════════════════════════
