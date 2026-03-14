@@ -197,14 +197,36 @@ function getMockClothingItem(imageBase64: string): ClothingItem {
 }
 
 function getMockOutfitSuggestions(clothes: ClothingItem[], mood: FashionMood): OutfitSuggestion[] {
-    // Pick random 3 items from wardrobe for mock
-    const shuffled = [...clothes].sort(() => 0.5 - Math.random());
-    const selected = shuffled.slice(0, 3);
+    const tops = clothes.filter(c => c.category === ClothingCategory.Tops);
+    const bottoms = clothes.filter(c => c.category === ClothingCategory.Bottoms);
+    const shoes = clothes.filter(c => c.category === ClothingCategory.Shoes);
+    const outerwear = clothes.filter(c => c.category === ClothingCategory.Outerwear);
+    const accessories = clothes.filter(c => c.category === ClothingCategory.Accessories);
+
+    const getRandomItem = (arr: ClothingItem[]) => arr.length > 0 ? arr[Math.floor(Math.random() * arr.length)] : null;
+
+    const createOutfit = () => {
+        const top = getRandomItem(tops);
+        const bottom = getRandomItem(bottoms);
+        const shoe = getRandomItem(shoes);
+        const items = [top, bottom, shoe].filter(Boolean) as ClothingItem[];
+
+        // Optional additions
+        if (Math.random() > 0.5) {
+            const out = getRandomItem(outerwear);
+            if (out && !items.includes(out)) items.push(out);
+        }
+        if (Math.random() > 0.3) {
+            const acc = getRandomItem(accessories);
+            if (acc && !items.includes(acc)) items.push(acc);
+        }
+        return items;
+    };
 
     return [
         {
             id: uuidv4(),
-            items: selected,
+            items: createOutfit(),
             mood: mood,
             weatherMatch: 95,
             explanation: `This outfit perfectly captures the ${mood.name} vibe with its color coordination.`,
@@ -212,7 +234,7 @@ function getMockOutfitSuggestions(clothes: ClothingItem[], mood: FashionMood): O
         },
         {
             id: uuidv4(),
-            items: shuffled.slice(3, 5),
+            items: createOutfit(),
             mood: mood,
             weatherMatch: 88,
             explanation: "A comfortable alternative that keeps you stylish and protected from the weather.",
@@ -220,7 +242,7 @@ function getMockOutfitSuggestions(clothes: ClothingItem[], mood: FashionMood): O
         },
         {
             id: uuidv4(),
-            items: shuffled.slice(0, 2), // Just 2 items
+            items: createOutfit(),
             mood: mood,
             weatherMatch: 82,
             explanation: "Minimalist approach focusing on your favorite pieces.",

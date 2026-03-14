@@ -22,11 +22,11 @@ const DEMO_ITEMS: ClothingItem[] = [
         id: 'demo-1',
         imageUrl: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&q=80&w=500',
         category: ClothingCategory.Tops,
-        subcategory: 'White Cotton Tee',
+        subcategory: 'White T-shirt',
         color: 'White',
         colorHex: '#FFFFFF',
         pattern: 'Solid',
-        season: [Season.Spring, Season.Summer],
+        season: [Season.Spring, Season.Summer, Season.Fall, Season.Winter],
         wearFrequency: 15,
         lastWorn: subDays(new Date(), 2),
         dateAdded: subDays(new Date(), 30),
@@ -35,9 +35,23 @@ const DEMO_ITEMS: ClothingItem[] = [
     },
     {
         id: 'demo-2',
+        imageUrl: 'https://images.unsplash.com/photo-1598033129183-c4f50c736f10?auto=format&fit=crop&q=80&w=500',
+        category: ClothingCategory.Tops,
+        subcategory: 'White Shirt',
+        color: 'White',
+        colorHex: '#FFFFFF',
+        pattern: 'Solid',
+        season: [Season.Spring, Season.Summer, Season.Fall, Season.Winter],
+        wearFrequency: 8,
+        lastWorn: subDays(new Date(), 5),
+        dateAdded: subDays(new Date(), 40),
+        aiTags: ['formal', 'office', 'essential']
+    },
+    {
+        id: 'demo-3',
         imageUrl: 'https://images.unsplash.com/photo-1542272617-08f083157f5d?auto=format&fit=crop&q=80&w=500',
         category: ClothingCategory.Bottoms,
-        subcategory: 'Vintage Levis 501',
+        subcategory: 'Jeans',
         color: 'Blue',
         colorHex: '#3b82f6',
         pattern: 'Solid',
@@ -45,27 +59,41 @@ const DEMO_ITEMS: ClothingItem[] = [
         wearFrequency: 22,
         lastWorn: subDays(new Date(), 1),
         dateAdded: subDays(new Date(), 45),
-        aiTags: ['denim', 'vintage', 'casual']
-    },
-    {
-        id: 'demo-3',
-        imageUrl: 'https://images.unsplash.com/photo-1591047139829-d91aecb6caea?auto=format&fit=crop&q=80&w=500',
-        category: ClothingCategory.Outerwear,
-        subcategory: 'Classic Trench',
-        color: 'Beige',
-        colorHex: '#d2b48c',
-        pattern: 'Solid',
-        season: [Season.Spring, Season.Fall],
-        wearFrequency: 8,
-        lastWorn: subDays(new Date(), 5),
-        dateAdded: subDays(new Date(), 60),
-        aiTags: ['chic', 'workwear', 'layering']
+        aiTags: ['denim', 'casual', 'staple']
     },
     {
         id: 'demo-4',
+        imageUrl: 'https://images.unsplash.com/photo-1554568218-0f1715e72254?auto=format&fit=crop&q=80&w=500',
+        category: ClothingCategory.Tops,
+        subcategory: 'Cardigan',
+        color: 'Grey',
+        colorHex: '#9ca3af',
+        pattern: 'Solid',
+        season: [Season.Spring, Season.Fall],
+        wearFrequency: 12,
+        lastWorn: subDays(new Date(), 4),
+        dateAdded: subDays(new Date(), 50),
+        aiTags: ['layering', 'cozy', 'casual']
+    },
+    {
+        id: 'demo-5',
+        imageUrl: 'https://images.unsplash.com/photo-1539533018447-63fcce26515f?auto=format&fit=crop&q=80&w=500',
+        category: ClothingCategory.Tops,
+        subcategory: 'Hoodie',
+        color: 'Grey',
+        colorHex: '#9ca3af',
+        pattern: 'Solid',
+        season: [Season.Fall, Season.Winter],
+        wearFrequency: 18,
+        lastWorn: subDays(new Date(), 3),
+        dateAdded: subDays(new Date(), 60),
+        aiTags: ['casual', 'comfort', 'sporty']
+    },
+    {
+        id: 'demo-6',
         imageUrl: 'https://images.unsplash.com/photo-1549298916-b41d501d3772?auto=format&fit=crop&q=80&w=500',
         category: ClothingCategory.Shoes,
-        subcategory: 'White Sneakers',
+        subcategory: 'Sneakers',
         color: 'White',
         colorHex: '#f3f4f6',
         pattern: 'Solid',
@@ -76,66 +104,38 @@ const DEMO_ITEMS: ClothingItem[] = [
         aiTags: ['sporty', 'comfortable', 'daily']
     },
     {
-        id: 'demo-5',
-        imageUrl: 'https://images.unsplash.com/photo-1620799140408-ed5341cd2431?auto=format&fit=crop&q=80&w=500',
-        category: ClothingCategory.Dresses,
-        subcategory: 'Black Slip Dress',
+        id: 'demo-7',
+        imageUrl: 'https://images.unsplash.com/photo-1551028719-00167b16eac5?auto=format&fit=crop&q=80&w=500',
+        category: ClothingCategory.Outerwear,
+        subcategory: 'Jacket',
         color: 'Black',
         colorHex: '#000000',
         pattern: 'Solid',
-        season: [Season.Summer, Season.Spring],
-        wearFrequency: 5,
-        lastWorn: subDays(new Date(), 14),
-        dateAdded: subDays(new Date(), 20),
-        aiTags: ['evening', 'elegant', 'minimal']
-    },
-    {
-        id: 'demo-6',
-        imageUrl: 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?auto=format&fit=crop&q=80&w=500',
-        category: ClothingCategory.Tops,
-        subcategory: 'Striped Oxford Shirt',
-        color: 'Blue',
-        colorHex: '#60a5fa',
-        pattern: 'Striped',
-        season: [Season.Spring, Season.Fall],
-        wearFrequency: 10,
-        lastWorn: subDays(new Date(), 3),
-        dateAdded: subDays(new Date(), 40),
-        aiTags: ['preppy', 'work', 'collared']
-    },
-    {
-        id: 'demo-7',
-        imageUrl: 'https://images.unsplash.com/photo-1551028919-ac66c5f8b955?auto=format&fit=crop&q=80&w=500',
-        category: ClothingCategory.Bottoms,
-        subcategory: 'Black Trousers',
-        color: 'Black',
-        colorHex: '#1f2937',
-        pattern: 'Solid',
-        season: [Season.Fall, Season.Winter],
-        wearFrequency: 18,
-        lastWorn: subDays(new Date(), 4),
-        dateAdded: subDays(new Date(), 50),
-        aiTags: ['formal', 'office', 'tailored']
+        season: [Season.Spring, Season.Fall, Season.Winter],
+        wearFrequency: 14,
+        lastWorn: subDays(new Date(), 10),
+        dateAdded: subDays(new Date(), 80),
+        aiTags: ['leather', 'edgy', 'layering']
     },
     {
         id: 'demo-8',
-        imageUrl: 'https://images.unsplash.com/photo-1556906781-9a412961d28c?auto=format&fit=crop&q=80&w=500',
-        category: ClothingCategory.Shoes,
-        subcategory: 'Chelsea Boots',
-        color: 'Brown',
-        colorHex: '#78350f',
+        imageUrl: 'https://images.unsplash.com/photo-1539533113208-f6df8cc8b543?auto=format&fit=crop&q=80&w=500',
+        category: ClothingCategory.Outerwear,
+        subcategory: 'Coat',
+        color: 'Beige',
+        colorHex: '#d2b48c',
         pattern: 'Solid',
         season: [Season.Fall, Season.Winter],
-        wearFrequency: 12,
-        lastWorn: subDays(new Date(), 6),
-        dateAdded: subDays(new Date(), 70),
-        aiTags: ['leather', 'boots', 'autumn']
+        wearFrequency: 8,
+        lastWorn: subDays(new Date(), 5),
+        dateAdded: subDays(new Date(), 60),
+        aiTags: ['outerwear', 'classic', 'warm']
     },
     {
         id: 'demo-9',
         imageUrl: 'https://images.unsplash.com/photo-1576566588028-4147f3842f27?auto=format&fit=crop&q=80&w=500',
         category: ClothingCategory.Tops,
-        subcategory: 'Chunky Knit Sweater',
+        subcategory: 'Jumper',
         color: 'Cream',
         colorHex: '#fef3c7',
         pattern: 'Solid',
@@ -147,45 +147,87 @@ const DEMO_ITEMS: ClothingItem[] = [
     },
     {
         id: 'demo-10',
-        imageUrl: 'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?auto=format&fit=crop&q=80&w=500',
+        imageUrl: 'https://images.unsplash.com/photo-1588002131980-fc319688bcbd?auto=format&fit=crop&q=80&w=500',
         category: ClothingCategory.Accessories,
-        subcategory: 'Leather Tote Bag',
-        color: 'Tan',
-        colorHex: '#d97706',
-        pattern: 'Solid',
-        season: [Season.Spring, Season.Summer, Season.Fall, Season.Winter],
-        wearFrequency: 40,
-        lastWorn: new Date(),
-        dateAdded: subDays(new Date(), 100),
-        aiTags: ['bag', 'accessory', 'daily']
+        subcategory: 'Muffler',
+        color: 'Grey',
+        colorHex: '#9ca3af',
+        pattern: 'Checked',
+        season: [Season.Winter, Season.Fall],
+        wearFrequency: 5,
+        lastWorn: subDays(new Date(), 12),
+        dateAdded: subDays(new Date(), 30),
+        aiTags: ['warm', 'accessory', 'winter']
     },
     {
         id: 'demo-11',
-        imageUrl: 'https://images.unsplash.com/photo-1617137968427-85924c809a10?auto=format&fit=crop&q=80&w=500',
-        category: ClothingCategory.Outerwear,
-        subcategory: 'Denim Jacket',
-        color: 'Blue',
-        colorHex: '#2563eb',
+        imageUrl: 'https://images.unsplash.com/photo-1576878368867-b52cc8b50f75?auto=format&fit=crop&q=80&w=500',
+        category: ClothingCategory.Accessories,
+        subcategory: 'Beanie',
+        color: 'Black',
+        colorHex: '#000000',
         pattern: 'Solid',
-        season: [Season.Spring, Season.Fall],
-        wearFrequency: 14,
-        lastWorn: subDays(new Date(), 10),
-        dateAdded: subDays(new Date(), 80),
-        aiTags: ['casual', 'layering', 'denim']
+        season: [Season.Winter, Season.Fall],
+        wearFrequency: 10,
+        lastWorn: subDays(new Date(), 7),
+        dateAdded: subDays(new Date(), 40),
+        aiTags: ['casual', 'hat', 'warm']
     },
     {
         id: 'demo-12',
-        imageUrl: 'https://images.unsplash.com/photo-1576871337622-98d48d1cf531?auto=format&fit=crop&q=80&w=500',
-        category: ClothingCategory.Tops,
-        subcategory: 'Silk Blouse',
-        color: 'Red',
-        colorHex: '#dc2626',
+        imageUrl: 'https://images.unsplash.com/photo-1521369909029-2afed882259d?auto=format&fit=crop&q=80&w=500',
+        category: ClothingCategory.Accessories,
+        subcategory: 'Cap',
+        color: 'Navy',
+        colorHex: '#1e3a8a',
         pattern: 'Solid',
-        season: [Season.Fall, Season.Winter],
-        wearFrequency: 3,
-        lastWorn: subDays(new Date(), 25),
-        dateAdded: subDays(new Date(), 40),
-        aiTags: ['formal', 'evening', 'statement']
+        season: [Season.Spring, Season.Summer, Season.Fall],
+        wearFrequency: 25,
+        lastWorn: subDays(new Date(), 2),
+        dateAdded: subDays(new Date(), 100),
+        aiTags: ['sporty', 'casual', 'hat']
+    },
+    {
+        id: 'demo-13',
+        imageUrl: 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&q=80&w=500',
+        category: ClothingCategory.Accessories,
+        subcategory: 'Backpack',
+        color: 'Black',
+        colorHex: '#000000',
+        pattern: 'Solid',
+        season: [Season.Spring, Season.Summer, Season.Fall, Season.Winter],
+        wearFrequency: 30,
+        lastWorn: subDays(new Date(), 1),
+        dateAdded: subDays(new Date(), 120),
+        aiTags: ['bag', 'utility', 'daily']
+    },
+    {
+        id: 'demo-14',
+        imageUrl: 'https://images.unsplash.com/photo-1591561954557-26941169b49e?auto=format&fit=crop&q=80&w=500',
+        category: ClothingCategory.Accessories,
+        subcategory: 'Crossbag',
+        color: 'Brown',
+        colorHex: '#78350f',
+        pattern: 'Solid',
+        season: [Season.Spring, Season.Summer, Season.Fall, Season.Winter],
+        wearFrequency: 15,
+        lastWorn: subDays(new Date(), 3),
+        dateAdded: subDays(new Date(), 80),
+        aiTags: ['bag', 'casual', 'accessory']
+    },
+    {
+        id: 'demo-15',
+        imageUrl: 'https://images.unsplash.com/photo-1543163521-1bf539c55dd2?auto=format&fit=crop&q=80&w=500',
+        category: ClothingCategory.Shoes,
+        subcategory: 'Heels',
+        color: 'Black',
+        colorHex: '#000000',
+        pattern: 'Solid',
+        season: [Season.Spring, Season.Summer, Season.Fall, Season.Winter],
+        wearFrequency: 4,
+        lastWorn: subDays(new Date(), 20),
+        dateAdded: subDays(new Date(), 50),
+        aiTags: ['formal', 'evening', 'elegant']
     }
 ];
 
@@ -222,6 +264,11 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
         return [];
     });
 
+    const [bookmarkedItems, setBookmarkedItems] = useState<string[]>(() => {
+        const saved = localStorage.getItem('wardrobe_bookmarks');
+        return saved ? JSON.parse(saved) : [];
+    });
+
     const [currentMood, setCurrentMood] = useState<FashionMood | null>(null);
     const [weather, setWeather] = useState<WeatherData | null>(null);
     const [isLoading, setIsLoading] = useState(false);
@@ -243,6 +290,14 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
             console.warn("[Wardrobe] localStorage quota exceeded for outfits", e);
         }
     }, [outfits]);
+
+    useEffect(() => {
+        try {
+            localStorage.setItem('wardrobe_bookmarks', JSON.stringify(bookmarkedItems));
+        } catch (e) {
+            console.warn("[Wardrobe] localStorage quota exceeded for bookmarks", e);
+        }
+    }, [bookmarkedItems]);
 
     // --- Actions ---
 
@@ -320,6 +375,9 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
         }
     };
 
+    const bookmarkItem = (id: string) => setBookmarkedItems(prev => prev.includes(id) ? prev : [...prev, id]);
+    const unbookmarkItem = (id: string) => setBookmarkedItems(prev => prev.filter(item => item !== id));
+
     const setMood = (mood: FashionMood) => setCurrentMood(mood);
 
     // --- Demo Data Population ---
@@ -336,10 +394,10 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
         // Mock data for history
         for (let i = 0; i < 5; i++) {
             const date = subDays(today, i + 1); // Yesterday, day before, etc.
-            // Pick random items
-            const top = DEMO_ITEMS[0]; // Tee
-            const bottom = DEMO_ITEMS[1]; // Jeans
-            const shoe = DEMO_ITEMS[3]; // Sneakers
+            // Pick items
+            const top = DEMO_ITEMS[0]; // White T-shirt
+            const bottom = DEMO_ITEMS[2]; // Jeans
+            const shoe = DEMO_ITEMS[5]; // Sneakers
 
             mockHistory.push({
                 id: `hist-${i}`,
@@ -424,7 +482,10 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
             setMood,
             refreshWeather,
             getInsights,
-            populateDemoData
+            populateDemoData,
+            bookmarkedItems,
+            bookmarkItem,
+            unbookmarkItem
         }}>
             {children}
         </WardrobeContext.Provider>

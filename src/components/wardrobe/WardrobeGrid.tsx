@@ -12,14 +12,10 @@ interface WardrobeGridProps {
 export const WardrobeGrid: React.FC<WardrobeGridProps> = ({ items, isLoading }) => {
     if (isLoading) {
         return (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-5">
-                {[...Array(8)].map((_, i) => (
+            <div className="grid grid-cols-3 gap-3 md:gap-5">
+                {[...Array(9)].map((_, i) => (
                     <div key={i} className="bg-white rounded-2xl overflow-hidden border border-muted">
                         <div className="aspect-[3/4] skeleton" />
-                        <div className="p-3 space-y-2">
-                            <div className="h-4 w-2/3 skeleton" />
-                            <div className="h-3 w-1/2 skeleton" />
-                        </div>
                     </div>
                 ))}
             </div>
@@ -48,7 +44,7 @@ export const WardrobeGrid: React.FC<WardrobeGridProps> = ({ items, isLoading }) 
     }
 
     return (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-5">
+        <div className="grid grid-cols-3 gap-3 md:gap-5">
             {items.map(item => (
                 <WardrobeCard key={item.id} item={item} />
             ))}

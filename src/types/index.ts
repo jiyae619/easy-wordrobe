@@ -214,4 +214,13 @@ export interface WardrobeContextType {
 
     /** Populate wardrobe with diverse demo data */
     populateDemoData: () => void;
+
+    /** IDs of items bookmarked to try next week */
+    bookmarkedItems: string[];
+
+    /** Bookmark an item for next week */
+    bookmarkItem: (id: string) => void;
+
+    /** Remove a bookmark */
+    unbookmarkItem: (id: string) => void;
 }

@@ -1,19 +1,24 @@
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
 import { Home as HomeIcon, Shirt, Camera, Sparkles, BarChart2 } from 'lucide-react';
 import { WardrobeProvider } from './context/WardrobeContext';
+import { AuthProvider } from './context/AuthContext';
 import { useState, useEffect } from 'react';
 // Import pages
 import Home from './pages/Home';
 import Wardrobe from './pages/Wardrobe';
 import Suggest from './pages/Suggest';
 import Insights from './pages/Insights';
+import Login from './pages/Login';
 import { CameraScannerOverlay } from './components/upload/CameraScannerOverlay';
+import ProtectedRoute from './components/common/ProtectedRoute';
+import UserMenu from './components/common/UserMenu';
 
 const Layout = () => {
   console.log("App Layout Loaded - Production Version");
   const location = useLocation();
   const [showScanner, setShowScanner] = useState(false);
   const isActive = (path: string) => location.pathname === path;
+  const isLoginPage = location.pathname === '/login';
 
   // Allow child pages to open the camera scanner via a custom event
   useEffect(() => {
@@ -61,19 +66,33 @@ const Layout = () => {
     );
   };
 
+  // Login page has its own full-screen layout
+  if (isLoginPage) {
+    return (
+      <Routes>
+        <Route path="/login" element={<Login />} />
+      </Routes>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-100 flex justify-center font-sans">
       {/* Mobile Container Simulator */}
       <div className="w-full max-w-[480px] min-h-screen bg-surface flex flex-col relative shadow-2xl">
 
+        {/* User Menu - Fixed top right */}
+        <div className="absolute top-4 right-4 z-40">
+          <UserMenu />
+        </div>
+
         {/* Main Content Area */}
         <div className="flex-grow overflow-y-auto scrollbar-hide">
           <main className="px-4 py-6 pb-24">
             <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/wardrobe" element={<Wardrobe />} />
-              <Route path="/suggest" element={<Suggest />} />
-              <Route path="/insights" element={<Insights />} />
+              <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
+              <Route path="/wardrobe" element={<ProtectedRoute><Wardrobe /></ProtectedRoute>} />
+              <Route path="/suggest" element={<ProtectedRoute><Suggest /></ProtectedRoute>} />
+              <Route path="/insights" element={<ProtectedRoute><Insights /></ProtectedRoute>} />
             </Routes>
           </main>
         </div>
@@ -86,12 +105,12 @@ const Layout = () => {
             <div className="flex justify-around items-center h-[72px] px-2">
               <NavItem to="/" icon={HomeIcon} label="Home" mobile />
               <NavItem to="/wardrobe" icon={Shirt} label="Wardrobe" mobile />
-              {/* Camera Button */}
+              {/* Camera Button — same style as other NavItems */}
               <button
                 onClick={() => setShowScanner(true)}
                 className="relative flex flex-col items-center justify-center w-full py-2 group"
               >
-                <div className="flex items-center justify-center w-12 h-12 -mt-5 rounded-full bg-primary text-white shadow-lg shadow-primary/30 transition-all duration-300 group-hover:scale-110 group-active:scale-95">
+                <div className="flex items-center justify-center w-10 h-10 rounded-2xl transition-all duration-300 text-gray-400 group-hover:text-secondary group-hover:bg-olive-100">
                   <Camera className="w-5 h-5" />
                 </div>
                 <span className="text-[10px] font-medium mt-1 text-gray-400">Scan</span>
@@ -112,11 +131,13 @@ const Layout = () => {
 
 function App() {
   return (
-    <WardrobeProvider>
-      <Router>
-        <Layout />
-      </Router>
-    </WardrobeProvider>
+    <AuthProvider>
+      <WardrobeProvider>
+        <Router>
+          <Layout />
+        </Router>
+      </WardrobeProvider>
+    </AuthProvider>
   );
 }
 
