@@ -28,6 +28,7 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
     const [clothes, setClothes] = useState<ClothingItem[]>([]);
     const [outfits, setOutfits] = useState<WearRecord[]>([]);
     const [bookmarkedItems, setBookmarkedItems] = useState<string[]>([]);
+    const [tryItItemIds, setTryItItemIds] = useState<string[]>([]);
     const [userSettings, setUserSettings] = useState<UserSettings | null>(null);
     const [currentMood, setCurrentMood] = useState<FashionMood | null>(null);
     const [insights, setInsights] = useState<UserInsight | null>(null);
@@ -66,6 +67,7 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
                 setClothes(items);
                 setOutfits(outfitRecords);
                 setBookmarkedItems(settings.bookmarkedItems || []);
+                setTryItItemIds(settings.tryItItemIds || []);
                 setUserSettings(settings);
 
                 console.log(`[Wardrobe] Loaded ${items.length} items, ${outfitRecords.length} outfits from Firestore`);
@@ -243,6 +245,26 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
         });
     }, [uid]);
 
+    const addTryItItem = useCallback(async (itemId: string) => {
+        if (!uid) return;
+        try {
+            const updated = await firestoreService.addTryItItem(uid, itemId);
+            setTryItItemIds(updated);
+        } catch (err) {
+            console.error('[Wardrobe] Failed to save Try It item:', err);
+        }
+    }, [uid]);
+
+    const removeTryItItem = useCallback(async (itemId: string) => {
+        if (!uid) return;
+        try {
+            const updated = await firestoreService.removeTryItItem(uid, itemId);
+            setTryItItemIds(updated);
+        } catch (err) {
+            console.error('[Wardrobe] Failed to remove Try It item:', err);
+        }
+    }, [uid]);
+
     const updateUserSettings = useCallback(async (updates: Partial<UserSettings>) => {
         if (!uid) return;
         try {
@@ -339,11 +361,14 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
             refreshWeather,
             fetchInsights,
             populateDemoData,
-            bookmarkedItems,
-            bookmarkItem,
-            unbookmarkItem,
-            userSettings,
-            updateUserSettings
+        bookmarkedItems,
+        bookmarkItem,
+        unbookmarkItem,
+        userSettings,
+        updateUserSettings,
+        tryItItemIds,
+        addTryItItem,
+        removeTryItItem,
         }}>
             {children}
         </WardrobeContext.Provider>

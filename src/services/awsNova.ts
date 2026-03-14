@@ -8,9 +8,11 @@ import {
 } from "../types/index";
 
 // Import our refactored modular agents
-import { IntakeAgent } from "./agents/IntakeAgent";
-import { StylistAgent } from "./agents/StylistAgent";
+import { IntakeAgent, type IntakeResult, type DetectedClothingItem } from "./agents/IntakeAgent";
+import { StylistAgent, type BehavioralContext } from "./agents/StylistAgent";
 import { BehavioralAgent } from "./agents/BehavioralAgent";
+
+export type { BehavioralContext, IntakeResult, DetectedClothingItem };
 
 // ==========================================
 // Main AWS Nova Service (Facade / Wrapper)
@@ -21,23 +23,26 @@ import { BehavioralAgent } from "./agents/BehavioralAgent";
 export const awsNovaService = {
     /**
      * Agent 1: Intake Specialist
-     * Delegates to IntakeAgent to analyze clothing
+     * Delegates to IntakeAgent to analyze clothing.
+     * Returns IntakeResult which can be success (with item) or failure (with error message).
      */
-    analyzeClothingImage: async (imageBase64: string): Promise<ClothingItem> => {
+    analyzeClothingImage: async (imageBase64: string): Promise<IntakeResult> => {
         return IntakeAgent.analyzeClothingImage(imageBase64);
     },
 
     /**
      * Agent 2: Personal Stylist
-     * Delegates to StylistAgent to generate outfits
+     * Delegates to StylistAgent to generate outfits.
+     * Accepts optional behavioralContext so BehavioralAgent insights influence recommendations.
      */
     suggestOutfits: async (
         clothes: ClothingItem[],
         mood: FashionMood,
         weather: WeatherData,
-        userProfile?: { gender?: string, height?: string, weight?: string }
+        userProfile?: { gender?: string, height?: string, weight?: string },
+        behavioralContext?: BehavioralContext
     ): Promise<OutfitSuggestion[]> => {
-        return StylistAgent.generateOutfitSuggestions(clothes, mood, weather, userProfile);
+        return StylistAgent.generateOutfitSuggestions(clothes, mood, weather, userProfile, behavioralContext);
     },
 
     /**
@@ -48,9 +53,10 @@ export const awsNovaService = {
         mood: FashionMood,
         weather: WeatherData,
         _wearHistory: WearRecord[],
-        userProfile?: { gender?: string, height?: string, weight?: string }
+        userProfile?: { gender?: string, height?: string, weight?: string },
+        behavioralContext?: BehavioralContext
     ): Promise<OutfitSuggestion[]> => {
-        return StylistAgent.generateOutfitSuggestions(clothes, mood, weather, userProfile);
+        return StylistAgent.generateOutfitSuggestions(clothes, mood, weather, userProfile, behavioralContext);
     },
 
     /**

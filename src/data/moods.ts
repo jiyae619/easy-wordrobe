@@ -34,38 +34,6 @@ export const MOODS: FashionMood[] = [
         tags: ['art', 'bold', 'color']
     },
     {
-        id: 'minimalist',
-        name: 'Minimalist',
-        description: 'Sleek and understated elegance',
-        colorPalette: ['#1A2419', '#2D3A2D', '#E8EBE4'],
-        previewImageUrl: '/demo-images/mood-minimalist.jpg',
-        tags: ['clean', 'simple', 'sleek']
-    },
-    {
-        id: 'cozy',
-        name: 'Cozy',
-        description: 'Warm and layered comfort',
-        colorPalette: ['#8A9E78', '#A8B89A', '#F4F5F0'],
-        previewImageUrl: '/demo-images/mood-cozy.jpg',
-        tags: ['winter', 'autumn', 'layer']
-    },
-    {
-        id: 'elegant',
-        name: 'Elegant',
-        description: 'Sophisticated evening attire',
-        colorPalette: ['#2D3A2D', '#556849', '#D1D8C9'],
-        previewImageUrl: '/demo-images/mood-elegant.jpg',
-        tags: ['night', 'date', 'formal']
-    },
-    {
-        id: 'streetwear',
-        name: 'Streetwear',
-        description: 'Urban and trendy looks',
-        colorPalette: ['#1A2419', '#3F4F37', '#A8B89A'],
-        previewImageUrl: '/demo-images/mood-streetwear.jpg',
-        tags: ['city', 'trend', 'hype']
-    },
-    {
         id: 'romantic',
         name: 'Romantic',
         description: 'Soft and elegant date-night looks',

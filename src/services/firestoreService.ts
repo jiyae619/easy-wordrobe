@@ -51,14 +51,16 @@ function deserializeOutfit(data: Record<string, any>): WearRecord {
 
 export interface UserSettings {
     bookmarkedItems: string[];
+    /** Item IDs the user tapped "Try it" on from the Insights page */
+    tryItItemIds?: string[];
     gender?: string;
     height?: string;
     weight?: string;
-    // Future: theme, temperatureUnit, etc.
 }
 
 const DEFAULT_SETTINGS: UserSettings = {
     bookmarkedItems: [],
+    tryItItemIds: [],
 };
 
 // ==========================================
@@ -127,6 +129,22 @@ export const firestoreService = {
         } else {
             await setDoc(docRef, { ...DEFAULT_SETTINGS, ...updates });
         }
+    },
+
+    async addTryItItem(uid: string, itemId: string): Promise<string[]> {
+        const settings = await this.getUserSettings(uid);
+        const current = settings.tryItItemIds ?? [];
+        if (current.includes(itemId)) return current;
+        const updated = [...current, itemId];
+        await this.updateUserSettings(uid, { tryItItemIds: updated });
+        return updated;
+    },
+
+    async removeTryItItem(uid: string, itemId: string): Promise<string[]> {
+        const settings = await this.getUserSettings(uid);
+        const updated = (settings.tryItItemIds ?? []).filter(id => id !== itemId);
+        await this.updateUserSettings(uid, { tryItItemIds: updated });
+        return updated;
     },
 
     // ------ Migration: localStorage → Firestore ------

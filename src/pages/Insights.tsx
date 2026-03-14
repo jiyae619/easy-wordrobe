@@ -1,12 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useWardrobe } from '../context/WardrobeContext';
-import { Lightbulb, Cloud, Activity, Heart, Info, Sparkles, ChevronDown, Loader2 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Lightbulb, Sparkles, Loader2 } from 'lucide-react';
 import { WeeklyOutfitTimeline } from '../components/insights/WeeklyOutfitTimeline';
 
 const Insights: React.FC = () => {
-    const { clothes, insights, fetchInsights, isLoading } = useWardrobe();
-    const [showCurate, setShowCurate] = useState(false);
+    const { clothes, insights, fetchInsights, isLoading, addTryItItem, removeTryItItem, tryItItemIds } = useWardrobe();
+    const [savedItemIds, setSavedItemIds] = useState<Set<string>>(new Set());
 
     useEffect(() => {
         if (!insights && clothes.length > 0) {
@@ -22,6 +21,22 @@ const Insights: React.FC = () => {
             </div>
         );
     }
+
+    const handleTryIt = async (itemId: string) => {
+        await addTryItItem(itemId);
+        setSavedItemIds(prev => new Set(prev).add(itemId));
+    };
+
+    const handleUnTryIt = async (itemId: string) => {
+        await removeTryItItem(itemId);
+        setSavedItemIds(prev => {
+            const next = new Set(prev);
+            next.delete(itemId);
+            return next;
+        });
+    };
+
+    const isSaved = (itemId: string) => savedItemIds.has(itemId) || tryItItemIds.includes(itemId);
 
     // Top nudge
     const topNudge = insights.suggestedVariations[0] || "Add more items to your wardrobe to get personalized insights!";
@@ -48,30 +63,26 @@ const Insights: React.FC = () => {
             {/* Weekly Outfit Timeline */}
             <WeeklyOutfitTimeline />
 
-            {/* Behavioral Nudge Card */}
-            <section className="p-5 rounded-2xl bg-olive-100/50 border border-olive-200/60">
-                <div className="flex gap-3">
-                    <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-secondary/20 flex items-center justify-center">
-                        <Lightbulb className="w-5 h-5 text-secondary" />
-                    </div>
-                    <div>
-                        <h2 className="font-bold text-primary text-base mb-1">
-                            Daily Nudge
-                        </h2>
-                        <p className="text-sm leading-relaxed text-olive-600">
-                            {topNudge}
-                        </p>
-                    </div>
-                </div>
-            </section>
-
-            {/* Next Week Suggestions */}
+            {/* Next Week Suggestions + Nudge */}
             {nextWeekItems.length > 0 && (
                 <section>
-                    <div className="flex items-center justify-between mb-4">
+                    <div className="mb-4">
                         <h2 className="text-lg font-bold text-primary">Try Next Week</h2>
                         <span className="text-xs text-olive-400 font-medium">Least worn items</span>
                     </div>
+
+                    {/* Behavioral Nudge */}
+                    <div className="mb-3 p-4 rounded-2xl bg-olive-100/50 border border-olive-200/60">
+                        <div className="flex gap-3">
+                            <div className="flex-shrink-0 w-9 h-9 rounded-xl bg-secondary/20 flex items-center justify-center">
+                                <Lightbulb className="w-4 h-4 text-secondary" />
+                            </div>
+                            <p className="text-sm leading-relaxed text-olive-600 pt-1.5">
+                                {topNudge}
+                            </p>
+                        </div>
+                    </div>
+
                     <div className="space-y-3">
                         {nextWeekItems.slice(0, 3).map((item) => (
                             <div
@@ -95,14 +106,24 @@ const Insights: React.FC = () => {
                                         {item.category} • Worn {item.wearFrequency}×
                                     </p>
                                 </div>
-                                {/* CTA */}
-                                <Link
-                                    to="/suggest"
-                                    className="flex items-center gap-1 px-3 py-1.5 bg-olive-100 hover:bg-olive-200 text-secondary text-xs font-semibold rounded-full transition-colors active:scale-[0.97]"
-                                >
-                                    <Sparkles className="w-3 h-3" />
-                                    Try it
-                                </Link>
+                                {/* CTA — toggleable */}
+                                {isSaved(item.id) ? (
+                                    <button
+                                        onClick={() => handleUnTryIt(item.id)}
+                                        className="flex items-center gap-1 px-3 py-1.5 bg-primary text-white text-xs font-semibold rounded-full transition-colors hover:bg-olive-700 active:scale-[0.97]"
+                                    >
+                                        <Sparkles className="w-3 h-3" />
+                                        Will try
+                                    </button>
+                                ) : (
+                                    <button
+                                        onClick={() => handleTryIt(item.id)}
+                                        className="flex items-center gap-1 px-3 py-1.5 bg-olive-100 hover:bg-olive-200 text-secondary text-xs font-semibold rounded-full transition-colors active:scale-[0.97]"
+                                    >
+                                        <Sparkles className="w-3 h-3" />
+                                        Try it
+                                    </button>
+                                )}
                             </div>
                         ))}
                     </div>
@@ -162,35 +183,6 @@ const Insights: React.FC = () => {
                         );
                     })}
                 </div>
-            </section>
-
-
-            {/* How We Curate — Collapsible */}
-            <section className="rounded-2xl bg-olive-900 text-white overflow-hidden">
-                <button
-                    onClick={() => setShowCurate(prev => !prev)}
-                    className="w-full flex items-center justify-between px-5 py-4 text-left"
-                >
-                    <div className="flex items-center gap-2">
-                        <Info className="w-4 h-4 text-olive-300" />
-                        <span className="text-base font-bold">How We Curate Your Outfits</span>
-                    </div>
-                    <ChevronDown
-                        className={`w-4 h-4 text-olive-400 transition-transform duration-300 ${showCurate ? 'rotate-180' : ''}`}
-                    />
-                </button>
-                {showCurate && (
-                    <div className="px-5 pb-5">
-                        <p className="text-sm leading-relaxed text-olive-200 mb-4">
-                            Our AI considers three key factors when suggesting outfits: <strong className="text-white">current weather conditions</strong> to keep you comfortable, <strong className="text-white">how often you've worn each item</strong> to promote variety, and your <strong className="text-white">selected mood</strong> to match the vibe you're going for.
-                        </p>
-                        <div className="flex items-center gap-4 text-olive-300 text-xs font-medium">
-                            <span className="flex items-center gap-1.5"><Cloud className="w-3.5 h-3.5" /> Weather</span>
-                            <span className="flex items-center gap-1.5"><Activity className="w-3.5 h-3.5" /> Frequency</span>
-                            <span className="flex items-center gap-1.5"><Heart className="w-3.5 h-3.5" /> Mood</span>
-                        </div>
-                    </div>
-                )}
             </section>
 
 

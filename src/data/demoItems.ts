@@ -26,9 +26,6 @@ const categoryMap: Record<string, ClothingCategory> = {
     bottoms: ClothingCategory.Bottoms,
     outerwear: ClothingCategory.Outerwear,
     dresses: ClothingCategory.Dresses,
-    shoes: ClothingCategory.Shoes,
-    accessories: ClothingCategory.Accessories,
-    bags: ClothingCategory.Bags,
 };
 
 const colorHexMap: Record<string, string> = {
@@ -55,19 +52,13 @@ const seasonMap: Record<string, Season[]> = {
     bottoms: [Season.Spring, Season.Fall, Season.Winter],
     outerwear: [Season.Fall, Season.Winter],
     dresses: [Season.Spring, Season.Summer],
-    shoes: [Season.Spring, Season.Summer, Season.Fall, Season.Winter],
-    accessories: [Season.Fall, Season.Winter],
-    bags: [Season.Spring, Season.Summer, Season.Fall, Season.Winter],
 };
 
 const tagMap: Record<string, string[]> = {
     tops: ['casual', 'essential'],
     bottoms: ['casual', 'staple'],
     outerwear: ['layering', 'warm'],
-    dresses: ['elegant', 'versatile'],
-    shoes: ['comfortable', 'daily'],
-    accessories: ['accessory', 'style'],
-    bags: ['utility', 'daily'],
+    dresses: ['romantic', 'versatile'],
 };
 
 // --- Build DEMO_ITEMS dynamically ---
@@ -114,12 +105,11 @@ export const DEMO_ITEMS: ClothingItem[] = Object.entries(imageModules)
             subcategory: capitalize(subcategory),
             color: capitalize(color),
             colorHex: colorHexMap[color.toLowerCase()] || '#9ca3af',
-            pattern: 'Solid',
             season: seasonMap[category] || [Season.Spring, Season.Summer, Season.Fall, Season.Winter],
             wearFrequency: Math.floor(Math.random() * 30) + 1,
             lastWorn: subDays(now, Math.floor(Math.random() * 14) + 1),
             dateAdded: subDays(now, Math.floor(Math.random() * 90) + 10),
-            aiTags: [...(tagMap[category] || ['item']), color.toLowerCase()],
+            aiTags: [...(tagMap[category] || ['casual']), color.toLowerCase()],
         };
         return item;
     })

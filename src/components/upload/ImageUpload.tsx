@@ -33,7 +33,13 @@ export const ImageUpload: React.FC = () => {
         setIsAnalyzing(true);
         try {
             const result = await awsNovaService.analyzeClothingImage(base64);
-            setAnalyzedItem(result);
+            if (result.success) {
+                setAnalyzedItem(result.items[0]);
+            } else {
+                // Handle restricted content
+                alert(result.message);
+                setSelectedImage(null);
+            }
         } catch (error) {
             console.error("Analysis failed", error);
             alert("Failed to analyze image. Please try again.");
@@ -51,7 +57,6 @@ export const ImageUpload: React.FC = () => {
                 subcategory: analyzedItem.subcategory || "Unknown",
                 color: analyzedItem.color || "Unknown",
                 colorHex: analyzedItem.colorHex || "#000000",
-                pattern: analyzedItem.pattern || "solid",
                 season: analyzedItem.season || [Season.Spring],
                 wearFrequency: 0,
                 lastWorn: null,

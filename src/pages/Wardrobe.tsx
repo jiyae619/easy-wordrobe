@@ -10,9 +10,6 @@ const categoryChips = [
     { label: 'Bottoms', value: ClothingCategory.Bottoms },
     { label: 'Outerwear', value: ClothingCategory.Outerwear },
     { label: 'Dresses', value: ClothingCategory.Dresses },
-    { label: 'Shoes', value: ClothingCategory.Shoes },
-    { label: 'Accessories', value: ClothingCategory.Accessories },
-    { label: 'Bags', value: ClothingCategory.Bags },
 ];
 
 const sortOptions = [

@@ -1,28 +1,16 @@
 import React from 'react';
-import { X, Trash2, Calendar, Hash, Sparkles, Shirt } from 'lucide-react';
-import { type ClothingItem, ClothingCategory } from '../../types';
+import { X, Trash2, Calendar, Hash } from 'lucide-react';
+import { type ClothingItem } from '../../types';
 import { useWardrobe } from '../../context/WardrobeContext';
-import { format } from 'date-fns';
+import { format, differenceInDays } from 'date-fns';
 
 interface ItemDetailModalProps {
     item: ClothingItem;
     onClose: () => void;
 }
 
-const pairingSuggestions: Record<string, string[]> = {
-    [ClothingCategory.Tops]: ['Bottoms', 'Outerwear', 'Shoes'],
-    [ClothingCategory.Bottoms]: ['Tops', 'Outerwear', 'Shoes'],
-    [ClothingCategory.Outerwear]: ['Tops', 'Bottoms', 'Shoes'],
-    [ClothingCategory.Dresses]: ['Outerwear', 'Shoes', 'Bags'],
-    [ClothingCategory.Shoes]: ['Bottoms', 'Tops', 'Dresses'],
-    [ClothingCategory.Accessories]: ['Tops', 'Dresses', 'Outerwear'],
-    [ClothingCategory.Bags]: ['Dresses', 'Outerwear', 'Shoes'],
-};
-
 export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({ item, onClose }) => {
     const { deleteClothingItem } = useWardrobe();
-
-    const suggestions = pairingSuggestions[item.category] || ['Accessories', 'Shoes', 'Tops'];
 
     const handleDelete = async () => {
         if (window.confirm('Are you sure you want to delete this item?')) {
@@ -52,7 +40,7 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({ item, onClose 
 
                     <button
                         onClick={onClose}
-                        className="absolute top-3 right-3 p-2 bg-white/20 backdrop-blur-md text-white rounded-full hover:bg-white/40 transition-colors"
+                        className="absolute top-3 right-3 p-2 bg-black/50 backdrop-blur-md text-white rounded-full hover:bg-black/70 transition-colors"
                     >
                         <X className="w-5 h-5" />
                     </button>
@@ -89,32 +77,16 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({ item, onClose 
                                 <div>
                                     <p className="text-[10px] font-bold text-olive-400 uppercase tracking-wider">Last Worn</p>
                                     <p className="text-sm font-bold text-primary truncate">
-                                        {item.lastWorn ? format(new Date(item.lastWorn), 'MMM d') : 'Never'}
+                                        {item.lastWorn
+                                            ? (() => {
+                                                const days = differenceInDays(new Date(), new Date(item.lastWorn));
+                                                return days === 0 ? 'Today' : `${days}d ago`;
+                                            })()
+                                            : 'Never'}
                                     </p>
                                 </div>
                             </div>
                         </div>
-
-                        {/* Styling Advice */}
-                        <section>
-                            <div className="flex items-center gap-2 mb-3">
-                                <Sparkles className="w-4 h-4 text-secondary" />
-                                <h3 className="text-xs font-bold text-primary uppercase tracking-wider">Pairs well with</h3>
-                            </div>
-                            <div className="grid grid-cols-3 gap-2">
-                                {suggestions.map((cat) => (
-                                    <div
-                                        key={cat}
-                                        className="p-2.5 bg-white border border-olive-100 rounded-xl text-center shadow-sm"
-                                    >
-                                        <div className="w-7 h-7 bg-olive-100 rounded-lg mx-auto mb-1.5 flex items-center justify-center">
-                                            <Shirt className="w-3.5 h-3.5 text-secondary" />
-                                        </div>
-                                        <span className="text-[11px] font-bold text-primary">{cat}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        </section>
 
                         {/* Tags */}
                         {item.aiTags && item.aiTags.length > 0 && (

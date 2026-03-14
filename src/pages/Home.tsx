@@ -72,39 +72,6 @@ const Home: React.FC = () => {
     const condition = weather?.condition ?? 'Sunny';
     const location = weather?.location ?? 'New York, NY';
 
-    const [isTestingInsight, setIsTestingInsight] = useState(false);
-    const [testMessage, setTestMessage] = useState<string | null>(null);
-    const { fetchInsights } = useWardrobe();
-
-    const handleTestAgent2 = async () => {
-        setTestMessage("Testing Agent 2 (Stylist)... check console for full output");
-        try {
-            const casualMood = MOODS.find(m => m.id === 'casual') || MOODS[1];
-            // Use dummy weather if none is available
-            const testWeather = weather || { temperature: 72, condition: 'Sunny', location: 'Test Location', feelsLike: 70, humidity: 40, windSpeed: 5 };
-            const outfits = await awsNovaService.suggestOutfits(clothes, casualMood, testWeather);
-            console.log("[AGENT 2 TEST RESULT]", outfits);
-            setTestMessage(`Agent 2 success! Generated ${outfits.length} outfits. Go to Suggestions tab to see full output.`);
-        } catch (err) {
-            console.error("Agent 2 test failed:", err);
-            setTestMessage("Agent 2 test failed. See console.");
-        }
-    };
-
-    const handleTestAgent3 = async () => {
-        setIsTestingInsight(true);
-        setTestMessage("Testing Agent 3 (Insights)... check console for full output");
-        try {
-            await fetchInsights();
-            setTestMessage("Agent 3 success! Insights fetched and stored in Context. Go to Insights tab.");
-        } catch (err) {
-            console.error("Agent 3 test failed:", err);
-            setTestMessage("Agent 3 test failed. See console.");
-        } finally {
-            setIsTestingInsight(false);
-        }
-    };
-
     return (
         <div className="space-y-8 pb-20">
             {/* Greeting Header */}
@@ -253,35 +220,6 @@ const Home: React.FC = () => {
                 </div>
             </section>
 
-            {/* AI Agents Testing Section (Debug) */}
-            <section className="bg-olive-50 rounded-2xl p-6 border border-olive-200 mt-8">
-                <div className="flex items-center gap-2 mb-4">
-                    <Lightbulb className="w-5 h-5 text-secondary" />
-                    <h2 className="text-lg font-bold text-primary">Test AI Agents (Debug)</h2>
-                </div>
-                <div className="space-y-3">
-                    <button
-                        onClick={handleTestAgent2}
-                        disabled={outfitLoading}
-                        className="w-full bg-white border border-olive-300 hover:bg-olive-100 text-primary font-semibold py-2 px-4 rounded-xl transition-colors disabled:opacity-50"
-                    >
-                        Test Agent 2 (Stylist)
-                    </button>
-                    <button
-                        onClick={handleTestAgent3}
-                        disabled={isTestingInsight}
-                        className="w-full bg-white border border-olive-300 hover:bg-olive-100 text-primary font-semibold py-2 px-4 rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                    >
-                        {isTestingInsight && <Loader2 className="w-4 h-4 animate-spin" />}
-                        Test Agent 3 (Insights)
-                    </button>
-                    {testMessage && (
-                        <div className="text-xs text-olive-600 bg-white p-3 rounded-xl border border-olive-200 break-words mt-3">
-                            {testMessage}
-                        </div>
-                    )}
-                </div>
-            </section>
         </div>
     );
 };

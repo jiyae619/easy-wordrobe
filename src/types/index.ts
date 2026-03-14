@@ -20,9 +20,6 @@ export const ClothingCategory = {
     Bottoms: "bottoms",
     Outerwear: "outerwear",
     Dresses: "dresses",
-    Shoes: "shoes",
-    Accessories: "accessories",
-    Bags: "bags",
 } as const;
 
 export type ClothingCategory = typeof ClothingCategory[keyof typeof ClothingCategory];
@@ -56,8 +53,6 @@ export interface ClothingItem {
     color: string;
     /** Hex code for the primary color */
     colorHex: string;
-    /** Pattern type (e.g., solid, striped, floral) */
-    pattern: string;
     /** List of seasons this item is suitable for */
     season: Season[];
     /** Number of times this item has been worn */
@@ -66,7 +61,7 @@ export interface ClothingItem {
     lastWorn: Date | null;
     /** Date when the item was added to the wardrobe */
     dateAdded: Date;
-    /** AI-generated tags for better search and categorization */
+    /** AI-generated tags for better search and categorization (mood/style tags) */
     aiTags: string[];
     /** Optional personal notes about the item */
     userNotes?: string;
@@ -230,4 +225,13 @@ export interface WardrobeContextType {
 
     /** Update user profile settings */
     updateUserSettings: (updates: Partial<UserSettings>) => Promise<void>;
+
+    /** IDs of items the user tapped "Try it" on from the Insights page */
+    tryItItemIds: string[];
+
+    /** Save a "Try it" intent for an item — persisted to Firestore and fed into StylistAgent */
+    addTryItItem: (itemId: string) => Promise<void>;
+
+    /** Remove a "Try it" intent */
+    removeTryItItem: (itemId: string) => Promise<void>;
 }

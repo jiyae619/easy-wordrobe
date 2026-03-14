@@ -6,12 +6,33 @@ import {
 import { v4 as uuidv4 } from 'uuid';
 import { callBedrockConverseAPI } from "../bedrockClient";
 
+// Valid moods coherent across all agents and pages (from src/data/moods.ts)
+const VALID_MOODS = [
+    "professional",
+    "casual",
+    "sporty",
+    "creative",
+    "romantic"
+] as const;
+
+export type DetectedClothingItem = ClothingItem;
+
+export type IntakeResult = {
+    success: true;
+    items: DetectedClothingItem[];
+} | {
+    success: false;
+    error: "RESTRICTED_CONTENT";
+    message: string;
+};
+
 export const IntakeAgent = {
     /**
      * Agent 1: Intake Specialist
-     * Analyzes clothing images to extract metadata (category, color, season, mood).
+     * Analyzes clothing images to extract metadata for up to 3 detected items.
+     * Includes safety guardrails for inappropriate content.
      */
-    analyzeClothingImage: async (imageBase64: string): Promise<ClothingItem> => {
+    analyzeClothingImage: async (imageBase64: string): Promise<IntakeResult> => {
         console.log("[Intake Agent] Analyzing clothing image...");
 
         // Strip the data URI prefix (e.g. "data:image/jpeg;base64,") if present
@@ -26,17 +47,47 @@ export const IntakeAgent = {
             if (match) format = match[1];
         }
 
-        const prompt = `You are a fashion AI assistant who optimizes the current fashion items from the wardrobe while also meeting the fashion trend based on the mood and current weather. Refer to the fashion guide tailored to the height and weight, gender from Pinterest or other fashion guidelines. Analyze this clothing item image and return ONLY a JSON object with these fields:
-{
-  "category": one of "tops", "bottoms", "outerwear", "dresses", "shoes", "accessories", "bags",
-  "subcategory": specific type like "Crew Neck T-Shirt", "Denim Jeans", "Running Shoes", etc.,
-  "color": the primary color name like "Navy Blue", "Forest Green", "Cream",
-  "colorHex": the hex code for the primary color like "#1B2A4A",
-  "pattern": one of "solid", "striped", "plaid", "floral", "graphic", "abstract", "animal print", "polka dot",
-  "season": array of suitable seasons from ["spring", "summer", "fall", "winter"],
-  "mood": array of 1-3 matching moods from ["professional", "casual", "sporty", "creative", "minimalist", "cozy", "elegant", "streetwear", "romantic"]
-}
-Return ONLY valid JSON, no markdown, no explanation.`;
+        const prompt = `You are a fashion AI assistant analyzing clothing items for a digital wardrobe app.
+
+SAFETY CHECK (IMPORTANT):
+First, check if the image contains any inappropriate content:
+- Nudity or partial nudity
+- Sexually suggestive content
+- Violent or disturbing imagery
+- Any content not suitable for a general audience
+
+If the image contains inappropriate content, return ONLY:
+[{"isRestricted": true}]
+
+If the image is safe, identify up to 3 distinct clothing items visible in the image and return a JSON ARRAY. Each element must match this exact structure:
+
+[
+  {
+    "isRestricted": false,
+    "category": "tops",
+    "subcategory": "Crew Neck T-Shirt",
+    "color": "Navy Blue",
+    "colorHex": "#1B2A4A",
+    "season": ["spring", "summer"],
+    "mood": ["casual"],
+    "hasNoisyBackground": false
+  }
+]
+
+FIELD RULES:
+- "category": must be exactly one of: "tops", "bottoms", "outerwear", "dresses"
+- "subcategory": a specific descriptive label, e.g. "Slim-Fit Chinos", "Oversized Hoodie", "Wrap Dress"
+- "color": the dominant color name in plain English, e.g. "Olive Green", "Cream", "Burgundy"
+- "colorHex": a valid 6-digit hex code matching the color, e.g. "#6B7C45"
+- "season": a JSON array containing one or more of: "spring", "summer", "fall", "winter"
+- "mood": a JSON array with 1–3 values from: "professional", "casual", "sporty", "creative", "romantic"
+- "hasNoisyBackground": true if the background is cluttered or distracting, otherwise false
+
+IMPORTANT:
+- Analyze clothing items ONLY — do NOT include shoes, bags, hats, or accessories
+- If only one item is visible, still return a single-element array
+- Order items by how prominent or central they are in the image
+- Return ONLY the raw JSON array — no markdown fences, no explanation, no extra text`;
 
         try {
             const payload = {
@@ -57,58 +108,74 @@ Return ONLY valid JSON, no markdown, no explanation.`;
                     },
                 ],
                 inferenceConfig: {
-                    maxTokens: 512,
-                    temperature: 0.3,
+                    maxTokens: 1024,
+                    temperature: 0.2,
                 },
             };
 
             const jsonStr = await callBedrockConverseAPI(payload);
-            const parsed = JSON.parse(jsonStr);
+            const parsed: any[] = JSON.parse(jsonStr);
 
-            // Validate and map to ClothingItem
+            // Safety check — if any item is restricted, reject the whole image
+            if (!Array.isArray(parsed) || parsed.some(p => p.isRestricted === true)) {
+                console.warn("[Intake Agent] Restricted content detected");
+                return {
+                    success: false,
+                    error: "RESTRICTED_CONTENT",
+                    message: "This image is restricted due to safety concerns. Please try another image."
+                };
+            }
+
             const validCategories = Object.values(ClothingCategory);
-            const category = validCategories.includes(parsed.category)
-                ? parsed.category
-                : ClothingCategory.Tops;
-
             const validSeasons = Object.values(Season);
-            const season = Array.isArray(parsed.season)
-                ? parsed.season.filter((s: string) => validSeasons.includes(s as Season))
-                : [Season.Spring];
 
-            return {
-                id: uuidv4(),
-                imageUrl: imageBase64,
-                category,
-                subcategory: parsed.subcategory || "Unknown",
-                color: parsed.color || "Unknown",
-                colorHex: parsed.colorHex || "#000000",
-                pattern: parsed.pattern || "solid",
-                season: season.length > 0 ? season : [Season.Spring],
-                wearFrequency: 0,
-                lastWorn: null,
-                dateAdded: new Date(),
-                aiTags: Array.isArray(parsed.mood) ? parsed.mood : [],
-                userNotes: "",
-            };
+            const items: DetectedClothingItem[] = parsed.map((p: any) => {
+                const category = validCategories.includes(p.category)
+                    ? p.category
+                    : ClothingCategory.Tops;
+
+                const season = Array.isArray(p.season)
+                    ? p.season.filter((s: string) => validSeasons.includes(s as Season))
+                    : [Season.Spring];
+
+                const moods = Array.isArray(p.mood)
+                    ? p.mood.filter((m: string) => VALID_MOODS.includes(m as typeof VALID_MOODS[number]))
+                    : ["casual"];
+
+                return {
+                    id: uuidv4(),
+                    imageUrl: imageBase64,
+                    category,
+                    subcategory: p.subcategory || "Unknown",
+                    color: p.color || "Unknown",
+                    colorHex: p.colorHex || "#000000",
+                    season: season.length > 0 ? season : [Season.Spring],
+                    wearFrequency: 0,
+                    lastWorn: null,
+                    dateAdded: new Date(),
+                    aiTags: moods,
+                    userNotes: p.hasNoisyBackground ? "Consider retaking with a plain background" : "",
+                };
+            });
+
+            return { success: true, items };
         } catch (error) {
             console.error("[Intake Agent] Analysis failed, falling back to mock:", error);
-            // Fallback mock
-            return {
+            const fallbackItem: DetectedClothingItem = {
                 id: uuidv4(),
                 imageUrl: imageBase64,
                 category: ClothingCategory.Tops,
                 subcategory: "Casual T-Shirt",
                 color: "Navy Blue",
                 colorHex: "#1a1a2e",
-                pattern: "Solid",
                 season: [Season.Spring, Season.Summer],
                 wearFrequency: 0,
                 lastWorn: null,
                 dateAdded: new Date(),
-                aiTags: ["comfortable", "casual", "cotton", "basic"],
-                userNotes: "Mock data generated item"
+                aiTags: ["casual"],
+                userNotes: "",
             };
+            return { success: true, items: [fallbackItem] };
         }
     }
 };

@@ -1,13 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useWardrobe } from '../../context/WardrobeContext';
-import { LogOut, User, Settings, X, Lock, Camera, Sparkles, Loader2 } from 'lucide-react';
+import { LogOut, User, Settings, X, Lock, Camera, Sparkles, Loader2, Info, Cloud, Activity, Heart } from 'lucide-react';
 
 const UserMenu: React.FC = () => {
     const { user, logout } = useAuth();
     const { userSettings, updateUserSettings, populateDemoData, isLoading } = useWardrobe();
     const [isOpen, setIsOpen] = useState(false);
     const [showProfileModal, setShowProfileModal] = useState(false);
+    const [showCurateModal, setShowCurateModal] = useState(false);
 
     // Local state for profile form
     const [height, setHeight] = useState(userSettings?.height || '');
@@ -109,6 +110,16 @@ const UserMenu: React.FC = () => {
                             >
                                 <Settings className="w-4 h-4" />
                                 Profile & Settings
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setIsOpen(false);
+                                    setShowCurateModal(true);
+                                }}
+                                className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm text-gray-600 hover:bg-olive-50 rounded-xl transition-colors"
+                            >
+                                <Info className="w-4 h-4" />
+                                How We Curate
                             </button>
                             <button
                                 onClick={() => {
@@ -242,10 +253,8 @@ const UserMenu: React.FC = () => {
                                     <div>
                                         <label className="block text-sm font-semibold text-primary mb-1">Preferred Vibe</label>
                                         <select className="w-full px-4 py-3 bg-olive-50 border border-olive-200 rounded-xl text-primary font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none transition-all">
-                                            <option value="minimalist">Minimalist</option>
                                             <option value="professional">Professional</option>
                                             <option value="casual">Casual & Comfy</option>
-                                            <option value="streetwear">Streetwear</option>
                                             <option value="vintage">Vintage / Retro</option>
                                         </select>
                                     </div>
@@ -283,6 +292,36 @@ const UserMenu: React.FC = () => {
                             >
                                 Save Changes
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* How We Curate Modal */}
+            {showCurateModal && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                    <div className="w-full max-w-sm bg-olive-900 text-white rounded-3xl shadow-xl overflow-hidden animate-scale-in">
+                        <div className="flex items-center justify-between p-5 border-b border-olive-700">
+                            <div className="flex items-center gap-2">
+                                <Info className="w-5 h-5 text-olive-300" />
+                                <h3 className="text-lg font-bold">How We Curate Your Outfits</h3>
+                            </div>
+                            <button
+                                onClick={() => setShowCurateModal(false)}
+                                className="p-2 text-olive-400 hover:text-white hover:bg-olive-700 rounded-full transition-colors"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <div className="p-5 space-y-4">
+                            <p className="text-sm leading-relaxed text-olive-200">
+                                Our AI considers three key factors when suggesting outfits: <strong className="text-white">current weather conditions</strong> to keep you comfortable, <strong className="text-white">how often you've worn each item</strong> to promote variety, and your <strong className="text-white">selected mood</strong> to match the vibe you're going for.
+                            </p>
+                            <div className="flex items-center gap-4 text-olive-300 text-xs font-medium">
+                                <span className="flex items-center gap-1.5"><Cloud className="w-3.5 h-3.5" /> Weather</span>
+                                <span className="flex items-center gap-1.5"><Activity className="w-3.5 h-3.5" /> Frequency</span>
+                                <span className="flex items-center gap-1.5"><Heart className="w-3.5 h-3.5" /> Mood</span>
+                            </div>
                         </div>
                     </div>
                 </div>
