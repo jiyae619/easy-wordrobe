@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useWardrobe } from '../context/WardrobeContext';
 import { awsNovaService } from '../services/awsNova';
@@ -6,7 +6,7 @@ import { weatherService } from '../services/weatherService';
 import { OutfitCard } from '../components/suggestions/OutfitCard';
 
 import { type OutfitSuggestion, type WeatherData } from '../types';
-import { Sparkles, Loader2, RefreshCw, Frown, ArrowLeft, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Sparkles, Loader2, RefreshCw, Frown, ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
 
 import { MOODS } from '../data/moods';
 
@@ -17,10 +17,7 @@ function getMoodIcon(id: string): string {
         case 'casual': return '☕';
         case 'sporty': return '🏃';
         case 'creative': return '🎨';
-        case 'minimalist': return '◻️';
-        case 'cozy': return '🧣';
-        case 'elegant': return '✨';
-        case 'streetwear': return '🔥';
+
         case 'romantic': return '💕';
         default: return '✨';
     }
@@ -28,8 +25,8 @@ function getMoodIcon(id: string): string {
 
 const Suggest: React.FC = () => {
     const [searchParams, setSearchParams] = useSearchParams();
-    const { clothes, logOutfitWear } = useWardrobe();
-    const moodId = searchParams.get('mood') || 'casual';
+    const { clothes, logOutfitWear, userSettings, insights, tryItItemIds } = useWardrobe();
+    const moodId = searchParams.get('mood') || userSettings?.preferredVibe || 'casual';
     const mood = MOODS.find(m => m.id === moodId) || MOODS[1];
 
     const [suggestions, setSuggestions] = useState<OutfitSuggestion[]>([]);
@@ -38,24 +35,11 @@ const Suggest: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [logged, setLogged] = useState(false);
     const [isRegenerating, setIsRegenerating] = useState(false);
-    const [showAllMoods, setShowAllMoods] = useState(false);
     const [currentIndex, setCurrentIndex] = useState(0);
 
     // Touch handling for swipe
     const touchStartX = useRef(0);
     const touchEndX = useRef(0);
-
-    // Pick 2 featured moods on page visit
-    const featuredMoods = useMemo(() => {
-        const shuffled = [...MOODS].sort(() => Math.random() - 0.5);
-        return shuffled.slice(0, 2);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
-
-    const remainingMoods = useMemo(() => {
-        const featuredIds = new Set(featuredMoods.map(m => m.id));
-        return MOODS.filter(m => !featuredIds.has(m.id));
-    }, [featuredMoods]);
 
     useEffect(() => {
         const fetchSuggestions = async () => {
@@ -73,7 +57,19 @@ const Suggest: React.FC = () => {
                     return;
                 }
 
-                const outfits = await awsNovaService.suggestOutfits(clothes, mood, weatherData);
+                // Prepare user profile data if available
+                const userProfile = userSettings ? {
+                    gender: userSettings.gender,
+                    height: userSettings.height,
+                    weight: userSettings.weight
+                } : undefined;
+
+                const behavioralContext = {
+                    leastWornItemIds: insights?.leastWornItems.map(i => i.id) ?? [],
+                    tryItItemIds,
+                };
+
+                const outfits = await awsNovaService.suggestOutfits(clothes, mood, weatherData, userProfile, behavioralContext);
                 setSuggestions(outfits);
             } catch (err) {
                 console.error("Suggestion error:", err);
@@ -90,7 +86,19 @@ const Suggest: React.FC = () => {
         if (!weather) return;
         setIsRegenerating(true);
         try {
-            const newOutfits = await awsNovaService.suggestOutfits(clothes, mood, weather);
+            // Prepare user profile data if available
+            const userProfile = userSettings ? {
+                gender: userSettings.gender,
+                height: userSettings.height,
+                weight: userSettings.weight
+            } : undefined;
+
+            const behavioralContext = {
+                leastWornItemIds: insights?.leastWornItems.map(i => i.id) ?? [],
+                tryItItemIds,
+            };
+
+            const newOutfits = await awsNovaService.suggestOutfits(clothes, mood, weather, userProfile, behavioralContext);
             setSuggestions(newOutfits);
             setCurrentIndex(0);
         } catch (err) {
@@ -110,7 +118,6 @@ const Suggest: React.FC = () => {
 
     const handleMoodChange = (id: string) => {
         setSearchParams({ mood: id });
-        setShowAllMoods(false);
     };
 
     const goToNext = useCallback(() => {
@@ -150,56 +157,23 @@ const Suggest: React.FC = () => {
                 <p className="text-sm text-olive-500 mt-0.5">Pick a vibe, get styled</p>
             </div>
 
-            {/* Inline Mood Picker */}
+            {/* Mood Picker */}
             <section>
-                <div className="flex items-center gap-2 flex-wrap">
-                    {featuredMoods.map(m => (
+                <div className="flex items-center gap-1.5 flex-wrap">
+                    {MOODS.map(m => (
                         <button
                             key={m.id}
                             onClick={() => handleMoodChange(m.id)}
-                            className={`inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full text-sm font-semibold transition-all active:scale-[0.95] ${moodId === m.id
+                            className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold transition-all active:scale-[0.95] ${moodId === m.id
                                 ? 'bg-primary text-white shadow-md'
                                 : 'bg-olive-100 text-secondary hover:bg-olive-200'
                                 }`}
                         >
-                            <span className="text-base">{getMoodIcon(m.id)}</span>
+                            <span className="text-sm">{getMoodIcon(m.id)}</span>
                             {m.name}
                         </button>
                     ))}
-
-                    <button
-                        onClick={() => setShowAllMoods(prev => !prev)}
-                        className="inline-flex items-center gap-1 px-3 py-2.5 rounded-full text-sm font-semibold text-olive-500 bg-olive-50 hover:bg-olive-100 transition-all active:scale-[0.95]"
-                    >
-                        More
-                        <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-300 ${showAllMoods ? 'rotate-180' : ''}`} />
-                    </button>
                 </div>
-
-                {showAllMoods && (
-                    <div className="mt-3 grid grid-cols-2 gap-2 animate-fade-in-up">
-                        {remainingMoods.map(m => (
-                            <button
-                                key={m.id}
-                                onClick={() => handleMoodChange(m.id)}
-                                className={`flex items-center gap-2 p-3 rounded-xl text-left transition-all active:scale-[0.97] ${moodId === m.id
-                                    ? 'bg-primary text-white shadow-md'
-                                    : 'bg-white border border-muted hover:border-olive-300 hover:shadow-sm'
-                                    }`}
-                            >
-                                <span className="text-xl">{getMoodIcon(m.id)}</span>
-                                <div className="min-w-0">
-                                    <p className={`text-sm font-semibold truncate ${moodId === m.id ? 'text-white' : 'text-primary'}`}>
-                                        {m.name}
-                                    </p>
-                                    <p className={`text-[11px] truncate ${moodId === m.id ? 'text-olive-200' : 'text-olive-400'}`}>
-                                        {m.description}
-                                    </p>
-                                </div>
-                            </button>
-                        ))}
-                    </div>
-                )}
             </section>
 
             {/* Loading */}
@@ -254,14 +228,11 @@ const Suggest: React.FC = () => {
             {/* Suggestions Carousel */}
             {!isLoading && !error && suggestions.length > 0 && (
                 <div className="animate-fade-in-up">
-                    {/* Intro text + mood badge */}
+                    {/* Intro text */}
                     <div className="flex items-center justify-between mb-4">
                         <p className="text-sm font-semibold text-olive-600">
                             {suggestions.length} {suggestions.length === 1 ? 'Outfit' : 'Outfits'} for you
                         </p>
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 text-primary text-xs font-bold rounded-full capitalize">
-                            {getMoodIcon(moodId)} {mood.name}
-                        </span>
                     </div>
 
                     {/* Swipe area */}
@@ -294,8 +265,8 @@ const Suggest: React.FC = () => {
                                         key={i}
                                         onClick={() => setCurrentIndex(i)}
                                         className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${i === currentIndex
-                                                ? 'bg-primary w-6'
-                                                : 'bg-olive-200 hover:bg-olive-300'
+                                            ? 'bg-primary w-6'
+                                            : 'bg-olive-200 hover:bg-olive-300'
                                             }`}
                                     />
                                 ))}

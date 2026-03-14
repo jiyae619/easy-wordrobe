@@ -1,6 +1,6 @@
 import React from 'react';
 import { type OutfitSuggestion } from '../../types';
-import { ThumbsUp, Shirt, CloudSun, Smile, X } from 'lucide-react';
+import { ThumbsUp, Shirt, X } from 'lucide-react';
 
 interface OutfitCardProps {
     suggestion: OutfitSuggestion;
@@ -18,20 +18,6 @@ export const OutfitCard: React.FC<OutfitCardProps> = ({ suggestion, onWear, onSk
                     {(suggestion as any).matchScore && (
                         <span className="px-3 py-1 bg-olive-100 text-secondary text-xs font-semibold rounded-full">
                             {(suggestion as any).matchScore}% match
-                        </span>
-                    )}
-                </div>
-                <div className="flex flex-wrap gap-2">
-                    {suggestion.mood && (
-                        <span className="inline-flex items-center px-2.5 py-1 bg-olive-50 text-olive-700 text-xs font-medium rounded-full capitalize">
-                            <Smile className="w-3 h-3 mr-1" />
-                            {typeof suggestion.mood === 'string' ? suggestion.mood : suggestion.mood.name}
-                        </span>
-                    )}
-                    {suggestion.weatherMatch && (
-                        <span className="inline-flex items-center px-2.5 py-1 bg-olive-50 text-olive-700 text-xs font-medium rounded-full">
-                            <CloudSun className="w-3 h-3 mr-1" />
-                            Weather Appropriate
                         </span>
                     )}
                 </div>
@@ -61,7 +47,6 @@ export const OutfitCard: React.FC<OutfitCardProps> = ({ suggestion, onWear, onSk
                 {suggestion.explanation && (
                     <div className="mt-4 p-3.5 bg-olive-50 rounded-xl border border-olive-100">
                         <p className="text-sm text-olive-700 leading-relaxed">
-                            <span className="font-semibold text-primary">Why this works:</span>{' '}
                             {suggestion.explanation}
                         </p>
                     </div>

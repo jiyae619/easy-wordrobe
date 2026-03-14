@@ -5,13 +5,17 @@ import { useWardrobe } from '../../context/WardrobeContext';
 
 interface WardrobeCardProps {
     item: ClothingItem;
+    onClick?: () => void;
 }
 
-export const WardrobeCard: React.FC<WardrobeCardProps> = ({ item }) => {
+export const WardrobeCard: React.FC<WardrobeCardProps> = ({ item, onClick }) => {
     const { deleteClothingItem } = useWardrobe();
 
     return (
-        <div className="group relative bg-white rounded-2xl overflow-hidden shadow-sm border border-muted card-hover aspect-[3/4]">
+        <div
+            onClick={onClick}
+            className="group relative bg-white rounded-2xl overflow-hidden shadow-sm border border-muted card-hover aspect-[3/4] cursor-pointer"
+        >
             {/* Image */}
             <img
                 src={item.imageUrl}

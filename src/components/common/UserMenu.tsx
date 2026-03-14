@@ -1,12 +1,38 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { LogOut, User, Settings, X, Lock, Camera } from 'lucide-react';
+import { useWardrobe } from '../../context/WardrobeContext';
+import { LogOut, User, Settings, X, Lock, Camera, Sparkles, Loader2, Info, Cloud, Activity, Heart } from 'lucide-react';
+import { MOODS } from '../../data/moods';
 
 const UserMenu: React.FC = () => {
     const { user, logout } = useAuth();
+    const { userSettings, updateUserSettings, populateDemoData, isLoading } = useWardrobe();
     const [isOpen, setIsOpen] = useState(false);
     const [showProfileModal, setShowProfileModal] = useState(false);
+    const [showCurateModal, setShowCurateModal] = useState(false);
+
+    // Local state for profile form
+    const [height, setHeight] = useState(userSettings?.height || '');
+    const [weight, setWeight] = useState(userSettings?.weight || '');
+    const [gender, setGender] = useState(userSettings?.gender || '');
+    const [preferredVibe, setPreferredVibe] = useState(userSettings?.preferredVibe || '');
+
     const menuRef = useRef<HTMLDivElement>(null);
+
+    // Sync local state when userSettings load
+    useEffect(() => {
+        if (userSettings) {
+            setHeight(userSettings.height || '');
+            setWeight(userSettings.weight || '');
+            setGender(userSettings.gender || '');
+            setPreferredVibe(userSettings.preferredVibe || '');
+        }
+    }, [userSettings]);
+
+    const handleSaveProfile = async () => {
+        await updateUserSettings({ height, weight, gender, preferredVibe });
+        setShowProfileModal(false);
+    };
 
     // Close dropdown when clicking outside
     useEffect(() => {
@@ -87,6 +113,16 @@ const UserMenu: React.FC = () => {
                             >
                                 <Settings className="w-4 h-4" />
                                 Profile & Settings
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setIsOpen(false);
+                                    setShowCurateModal(true);
+                                }}
+                                className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm text-gray-600 hover:bg-olive-50 rounded-xl transition-colors"
+                            >
+                                <Info className="w-4 h-4" />
+                                How We Curate
                             </button>
                             <button
                                 onClick={() => {
@@ -179,11 +215,26 @@ const UserMenu: React.FC = () => {
                                 <h4 className="text-xs font-bold text-olive-400 uppercase tracking-wider mb-4">Settings</h4>
                                 <div className="space-y-4">
                                     <div>
+                                        <label className="block text-sm font-semibold text-primary mb-1">Gender</label>
+                                        <select
+                                            value={gender}
+                                            onChange={(e) => setGender(e.target.value)}
+                                            className="w-full px-4 py-3 bg-olive-50 border border-olive-200 rounded-xl text-primary font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none transition-all"
+                                        >
+                                            <option value="">Not specified</option>
+                                            <option value="female">Female</option>
+                                            <option value="male">Male</option>
+                                            <option value="non-binary">Non-binary</option>
+                                        </select>
+                                    </div>
+                                    <div>
                                         <label className="block text-sm font-semibold text-primary mb-1">Height</label>
                                         <div className="relative">
                                             <input
                                                 type="number"
-                                                defaultValue={165}
+                                                value={height}
+                                                onChange={(e) => setHeight(e.target.value)}
+                                                placeholder="e.g. 165"
                                                 className="w-full px-4 py-3 bg-olive-50 border border-olive-200 rounded-xl text-primary font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
                                             />
                                             <span className="absolute right-4 top-1/2 -translate-y-1/2 text-olive-400 font-medium text-sm">cm</span>
@@ -194,7 +245,9 @@ const UserMenu: React.FC = () => {
                                         <div className="relative">
                                             <input
                                                 type="number"
-                                                defaultValue={55}
+                                                value={weight}
+                                                onChange={(e) => setWeight(e.target.value)}
+                                                placeholder="e.g. 55"
                                                 className="w-full px-4 py-3 bg-olive-50 border border-olive-200 rounded-xl text-primary font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
                                             />
                                             <span className="absolute right-4 top-1/2 -translate-y-1/2 text-olive-400 font-medium text-sm">kg</span>
@@ -202,26 +255,81 @@ const UserMenu: React.FC = () => {
                                     </div>
                                     <div>
                                         <label className="block text-sm font-semibold text-primary mb-1">Preferred Vibe</label>
-                                        <select className="w-full px-4 py-3 bg-olive-50 border border-olive-200 rounded-xl text-primary font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none transition-all">
-                                            <option value="minimalist">Minimalist</option>
-                                            <option value="professional">Professional</option>
-                                            <option value="casual">Casual & Comfy</option>
-                                            <option value="streetwear">Streetwear</option>
-                                            <option value="vintage">Vintage / Retro</option>
+                                        <select
+                                            value={preferredVibe}
+                                            onChange={(e) => setPreferredVibe(e.target.value)}
+                                            className="w-full px-4 py-3 bg-olive-50 border border-olive-200 rounded-xl text-primary font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none transition-all"
+                                        >
+                                            <option value="">Not specified</option>
+                                            {MOODS.map(m => (
+                                                <option key={m.id} value={m.id}>{m.name}</option>
+                                            ))}
                                         </select>
                                     </div>
                                 </div>
+                            </section>
+
+                            {/* Divider */}
+                            <div className="h-px bg-olive-100" />
+
+                            {/* === Developer Section === */}
+                            <section>
+                                <h4 className="text-xs font-bold text-red-400 uppercase tracking-wider mb-4">Developer Actions</h4>
+                                <button
+                                    onClick={() => {
+                                        populateDemoData();
+                                        setShowProfileModal(false);
+                                    }}
+                                    disabled={isLoading}
+                                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-50 text-red-600 border border-red-100 rounded-xl text-sm font-semibold hover:bg-red-100 transition-colors disabled:opacity-50"
+                                >
+                                    {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                                    Populate Demo Data
+                                </button>
+                                <p className="mt-2 text-[10px] text-gray-400 text-center">
+                                    This will add sample items and history to your account.
+                                </p>
                             </section>
                         </div>
 
                         {/* Save Button — Fixed at bottom */}
                         <div className="p-5 border-t border-olive-100 flex-shrink-0">
                             <button
-                                onClick={() => setShowProfileModal(false)}
+                                onClick={handleSaveProfile}
                                 className="w-full py-3.5 bg-primary text-white font-bold rounded-xl active:scale-[0.98] transition-transform hover:bg-olive-900"
                             >
                                 Save Changes
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* How We Curate Modal */}
+            {showCurateModal && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                    <div className="w-full max-w-sm bg-olive-900 text-white rounded-3xl shadow-xl overflow-hidden animate-scale-in">
+                        <div className="flex items-center justify-between p-5 border-b border-olive-700">
+                            <div className="flex items-center gap-2">
+                                <Info className="w-5 h-5 text-olive-300" />
+                                <h3 className="text-lg font-bold">How We Curate Your Outfits</h3>
+                            </div>
+                            <button
+                                onClick={() => setShowCurateModal(false)}
+                                className="p-2 text-olive-400 hover:text-white hover:bg-olive-700 rounded-full transition-colors"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <div className="p-5 space-y-4">
+                            <p className="text-sm leading-relaxed text-olive-200">
+                                Our AI considers three key factors when suggesting outfits: <strong className="text-white">current weather conditions</strong> to keep you comfortable, <strong className="text-white">how often you've worn each item</strong> to promote variety, and your <strong className="text-white">selected mood</strong> to match the vibe you're going for.
+                            </p>
+                            <div className="flex items-center gap-4 text-olive-300 text-xs font-medium">
+                                <span className="flex items-center gap-1.5"><Cloud className="w-3.5 h-3.5" /> Weather</span>
+                                <span className="flex items-center gap-1.5"><Activity className="w-3.5 h-3.5" /> Frequency</span>
+                                <span className="flex items-center gap-1.5"><Heart className="w-3.5 h-3.5" /> Mood</span>
+                            </div>
                         </div>
                     </div>
                 </div>

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback, type ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Info, Grid3X3, Loader2, CheckCircle, Zap, X } from 'lucide-react';
-import { awsNovaService } from '../../services/awsNova';
+import { awsNovaService, type DetectedClothingItem } from '../../services/awsNova';
 import { type ClothingItem, ClothingCategory, Season } from '../../types';
 import { useWardrobe } from '../../context/WardrobeContext';
 import { compressImage } from '../../utils/imageUtils';
@@ -17,15 +17,34 @@ const ALL_SEASONS = Object.values(Season);
 export const CameraScannerOverlay: React.FC<CameraScannerOverlayProps> = ({ isOpen, onClose }) => {
     const { addClothingItem } = useWardrobe();
     const navigate = useNavigate();
+
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
-    const [analyzedItem, setAnalyzedItem] = useState<Partial<ClothingItem> | null>(null);
+
+    // Multi-item state
+    const [detectedItems, setDetectedItems] = useState<DetectedClothingItem[]>([]);
+    const [currentItemIndex, setCurrentItemIndex] = useState(0);
+
+    // Per-item editable fields
+    const [itemName, setItemName] = useState('');
+    const [selectedSeasons, setSelectedSeasons] = useState<string[]>([]);
+    const [selectedMoods, setSelectedMoods] = useState<string[]>([]);
+
     const fileInputRef = useRef<HTMLInputElement>(null);
     const videoRef = useRef<HTMLVideoElement>(null);
     const [stream, setStream] = useState<MediaStream | null>(null);
     const [showInfo, setShowInfo] = useState(false);
-    const [selectedSeasons, setSelectedSeasons] = useState<string[]>([]);
-    const [selectedMood, setSelectedMood] = useState<string | null>(null);
+
+    const currentItem = detectedItems[currentItemIndex] ?? null;
+    const totalItems = detectedItems.length;
+    const isLastItem = currentItemIndex >= totalItems - 1;
+
+    // Pre-fill editable fields from a detected item
+    const prefillFromItem = (item: DetectedClothingItem) => {
+        setItemName(`${item.color} ${item.subcategory}`);
+        setSelectedSeasons(item.season as string[]);
+        setSelectedMoods(item.aiTags ?? []);
+    };
 
     // Initialize camera when opened
     useEffect(() => {
@@ -36,13 +55,6 @@ export const CameraScannerOverlay: React.FC<CameraScannerOverlayProps> = ({ isOp
         }
         return () => stopCamera();
     }, [isOpen, selectedImage, isAnalyzing]);
-
-    // Sync seasons from analyzed item
-    useEffect(() => {
-        if (analyzedItem?.season) {
-            setSelectedSeasons(analyzedItem.season as string[]);
-        }
-    }, [analyzedItem?.season]);
 
     const startCamera = async () => {
         try {
@@ -101,7 +113,15 @@ export const CameraScannerOverlay: React.FC<CameraScannerOverlayProps> = ({ isOp
         setIsAnalyzing(true);
         try {
             const result = await awsNovaService.analyzeClothingImage(base64);
-            setAnalyzedItem(result);
+            if (result.success) {
+                setDetectedItems(result.items);
+                setCurrentItemIndex(0);
+                prefillFromItem(result.items[0]);
+            } else {
+                alert(result.message);
+                setSelectedImage(null);
+                startCamera();
+            }
         } catch (error) {
             console.error("[Scanner] Analysis failed:", error);
             alert("Failed to analyze image. Please try again.");
@@ -114,49 +134,69 @@ export const CameraScannerOverlay: React.FC<CameraScannerOverlayProps> = ({ isOp
 
     const toggleSeason = (season: string) => {
         setSelectedSeasons(prev =>
-            prev.includes(season)
-                ? prev.filter(s => s !== season)
-                : [...prev, season]
+            prev.includes(season) ? prev.filter(s => s !== season) : [...prev, season]
         );
     };
 
-    const handleSave = async () => {
-        if (analyzedItem && selectedImage) {
-            try {
-                const compressedImage = await compressImage(selectedImage, 400, 0.7);
-                const itemToSave: Omit<ClothingItem, 'id' | 'dateAdded'> = {
-                    imageUrl: compressedImage,
-                    category: analyzedItem.category || ClothingCategory.Tops,
-                    subcategory: analyzedItem.subcategory || "Unknown",
-                    color: analyzedItem.color || "Unknown",
-                    colorHex: analyzedItem.colorHex || "#000000",
-                    pattern: analyzedItem.pattern || "solid",
-                    season: selectedSeasons.length > 0 ? selectedSeasons as Season[] : [Season.Spring],
-                    wearFrequency: 0,
-                    lastWorn: null,
-                    aiTags: [
-                        ...(analyzedItem.aiTags || []),
-                        ...(selectedMood ? [selectedMood] : [])
-                    ],
-                    userNotes: analyzedItem.userNotes || ""
-                };
-                addClothingItem(itemToSave);
-                onClose();
-                handleReset();
-                navigate('/wardrobe');
-            } catch (error) {
-                console.error("[Scanner] Save failed:", error);
-                alert("Failed to save item. Please try again.");
-            }
+    const toggleMood = (moodId: string) => {
+        setSelectedMoods(prev =>
+            prev.includes(moodId) ? prev.filter(m => m !== moodId) : [...prev, moodId]
+        );
+    };
+
+    const handleSaveAndContinue = async () => {
+        if (!currentItem || !selectedImage) return;
+        try {
+            const compressedImage = await compressImage(selectedImage, 400, 0.7);
+            const itemToSave: Omit<ClothingItem, 'id' | 'dateAdded'> = {
+                imageUrl: compressedImage,
+                category: currentItem.category || ClothingCategory.Tops,
+                subcategory: itemName || currentItem.subcategory || "Unknown",
+                color: currentItem.color || "Unknown",
+                colorHex: currentItem.colorHex || "#000000",
+                season: selectedSeasons.length > 0 ? selectedSeasons as Season[] : [Season.Spring],
+                wearFrequency: 0,
+                lastWorn: null,
+                aiTags: selectedMoods,
+                userNotes: currentItem.userNotes || "",
+            };
+            await addClothingItem(itemToSave);
+        } catch (error) {
+            console.error("[Scanner] Save failed:", error);
+            alert("Failed to save item. Please try again.");
+            return;
         }
+
+        if (isLastItem) {
+            handleClose();
+            navigate('/wardrobe');
+        } else {
+            advanceToNextItem();
+        }
+    };
+
+    const handleSkip = () => {
+        if (isLastItem) {
+            handleClose();
+        } else {
+            advanceToNextItem();
+        }
+    };
+
+    const advanceToNextItem = () => {
+        const nextIndex = currentItemIndex + 1;
+        setCurrentItemIndex(nextIndex);
+        prefillFromItem(detectedItems[nextIndex]);
     };
 
     const handleReset = () => {
         setSelectedImage(null);
-        setAnalyzedItem(null);
-        setIsAnalyzing(false);
+        setDetectedItems([]);
+        setCurrentItemIndex(0);
+        setItemName('');
         setSelectedSeasons([]);
-        setSelectedMood(null);
+        setSelectedMoods([]);
+        setIsAnalyzing(false);
         startCamera();
     };
 
@@ -167,7 +207,7 @@ export const CameraScannerOverlay: React.FC<CameraScannerOverlayProps> = ({ isOp
     };
 
     return (
-        <div className="fixed inset-0 z-[100] flex flex-col bg-black overflow-hidden">
+        <div className="absolute inset-0 z-[100] flex flex-col bg-black overflow-hidden">
             {/* Background — camera or selected image */}
             <div className="absolute inset-0 z-0 bg-black">
                 {selectedImage ? (
@@ -202,7 +242,7 @@ export const CameraScannerOverlay: React.FC<CameraScannerOverlayProps> = ({ isOp
 
             {/* Info Modal */}
             {showInfo && (
-                <div className="fixed inset-0 z-[110] flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm animate-fade-in">
+                <div className="absolute inset-0 z-[110] flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm animate-fade-in">
                     <div className="w-full max-w-sm bg-white rounded-3xl shadow-xl overflow-hidden animate-scale-in">
                         <div className="flex items-center justify-between p-5 border-b border-olive-100">
                             <div className="flex items-center gap-2">
@@ -218,8 +258,8 @@ export const CameraScannerOverlay: React.FC<CameraScannerOverlayProps> = ({ isOp
                         </div>
                         <div className="p-6 space-y-4 text-sm text-olive-600 leading-relaxed">
                             <p><strong className="text-primary">1. Capture or Upload</strong> — Take a photo of your clothing item or pick one from your gallery.</p>
-                            <p><strong className="text-primary">2. AI Analysis</strong> — Our AI detects the category, color, pattern, and suitable seasons for the item.</p>
-                            <p><strong className="text-primary">3. Review & Save</strong> — Adjust the detected details if needed, then add it to your wardrobe.</p>
+                            <p><strong className="text-primary">2. AI Analysis</strong> — Our AI detects up to 3 items and prepares each one for review.</p>
+                            <p><strong className="text-primary">3. Review & Save</strong> — Edit the name, seasons, and moods for each detected item, then add them one by one.</p>
                         </div>
                     </div>
                 </div>
@@ -232,23 +272,46 @@ export const CameraScannerOverlay: React.FC<CameraScannerOverlayProps> = ({ isOp
                         <div className="bg-black/70 backdrop-blur-xl rounded-2xl p-6 w-full max-w-md text-center border border-white/10 shadow-xl">
                             <Loader2 className="w-10 h-10 text-secondary animate-spin mx-auto mb-3" />
                             <p className="text-white font-medium">AI is analyzing your clothing...</p>
-                            <p className="text-white/50 text-sm mt-1">Detecting color, pattern, and style.</p>
+                            <p className="text-white/50 text-sm mt-1">Detecting items, colors, and styles.</p>
                         </div>
-                    ) : analyzedItem ? (
-                        <div className="bg-black/80 backdrop-blur-xl rounded-2xl w-full max-w-md border border-white/10 max-h-[75vh] overflow-y-auto shadow-2xl">
-                            {/* Header */}
-                            <div className="flex items-center gap-2 text-secondary p-5 pb-3">
-                                <CheckCircle className="w-5 h-5" />
-                                <span className="font-medium text-white">Analysis Complete</span>
+                    ) : currentItem ? (
+                        <div className="bg-black/80 backdrop-blur-xl rounded-2xl w-full max-w-md border border-white/10 max-h-[72vh] overflow-y-auto shadow-2xl">
+                            {/* Header with counter */}
+                            <div className="flex items-center justify-between p-5 pb-3">
+                                <div className="flex items-center gap-2 text-white">
+                                    <CheckCircle className="w-5 h-5 text-secondary" />
+                                    <span className="font-medium">Analysis Complete</span>
+                                </div>
+                                {totalItems > 1 && (
+                                    <span className="text-xs font-bold px-2.5 py-1 bg-secondary/80 text-white rounded-full">
+                                        Item {currentItemIndex + 1} of {totalItems}
+                                    </span>
+                                )}
                             </div>
 
                             <div className="px-5 pb-5 space-y-4">
-                                {/* Category Dropdown — at the top */}
+                                {/* Item Name — user-editable */}
+                                <div>
+                                    <label className="block text-xs font-medium text-white/60 mb-1.5">Item Name</label>
+                                    <input
+                                        type="text"
+                                        value={itemName}
+                                        onChange={e => setItemName(e.target.value)}
+                                        placeholder="e.g. Navy Blue Crew Neck T-Shirt"
+                                        className="w-full rounded-xl bg-black/50 border border-white/20 text-white placeholder-white/30 p-3 text-sm focus:ring-2 focus:ring-secondary/50 focus:border-secondary outline-none"
+                                    />
+                                </div>
+
+                                {/* Category Dropdown */}
                                 <div>
                                     <label className="block text-xs font-medium text-white/60 mb-1.5">Category</label>
                                     <select
-                                        value={analyzedItem.category}
-                                        onChange={(e) => setAnalyzedItem({ ...analyzedItem, category: e.target.value as any })}
+                                        value={currentItem.category}
+                                        onChange={(e) => {
+                                            const updated = [...detectedItems];
+                                            updated[currentItemIndex] = { ...currentItem, category: e.target.value as any };
+                                            setDetectedItems(updated);
+                                        }}
                                         className="w-full rounded-xl bg-black/50 border border-white/20 text-white p-3 text-sm focus:ring-2 focus:ring-secondary/50 focus:border-secondary outline-none"
                                     >
                                         {Object.values(ClothingCategory).map(cat => (
@@ -257,14 +320,11 @@ export const CameraScannerOverlay: React.FC<CameraScannerOverlayProps> = ({ isOp
                                     </select>
                                 </div>
 
-                                {/* Detected Color + Pattern chips */}
+                                {/* Detected Color chip */}
                                 <div className="flex flex-wrap gap-2">
                                     <div className="flex items-center gap-2 bg-white/10 backdrop-blur-md text-white px-3 py-1.5 rounded-lg border border-secondary/40">
-                                        <div className="w-3 h-3 rounded-full border border-white/20" style={{ backgroundColor: analyzedItem.colorHex || '#000' }} />
-                                        <span className="text-xs font-semibold uppercase tracking-wide capitalize">{analyzedItem.color}</span>
-                                    </div>
-                                    <div className="flex items-center gap-2 bg-white/10 backdrop-blur-md text-white px-3 py-1.5 rounded-lg border border-secondary/40">
-                                        <span className="text-xs font-semibold uppercase tracking-wide capitalize">{analyzedItem.pattern}</span>
+                                        <div className="w-3 h-3 rounded-full border border-white/20" style={{ backgroundColor: currentItem.colorHex || '#000' }} />
+                                        <span className="text-xs font-semibold uppercase tracking-wide capitalize">{currentItem.color}</span>
                                     </div>
                                 </div>
 
@@ -277,8 +337,8 @@ export const CameraScannerOverlay: React.FC<CameraScannerOverlayProps> = ({ isOp
                                                 key={s}
                                                 onClick={() => toggleSeason(s)}
                                                 className={`text-xs px-3 py-1.5 rounded-full capitalize font-semibold transition-all active:scale-95 ${selectedSeasons.includes(s)
-                                                        ? 'bg-secondary text-white border border-secondary shadow-md'
-                                                        : 'bg-white/10 text-white/60 border border-white/20 hover:border-white/40'
+                                                    ? 'bg-secondary text-white border border-secondary shadow-md'
+                                                    : 'bg-white/10 text-white/60 border border-white/20 hover:border-white/40'
                                                     }`}
                                             >
                                                 {s}
@@ -287,17 +347,17 @@ export const CameraScannerOverlay: React.FC<CameraScannerOverlayProps> = ({ isOp
                                     </div>
                                 </div>
 
-                                {/* Mood Tags — selectable */}
+                                {/* Mood Tags — multi-select */}
                                 <div>
-                                    <label className="block text-xs font-medium text-white/60 mb-1.5">Mood</label>
+                                    <label className="block text-xs font-medium text-white/60 mb-1.5">Mood (select all that apply)</label>
                                     <div className="flex flex-wrap gap-2">
-                                        {MOODS.slice(0, 6).map((m) => (
+                                        {MOODS.map((m) => (
                                             <button
                                                 key={m.id}
-                                                onClick={() => setSelectedMood(prev => prev === m.id ? null : m.id)}
-                                                className={`text-xs px-3 py-1.5 rounded-full font-semibold transition-all active:scale-95 ${selectedMood === m.id
-                                                        ? 'bg-primary text-white border border-primary shadow-md'
-                                                        : 'bg-white/10 text-white/60 border border-white/20 hover:border-white/40'
+                                                onClick={() => toggleMood(m.id)}
+                                                className={`text-xs px-3 py-1.5 rounded-full font-semibold transition-all active:scale-95 ${selectedMoods.includes(m.id)
+                                                    ? 'bg-primary text-white border border-primary shadow-md'
+                                                    : 'bg-white/10 text-white/60 border border-white/20 hover:border-white/40'
                                                     }`}
                                             >
                                                 {m.name}
@@ -307,11 +367,11 @@ export const CameraScannerOverlay: React.FC<CameraScannerOverlayProps> = ({ isOp
                                 </div>
 
                                 {/* AI Tags */}
-                                {analyzedItem.aiTags && analyzedItem.aiTags.length > 0 && (
+                                {currentItem.aiTags && currentItem.aiTags.length > 0 && (
                                     <div>
                                         <label className="block text-xs font-medium text-white/60 mb-1.5">AI Tags</label>
                                         <div className="flex flex-wrap gap-1.5">
-                                            {analyzedItem.aiTags.map((tag: string) => (
+                                            {currentItem.aiTags.map((tag: string) => (
                                                 <span key={tag} className="text-xs bg-white/10 text-white/80 px-2.5 py-1 rounded-full border border-white/10">#{tag}</span>
                                             ))}
                                         </div>
@@ -322,15 +382,23 @@ export const CameraScannerOverlay: React.FC<CameraScannerOverlayProps> = ({ isOp
                                 <div className="flex gap-3 pt-1">
                                     <button
                                         onClick={handleReset}
-                                        className="flex-1 py-3 bg-white/10 border border-white/20 text-white rounded-xl font-semibold hover:bg-white/20 transition-all active:scale-[0.97]"
+                                        className="px-4 py-3 bg-white/10 border border-white/20 text-white rounded-xl font-semibold hover:bg-white/20 transition-all active:scale-[0.97] text-sm"
                                     >
                                         Retake
                                     </button>
+                                    {totalItems > 1 && (
+                                        <button
+                                            onClick={handleSkip}
+                                            className="px-4 py-3 bg-white/10 border border-white/20 text-white/70 rounded-xl font-semibold hover:bg-white/20 transition-all active:scale-[0.97] text-sm"
+                                        >
+                                            Skip
+                                        </button>
+                                    )}
                                     <button
-                                        onClick={handleSave}
-                                        className="flex-1 py-3 bg-primary text-white rounded-xl font-semibold hover:bg-olive-700 transition-all active:scale-[0.97] shadow-lg flex items-center justify-center gap-2 border border-primary-light/20"
+                                        onClick={handleSaveAndContinue}
+                                        className="flex-1 py-3 bg-primary text-white rounded-xl font-semibold hover:bg-olive-700 transition-all active:scale-[0.97] shadow-lg flex items-center justify-center gap-2 border border-primary-light/20 text-sm"
                                     >
-                                        Add to Wardrobe
+                                        {isLastItem ? 'Add to Wardrobe' : 'Add & Continue'}
                                     </button>
                                 </div>
                             </div>
@@ -339,7 +407,7 @@ export const CameraScannerOverlay: React.FC<CameraScannerOverlayProps> = ({ isOp
                 </div>
             )}
 
-            {/* Bottom Controls */}
+            {/* Bottom Controls — camera live view */}
             {!selectedImage && (
                 <div className="relative z-50 mt-auto bg-gradient-to-t from-black/90 via-black/60 to-transparent pt-12 pb-10 px-8">
                     <div className="flex items-center justify-between gap-6 max-w-md mx-auto">

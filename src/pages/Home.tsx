@@ -8,7 +8,7 @@ import { type OutfitSuggestion, type WeatherData } from '../types';
 import { MOODS } from '../data/moods';
 
 const Home: React.FC = () => {
-    const { clothes } = useWardrobe();
+    const { clothes, populateDemoData, isLoading } = useWardrobe();
     const [weather, setWeather] = useState<WeatherData | null>(null);
     const [quickOutfit, setQuickOutfit] = useState<OutfitSuggestion | null>(null);
     const [outfitLoading, setOutfitLoading] = useState(false);
@@ -73,7 +73,7 @@ const Home: React.FC = () => {
     const location = weather?.location ?? 'New York, NY';
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-8 pb-20">
             {/* Greeting Header */}
             <section>
                 <h1 className="text-2xl md:text-3xl font-bold text-primary tracking-tight">
@@ -145,13 +145,26 @@ const Home: React.FC = () => {
                             <Sparkles className="w-6 h-6 text-secondary" />
                         </div>
                         <h3 className="font-semibold text-primary mb-1">Start Your Wardrobe</h3>
-                        <p className="text-sm text-olive-500 mb-4">Upload clothes to get AI-powered outfit suggestions.</p>
-                        <button
-                            onClick={() => window.dispatchEvent(new CustomEvent('open-scanner'))}
-                            className="inline-flex items-center px-6 py-2.5 bg-primary text-white rounded-full font-medium hover:bg-olive-700 transition-all active:scale-[0.97]"
-                        >
-                            Add Your First Item
-                        </button>
+                        <p className="text-sm text-olive-500 mb-6">Upload clothes or use demo data to get AI-powered outfit suggestions.</p>
+                        <div className="flex flex-col gap-3">
+                            <button
+                                onClick={() => window.dispatchEvent(new CustomEvent('open-scanner'))}
+                                className="w-full inline-flex items-center justify-center px-6 py-3 bg-primary text-white rounded-xl font-medium hover:bg-olive-700 transition-all active:scale-[0.97]"
+                            >
+                                Add Your First Item
+                            </button>
+                            <button
+                                onClick={populateDemoData}
+                                disabled={isLoading}
+                                className="w-full inline-flex items-center justify-center px-6 py-3 bg-olive-100 text-secondary rounded-xl font-medium hover:bg-olive-200 transition-all active:scale-[0.97] disabled:opacity-50"
+                            >
+                                {isLoading ? (
+                                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Populating...</>
+                                ) : (
+                                    'Populate Demo Data'
+                                )}
+                            </button>
+                        </div>
                     </div>
                 )}
 
@@ -206,6 +219,7 @@ const Home: React.FC = () => {
                     </div>
                 </div>
             </section>
+
         </div>
     );
 };
