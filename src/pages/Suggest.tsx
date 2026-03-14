@@ -26,7 +26,7 @@ function getMoodIcon(id: string): string {
 const Suggest: React.FC = () => {
     const [searchParams, setSearchParams] = useSearchParams();
     const { clothes, logOutfitWear, userSettings, insights, tryItItemIds } = useWardrobe();
-    const moodId = searchParams.get('mood') || 'casual';
+    const moodId = searchParams.get('mood') || userSettings?.preferredVibe || 'casual';
     const mood = MOODS.find(m => m.id === moodId) || MOODS[1];
 
     const [suggestions, setSuggestions] = useState<OutfitSuggestion[]>([]);

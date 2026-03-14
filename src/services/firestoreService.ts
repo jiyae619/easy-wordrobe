@@ -56,6 +56,7 @@ export interface UserSettings {
     gender?: string;
     height?: string;
     weight?: string;
+    preferredVibe?: string;
 }
 
 const DEFAULT_SETTINGS: UserSettings = {

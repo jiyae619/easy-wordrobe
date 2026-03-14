@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useWardrobe } from '../../context/WardrobeContext';
 import { LogOut, User, Settings, X, Lock, Camera, Sparkles, Loader2, Info, Cloud, Activity, Heart } from 'lucide-react';
+import { MOODS } from '../../data/moods';
 
 const UserMenu: React.FC = () => {
     const { user, logout } = useAuth();
@@ -14,6 +15,7 @@ const UserMenu: React.FC = () => {
     const [height, setHeight] = useState(userSettings?.height || '');
     const [weight, setWeight] = useState(userSettings?.weight || '');
     const [gender, setGender] = useState(userSettings?.gender || '');
+    const [preferredVibe, setPreferredVibe] = useState(userSettings?.preferredVibe || '');
 
     const menuRef = useRef<HTMLDivElement>(null);
 
@@ -23,11 +25,12 @@ const UserMenu: React.FC = () => {
             setHeight(userSettings.height || '');
             setWeight(userSettings.weight || '');
             setGender(userSettings.gender || '');
+            setPreferredVibe(userSettings.preferredVibe || '');
         }
     }, [userSettings]);
 
     const handleSaveProfile = async () => {
-        await updateUserSettings({ height, weight, gender });
+        await updateUserSettings({ height, weight, gender, preferredVibe });
         setShowProfileModal(false);
     };
 
@@ -252,10 +255,15 @@ const UserMenu: React.FC = () => {
                                     </div>
                                     <div>
                                         <label className="block text-sm font-semibold text-primary mb-1">Preferred Vibe</label>
-                                        <select className="w-full px-4 py-3 bg-olive-50 border border-olive-200 rounded-xl text-primary font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none transition-all">
-                                            <option value="professional">Professional</option>
-                                            <option value="casual">Casual & Comfy</option>
-                                            <option value="vintage">Vintage / Retro</option>
+                                        <select
+                                            value={preferredVibe}
+                                            onChange={(e) => setPreferredVibe(e.target.value)}
+                                            className="w-full px-4 py-3 bg-olive-50 border border-olive-200 rounded-xl text-primary font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none transition-all"
+                                        >
+                                            <option value="">Not specified</option>
+                                            {MOODS.map(m => (
+                                                <option key={m.id} value={m.id}>{m.name}</option>
+                                            ))}
                                         </select>
                                     </div>
                                 </div>
