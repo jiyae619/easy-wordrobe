@@ -71,7 +71,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setError(null);
         setIsLoading(true);
         try {
-            await authService.signUpWithEmail(email, password, displayName);
+            const user = await authService.signUpWithEmail(email, password, displayName);
+            sessionStorage.setItem('wardrobe_skip_migration', user.uid);
         } catch (err: any) {
             setError(getAuthErrorMessage(err.code));
             throw err;
@@ -84,7 +85,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setError(null);
         setIsLoading(true);
         try {
-            await authService.signInWithGoogle();
+            const { user, isNewUser } = await authService.signInWithGoogle();
+            if (isNewUser) {
+                sessionStorage.setItem('wardrobe_skip_migration', user.uid);
+            }
         } catch (err: any) {
             setError(getAuthErrorMessage(err.code));
             throw err;

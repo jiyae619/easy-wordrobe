@@ -2,6 +2,7 @@ import {
     createUserWithEmailAndPassword,
     signInWithEmailAndPassword,
     signInWithPopup,
+    getAdditionalUserInfo,
     GoogleAuthProvider,
     signOut,
     sendPasswordResetEmail,
@@ -34,9 +35,11 @@ export const authService = {
     /**
      * Sign in with Google OAuth popup.
      */
-    async signInWithGoogle(): Promise<User> {
+    async signInWithGoogle(): Promise<{ user: User; isNewUser: boolean }> {
         const credential = await signInWithPopup(auth, googleProvider);
-        return credential.user;
+        const additionalInfo = getAdditionalUserInfo(credential);
+        const isNewUser = additionalInfo?.isNewUser ?? false;
+        return { user: credential.user, isNewUser };
     },
 
     /**

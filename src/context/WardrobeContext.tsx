@@ -54,8 +54,14 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
             setIsLoading(true);
             setError(null);
             try {
-                // Attempt migration from localStorage (no-op if Firestore already has data)
-                await firestoreService.migrateFromLocalStorage(uid);
+                // Skip migration for new sign-ups to prevent cross-user data leak (localStorage is shared)
+                const skipMigration = sessionStorage.getItem('wardrobe_skip_migration') === uid;
+                if (skipMigration) {
+                    sessionStorage.removeItem('wardrobe_skip_migration');
+                }
+                if (!skipMigration) {
+                    await firestoreService.migrateFromLocalStorage(uid);
+                }
 
                 // Load all data from Firestore
                 const [items, outfitRecords, settings] = await Promise.all([
