@@ -158,6 +158,7 @@ export const CameraScannerOverlay: React.FC<CameraScannerOverlayProps> = ({ isOp
                 wearFrequency: 0,
                 lastWorn: null,
                 aiTags: selectedMoods,
+                userMoods: selectedMoods,
                 userNotes: currentItem.userNotes || "",
             };
             await addClothingItem(itemToSave);

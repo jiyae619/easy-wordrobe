@@ -78,6 +78,13 @@ const tagMap: Record<string, string[]> = {
     dresses: ['romantic', 'versatile'],
 };
 
+const userMoodsMap: Record<string, string[]> = {
+    tops: ['casual', 'professional'],
+    bottoms: ['casual', 'sporty'],
+    outerwear: ['professional', 'casual'],
+    dresses: ['romantic', 'creative'],
+};
+
 // --- Build DEMO_ITEMS dynamically ---
 
 function capitalize(s: string): string {
@@ -125,6 +132,7 @@ export const DEMO_ITEMS: ClothingItem[] = Object.entries(imageModules)
             lastWorn: null,
             dateAdded: new Date(),
             aiTags: [...(tagMap[category] || ['casual']), color.toLowerCase()],
+            userMoods: userMoodsMap[category] || ['casual'],
         };
         return item;
     })
