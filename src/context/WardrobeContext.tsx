@@ -64,7 +64,23 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
                     firestoreService.getUserSettings(uid),
                 ]);
 
-                setClothes(items);
+                // Auto-migrate stale demo items: delete all demo-* items and repopulate
+                // if any demo item has an imageUrl that isn't a stable /demo-images/ path.
+                const hasStaleDemoItems = items.some(item =>
+                    item.id.startsWith('demo-') &&
+                    !item.imageUrl?.startsWith('/demo-images/')
+                );
+                let finalItems = items;
+                if (hasStaleDemoItems) {
+                    await firestoreService.deleteAllDemoItems(uid);
+                    for (const item of DEMO_ITEMS) {
+                        await firestoreService.addClothingItem(uid, item);
+                    }
+                    const userItems = items.filter(i => !i.id.startsWith('demo-'));
+                    finalItems = [...userItems, ...DEMO_ITEMS];
+                }
+
+                setClothes(finalItems);
                 setOutfits(outfitRecords);
                 setBookmarkedItems(settings.bookmarkedItems || []);
                 setTryItItemIds(settings.tryItItemIds || []);
@@ -284,13 +300,17 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
         setIsLoading(true);
 
         try {
-            // 1. Set Items — save each to Firestore
+            // 1. Delete all existing demo items before repopulating
+            await firestoreService.deleteAllDemoItems(uid);
+
+            // 2. Add fresh DEMO_ITEMS
             for (const item of DEMO_ITEMS) {
                 await firestoreService.addClothingItem(uid, item);
             }
-            setClothes(DEMO_ITEMS);
+            // Keep any user-uploaded items alongside fresh demo items
+            setClothes(prev => [...prev.filter(i => !i.id.startsWith('demo-')), ...DEMO_ITEMS]);
 
-            // 2. Generate Mock Wear History (last 7 days)
+            // 3. Generate Mock Wear History (last 7 days)
             const mockHistory: WearRecord[] = [];
             const today = new Date();
 
