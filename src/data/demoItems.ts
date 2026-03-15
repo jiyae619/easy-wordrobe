@@ -1,22 +1,39 @@
 /**
- * Auto-generated Demo Items
- * -------------------------
- * Uses Vite's import.meta.glob to discover all images in src/assets/demo-images/
- * and automatically builds DEMO_ITEMS from filenames.
+ * Demo Items
+ * ----------
+ * Images live in public/demo-images/ so they are served with stable, non-hashed
+ * URLs (e.g. /demo-images/tops-white-tshirt.jpg) in both dev and production.
+ * This prevents Firestore-stored imageUrls from going stale across builds.
  *
  * Naming convention: {category}-{color}-{subcategory words}.{jpg|png|webp}
  * Example: tops-white-tshirt.jpg → Category: Tops, Color: White, Subcategory: Tshirt
  *
- * To add a new demo item: just drop a correctly-named image into src/assets/demo-images/
+ * To add a new demo item: drop a correctly-named image into public/demo-images/
+ * and add its filename to the list below.
  */
 
 import { type ClothingItem, ClothingCategory, Season } from '../types';
 import { subDays } from 'date-fns';
 
-// --- Eagerly import all images at build time ---
-const imageModules = import.meta.glob<string>(
-    '/src/assets/demo-images/*.{jpg,jpeg,png,webp}',
-    { eager: true, query: '?url', import: 'default' }
+// --- Filenames served from public/demo-images/ ---
+const demoImageFilenames = [
+    'bottoms-blue-jeans.png',
+    'outerwear-beige-coat.jpg',
+    'outerwear-black-jacket.jpg',
+    'tops-black-tshirt.png',
+    'tops-cream-graphic-tshirt.jpg',
+    'tops-grey-cardigan-knit.png',
+    'tops-white-graphic-tshirt.jpg',
+    'tops-white-shirt.jpg',
+    'tops-white-tshirt.jpg',
+];
+
+// Build the same shape as the old import.meta.glob result: { filepath: url }
+const imageModules: Record<string, string> = Object.fromEntries(
+    demoImageFilenames.map(filename => [
+        `/src/assets/demo-images/${filename}`,
+        `/demo-images/${filename}`,
+    ])
 );
 
 // --- Lookup tables ---
