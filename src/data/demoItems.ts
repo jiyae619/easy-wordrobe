@@ -28,10 +28,11 @@ const demoImageFilenames = [
     'tops-white-tshirt.jpg',
 ];
 
-// Build the same shape as the old import.meta.glob result: { filepath: url }
+// Build a map of { filepath: url } — filepath is also the stable public URL,
+// used only so parseFilename() can extract category/color/subcategory from the filename.
 const imageModules: Record<string, string> = Object.fromEntries(
     demoImageFilenames.map(filename => [
-        `/src/assets/demo-images/${filename}`,
+        `/demo-images/${filename}`,
         `/demo-images/${filename}`,
     ])
 );
@@ -89,7 +90,7 @@ function parseFilename(filepath: string): {
     color: string;
     subcategory: string;
 } | null {
-    // Extract filename without extension from path like /src/assets/demo-images/tops-white-tshirt.jpg
+    // Extract filename without extension from path like /demo-images/tops-white-tshirt.jpg
     const match = filepath.match(/\/([^/]+)\.\w+$/);
     if (!match) return null;
 
