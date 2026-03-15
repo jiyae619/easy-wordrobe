@@ -38,7 +38,8 @@ export const StylistAgent = {
             subcategory: c.subcategory,
             color: c.color,
             season: c.season,
-            aiTags: c.aiTags
+            aiTags: c.aiTags,
+            userMoods: c.userMoods,
         }));
 
         const profileContext = userProfile
@@ -66,6 +67,7 @@ CONDITIONS:
 - Desired Mood/Vibe: ${mood.name} (${mood.description})
 - ${profileContext}
 ${behavioralHint}
+PRIORITIZE items whose "userMoods" array includes "${mood.id}" — these are items the user categorized for this vibe when adding them.
 AVAILABLE WARDROBE (JSON format):
 ${JSON.stringify(wardrobeContext)}
 
@@ -139,26 +141,38 @@ function buildFallbackExplanation(items: ClothingItem[], mood: FashionMood, tone
 }
 
 function getMockOutfitSuggestions(clothes: ClothingItem[], mood: FashionMood): OutfitSuggestion[] {
+    const moodId = mood.id;
+
+    const filterByMood = (arr: ClothingItem[]) => {
+        const matching = arr.filter(c => c.userMoods?.includes(moodId));
+        return matching.length > 0 ? matching : arr;
+    };
+
     const tops = clothes.filter(c => c.category === ClothingCategory.Tops);
     const bottoms = clothes.filter(c => c.category === ClothingCategory.Bottoms);
     const dresses = clothes.filter(c => c.category === ClothingCategory.Dresses);
     const outerwear = clothes.filter(c => c.category === ClothingCategory.Outerwear);
 
+    const prioritizedTops = filterByMood(tops);
+    const prioritizedBottoms = filterByMood(bottoms);
+    const prioritizedDresses = filterByMood(dresses);
+    const prioritizedOuterwear = filterByMood(outerwear);
+
     const getRandomItem = (arr: ClothingItem[]) => arr.length > 0 ? arr[Math.floor(Math.random() * arr.length)] : null;
 
     const createOutfit = () => {
         const items: ClothingItem[] = [];
-        const dress = getRandomItem(dresses);
+        const dress = getRandomItem(prioritizedDresses);
         if (dress && Math.random() > 0.5) {
             items.push(dress);
         } else {
-            const top = getRandomItem(tops);
-            const bottom = getRandomItem(bottoms);
+            const top = getRandomItem(prioritizedTops);
+            const bottom = getRandomItem(prioritizedBottoms);
             if (top) items.push(top);
             if (bottom) items.push(bottom);
         }
         if (Math.random() > 0.5) {
-            const out = getRandomItem(outerwear);
+            const out = getRandomItem(prioritizedOuterwear);
             if (out && !items.includes(out)) items.push(out);
         }
         return items;

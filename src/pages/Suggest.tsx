@@ -80,7 +80,7 @@ const Suggest: React.FC = () => {
         };
 
         fetchSuggestions();
-    }, [clothes, mood]);
+    }, [clothes, moodId]);
 
     const handleRegenerate = async () => {
         if (!weather) return;

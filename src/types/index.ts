@@ -63,6 +63,8 @@ export interface ClothingItem {
     dateAdded: Date;
     /** AI-generated tags for better search and categorization (mood/style tags) */
     aiTags: string[];
+    /** Mood IDs the user selected when adding the item (from upload chips). Used to prioritize outfit suggestions. */
+    userMoods?: string[];
     /** Optional personal notes about the item */
     userNotes?: string;
 }
