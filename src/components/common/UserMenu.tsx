@@ -50,6 +50,8 @@ const UserMenu: React.FC = () => {
     const initials = user.displayName
         ? user.displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
         : user.email?.[0]?.toUpperCase() || '?';
+    const isLocalhost = typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname);
+    const showDeveloperActions = import.meta.env.DEV || isLocalhost;
 
     return (
         <>
@@ -272,24 +274,26 @@ const UserMenu: React.FC = () => {
                             {/* Divider */}
                             <div className="h-px bg-olive-100" />
 
-                            {/* === Developer Section === */}
-                            <section>
-                                <h4 className="text-xs font-bold text-red-400 uppercase tracking-wider mb-4">Developer Actions</h4>
-                                <button
-                                    onClick={() => {
-                                        populateDemoData();
-                                        setShowProfileModal(false);
-                                    }}
-                                    disabled={isLoading}
-                                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-50 text-red-600 border border-red-100 rounded-xl text-sm font-semibold hover:bg-red-100 transition-colors disabled:opacity-50"
-                                >
-                                    {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                                    Populate Demo Data
-                                </button>
-                                <p className="mt-2 text-[10px] text-gray-400 text-center">
-                                    This will add sample items and history to your account.
-                                </p>
-                            </section>
+                            {/* === Developer Section (local/dev only) === */}
+                            {showDeveloperActions && (
+                                <section>
+                                    <h4 className="text-xs font-bold text-red-400 uppercase tracking-wider mb-4">Developer Actions</h4>
+                                    <button
+                                        onClick={() => {
+                                            populateDemoData();
+                                            setShowProfileModal(false);
+                                        }}
+                                        disabled={isLoading}
+                                        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-50 text-red-600 border border-red-100 rounded-xl text-sm font-semibold hover:bg-red-100 transition-colors disabled:opacity-50"
+                                    >
+                                        {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                                        Populate Demo Data
+                                    </button>
+                                    <p className="mt-2 text-[10px] text-gray-400 text-center">
+                                        This will add sample items and history to your account.
+                                    </p>
+                                </section>
+                            )}
                         </div>
 
                         {/* Save Button — Fixed at bottom */}
