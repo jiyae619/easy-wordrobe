@@ -12,7 +12,6 @@ import { weatherService } from '../services/weatherService';
 import { firestoreService } from '../services/firestoreService';
 import { storageService } from '../services/storageService';
 import { useAuth } from './AuthContext';
-import { subDays } from 'date-fns';
 import { DEMO_ITEMS } from '../data/demoItems';
 
 import { awsNovaService } from "../services/awsNova";
@@ -309,41 +308,16 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
             // 1. Delete all existing demo items before repopulating
             await firestoreService.deleteAllDemoItems(uid);
 
-            // 2. Add fresh DEMO_ITEMS
+            // 2. Add fresh DEMO_ITEMS (wearFrequency: 0, lastWorn: null for clean play-around)
             for (const item of DEMO_ITEMS) {
                 await firestoreService.addClothingItem(uid, item);
             }
             // Keep any user-uploaded items alongside fresh demo items
             setClothes(prev => [...prev.filter(i => !i.id.startsWith('demo-')), ...DEMO_ITEMS]);
 
-            // 3. Generate Mock Wear History (last 7 days)
-            const mockHistory: WearRecord[] = [];
-            const today = new Date();
-
-            for (let i = 0; i < 5; i++) {
-                const date = subDays(today, i + 1);
-                const top = DEMO_ITEMS[0];
-                const bottom = DEMO_ITEMS[2];
-                const shoe = DEMO_ITEMS[5];
-
-                const record: WearRecord = {
-                    id: `hist-${i}`,
-                    date: date,
-                    outfitItems: [top.id, bottom.id, shoe.id],
-                    mood: 'minimal-chic',
-                    weather: {
-                        temperature: 20 + i,
-                        feelsLike: 21 + i,
-                        condition: i % 2 === 0 ? 'Sunny' : 'Cloudy',
-                        humidity: 50,
-                        windSpeed: 10,
-                        location: 'Demo City'
-                    }
-                };
-                mockHistory.push(record);
-                await firestoreService.addOutfit(uid, record);
-            }
-            setOutfits(mockHistory);
+            // 3. Clear outfit history so user starts with clean slate
+            await firestoreService.deleteAllOutfits(uid);
+            setOutfits([]);
         } catch (err) {
             console.error('[Wardrobe] Failed to populate demo data:', err);
             setError('Failed to populate demo data');

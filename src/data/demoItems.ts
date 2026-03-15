@@ -13,7 +13,6 @@
  */
 
 import { type ClothingItem, ClothingCategory, Season } from '../types';
-import { subDays } from 'date-fns';
 
 // --- Filenames served from public/demo-images/ ---
 const demoImageFilenames = [
@@ -105,8 +104,6 @@ function parseFilename(filepath: string): {
     return { category, color, subcategory };
 }
 
-const now = new Date();
-
 export const DEMO_ITEMS: ClothingItem[] = Object.entries(imageModules)
     .map(([filepath, imageUrl], index) => {
         const parsed = parseFilename(filepath);
@@ -124,9 +121,9 @@ export const DEMO_ITEMS: ClothingItem[] = Object.entries(imageModules)
             color: capitalize(color),
             colorHex: colorHexMap[color.toLowerCase()] || '#9ca3af',
             season: seasonMap[category] || [Season.Spring, Season.Summer, Season.Fall, Season.Winter],
-            wearFrequency: Math.floor(Math.random() * 30) + 1,
-            lastWorn: subDays(now, Math.floor(Math.random() * 14) + 1),
-            dateAdded: subDays(now, Math.floor(Math.random() * 90) + 10),
+            wearFrequency: 0,
+            lastWorn: null,
+            dateAdded: new Date(),
             aiTags: [...(tagMap[category] || ['casual']), color.toLowerCase()],
         };
         return item;

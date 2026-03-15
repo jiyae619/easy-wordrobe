@@ -120,6 +120,13 @@ export const firestoreService = {
         await setDoc(docRef, serializeOutfit(record));
     },
 
+    async deleteAllOutfits(uid: string): Promise<void> {
+        const snapshot = await getDocs(collection(db, 'users', uid, 'outfits'));
+        const batch = writeBatch(db);
+        snapshot.docs.forEach(d => batch.delete(d.ref));
+        if (!snapshot.empty) await batch.commit();
+    },
+
     // ------ User Settings ------
 
     async getUserSettings(uid: string): Promise<UserSettings> {
