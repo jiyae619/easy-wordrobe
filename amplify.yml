@@ -4,6 +4,12 @@ frontend:
     preBuild:
       commands:
         - npm ci
+        - |
+          if [ -z "$VITE_FIREBASE_PROJECT_ID" ]; then
+            echo "ERROR: VITE_FIREBASE_PROJECT_ID not set. Add env vars in App settings → Environment variables."
+            exit 1
+          fi
+          echo "Firebase env vars OK"
     build:
       commands:
         - npm run build
