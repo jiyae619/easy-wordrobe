@@ -32,6 +32,15 @@ function getFirebaseConfig() {
 
 const firebaseConfig = getFirebaseConfig();
 
+/** Expose for production verification script (window.__WARDROBE_FIREBASE_CONFIG__) */
+if (typeof window !== 'undefined') {
+    (window as any).__WARDROBE_FIREBASE_CONFIG__ = {
+        projectId: firebaseConfig.projectId,
+        storageBucket: firebaseConfig.storageBucket,
+        authDomain: firebaseConfig.authDomain,
+    };
+}
+
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);

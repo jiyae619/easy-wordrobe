@@ -5,6 +5,7 @@ import { awsNovaService, type DetectedClothingItem } from '../../services/awsNov
 import { type ClothingItem, ClothingCategory, Season } from '../../types';
 import { useWardrobe } from '../../context/WardrobeContext';
 import { compressImage } from '../../utils/imageUtils';
+import { prodDiag } from '../../utils/productionDiagnostics';
 import { MOODS } from '../../data/moods';
 
 interface CameraScannerOverlayProps {
@@ -32,8 +33,9 @@ export const CameraScannerOverlay: React.FC<CameraScannerOverlayProps> = ({ isOp
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const videoRef = useRef<HTMLVideoElement>(null);
-    const [stream, setStream] = useState<MediaStream | null>(null);
+    const streamRef = useRef<MediaStream | null>(null);
     const [showInfo, setShowInfo] = useState(false);
+    const [cameraError, setCameraError] = useState<string | null>(null);
 
     const currentItem = detectedItems[currentItemIndex] ?? null;
     const totalItems = detectedItems.length;
@@ -57,25 +59,54 @@ export const CameraScannerOverlay: React.FC<CameraScannerOverlayProps> = ({ isOp
     }, [isOpen, selectedImage, isAnalyzing]);
 
     const startCamera = async () => {
+        setCameraError(null);
+        prodDiag.cameraStart();
+        if (!navigator.mediaDevices?.getUserMedia) {
+            prodDiag.cameraError(new Error('Camera not supported in this browser'));
+            setCameraError('Camera not supported in this browser.');
+            return;
+        }
+        const originOk = location.protocol === 'https:' || location.hostname === 'localhost';
+        prodDiag.cameraOriginCheck(originOk);
+        if (!originOk) {
+            prodDiag.cameraError(new Error('Camera requires HTTPS or localhost'));
+            setCameraError('Camera requires HTTPS or localhost.');
+            return;
+        }
         try {
-            const mediaStream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: 'environment' }
-            });
-            setStream(mediaStream);
+            let mediaStream: MediaStream;
+            try {
+                mediaStream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'environment' }
+                });
+            } catch {
+                mediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
+            }
+            streamRef.current = mediaStream;
             if (videoRef.current) {
                 videoRef.current.srcObject = mediaStream;
             }
         } catch (err) {
+            prodDiag.cameraError(err);
+            const errMsg = (err as Error)?.message ?? String(err);
             console.error("Camera access denied or unavailable:", err);
+            if (errMsg.includes('Permission') || errMsg.includes('denied') || (err as Error)?.name === 'NotAllowedError') {
+                setCameraError('Camera permission denied. Allow camera access in your browser settings.');
+            } else if (errMsg.includes('NotFound') || (err as Error)?.name === 'NotFoundError') {
+                setCameraError('No camera found. Try uploading from gallery instead.');
+            } else {
+                setCameraError('Camera unavailable. Use the gallery button to upload a photo.');
+            }
         }
     };
 
     const stopCamera = useCallback(() => {
-        if (stream) {
-            stream.getTracks().forEach(track => track.stop());
-            setStream(null);
+        const s = streamRef.current;
+        if (s) {
+            s.getTracks().forEach(track => track.stop());
+            streamRef.current = null;
         }
-    }, [stream]);
+    }, []);
 
     if (!isOpen) return null;
 
@@ -94,7 +125,7 @@ export const CameraScannerOverlay: React.FC<CameraScannerOverlayProps> = ({ isOp
     };
 
     const capturePhoto = () => {
-        if (videoRef.current && stream) {
+        if (videoRef.current && streamRef.current) {
             const canvas = document.createElement('canvas');
             canvas.width = videoRef.current.videoWidth;
             canvas.height = videoRef.current.videoHeight;
@@ -111,18 +142,22 @@ export const CameraScannerOverlay: React.FC<CameraScannerOverlayProps> = ({ isOp
 
     const analyzeImage = async (base64: string) => {
         setIsAnalyzing(true);
+        prodDiag.scannerAnalyzeStart();
         try {
             const result = await awsNovaService.analyzeClothingImage(base64);
             if (result.success) {
+                prodDiag.scannerAnalyzeEnd(true);
                 setDetectedItems(result.items);
                 setCurrentItemIndex(0);
                 prefillFromItem(result.items[0]);
             } else {
+                prodDiag.scannerAnalyzeEnd(false);
                 alert(result.message);
                 setSelectedImage(null);
                 startCamera();
             }
         } catch (error) {
+            prodDiag.scannerAnalyzeError(error);
             console.error("[Scanner] Analysis failed:", error);
             alert("Failed to analyze image. Please try again.");
             setSelectedImage(null);
@@ -146,6 +181,7 @@ export const CameraScannerOverlay: React.FC<CameraScannerOverlayProps> = ({ isOp
 
     const handleSaveAndContinue = async () => {
         if (!currentItem || !selectedImage) return;
+        prodDiag.scannerSaveStart();
         try {
             const compressedImage = await compressImage(selectedImage, 400, 0.7);
             const itemToSave: Omit<ClothingItem, 'id' | 'dateAdded'> = {
@@ -162,7 +198,9 @@ export const CameraScannerOverlay: React.FC<CameraScannerOverlayProps> = ({ isOp
                 userNotes: currentItem.userNotes || "",
             };
             await addClothingItem(itemToSave);
+            prodDiag.scannerSaveEnd(true);
         } catch (error) {
+            prodDiag.scannerSaveError(error);
             console.error("[Scanner] Save failed:", error);
             alert("Failed to save item. Please try again.");
             return;
@@ -198,6 +236,7 @@ export const CameraScannerOverlay: React.FC<CameraScannerOverlayProps> = ({ isOp
         setSelectedSeasons([]);
         setSelectedMoods([]);
         setIsAnalyzing(false);
+        setCameraError(null);
         startCamera();
     };
 
@@ -214,13 +253,27 @@ export const CameraScannerOverlay: React.FC<CameraScannerOverlayProps> = ({ isOp
                 {selectedImage ? (
                     <img src={selectedImage} alt="Captured" className="w-full h-full object-cover" />
                 ) : (
-                    <video
-                        ref={videoRef}
-                        autoPlay
-                        playsInline
-                        muted
-                        className="w-full h-full object-cover"
-                    />
+                    <>
+                        <video
+                            ref={videoRef}
+                            autoPlay
+                            playsInline
+                            muted
+                            className="w-full h-full object-cover"
+                        />
+                        {cameraError && (
+                            <div className="absolute inset-0 flex flex-col items-center justify-center p-6 bg-black/80 text-center">
+                                <p className="text-white font-medium mb-2">{cameraError}</p>
+                                <p className="text-white/70 text-sm mb-4">Use the gallery button below to upload a photo instead.</p>
+                                <button
+                                    onClick={() => { setCameraError(null); startCamera(); }}
+                                    className="px-4 py-2 bg-white/20 text-white rounded-xl text-sm font-medium hover:bg-white/30"
+                                >
+                                    Try Again
+                                </button>
+                            </div>
+                        )}
+                    </>
                 )}
             </div>
 

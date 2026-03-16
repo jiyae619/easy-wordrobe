@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import { authService } from '../services/authService';
-import { prodDiag } from '../utils/productionDiagnostics';
 import type { AuthUser, AuthContextType } from '../types/auth';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -39,7 +38,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     // Listen for auth state changes (session persistence)
     useEffect(() => {
         const unsubscribe = authService.onAuthStateChanged((firebaseUser) => {
-            prodDiag.authState(firebaseUser?.uid ?? null);
             if (firebaseUser) {
                 setUser({
                     uid: firebaseUser.uid,
