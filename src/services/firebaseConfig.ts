@@ -3,23 +3,34 @@ import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
-const defaultFirebaseConfig = {
-    apiKey: 'AIzaSyD4lCfk1LSq0HxsNP6qIPcMSljMA3Kf8uM',
-    authDomain: 'easy-wardrobe-f10c6.firebaseapp.com',
-    projectId: 'easy-wardrobe-f10c6',
-    storageBucket: 'easy-wardrobe-f10c6.firebasestorage.app',
-    messagingSenderId: '255431623025',
-    appId: '1:255431623025:web:39eed306ea23fc5309f6d0',
-} as const;
+const requiredEnvVars = [
+    'VITE_FIREBASE_API_KEY',
+    'VITE_FIREBASE_AUTH_DOMAIN',
+    'VITE_FIREBASE_PROJECT_ID',
+    'VITE_FIREBASE_STORAGE_BUCKET',
+    'VITE_FIREBASE_MESSAGING_SENDER_ID',
+    'VITE_FIREBASE_APP_ID',
+] as const;
 
-const firebaseConfig = {
-    apiKey: import.meta.env.VITE_FIREBASE_API_KEY || defaultFirebaseConfig.apiKey,
-    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || defaultFirebaseConfig.authDomain,
-    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || defaultFirebaseConfig.projectId,
-    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || defaultFirebaseConfig.storageBucket,
-    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || defaultFirebaseConfig.messagingSenderId,
-    appId: import.meta.env.VITE_FIREBASE_APP_ID || defaultFirebaseConfig.appId
-};
+function getFirebaseConfig() {
+    const missing = requiredEnvVars.filter((key) => !import.meta.env[key]);
+    if (missing.length > 0) {
+        throw new Error(
+            `Missing required Firebase env vars: ${missing.join(', ')}. ` +
+                'Copy .env.example to .env and add your Firebase credentials. Never commit .env.'
+        );
+    }
+    return {
+        apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+        authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+        projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+        storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+        messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+        appId: import.meta.env.VITE_FIREBASE_APP_ID,
+    };
+}
+
+const firebaseConfig = getFirebaseConfig();
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
