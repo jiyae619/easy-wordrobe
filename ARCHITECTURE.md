@@ -1,4 +1,10 @@
-# Wardrobe AI - System Architecture
+# System Architecture
+
+This document describes the full technical architecture of Stylemax: how the frontend, Firebase backend, AWS Bedrock AI services, and weather API are connected, how data flows through the system, and the key TypeScript data structures used throughout.
+
+For a focused explanation of the three AI agents specifically, see [AGENTS.md](AGENTS.md).
+
+---
 
 ## Table of Contents
 - [Architecture Overview](#architecture-overview)
@@ -143,10 +149,7 @@ App.tsx (Layout wrapper with navigation)
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-**Configuration:**
-- Project ID: `easy-wardrobe-f10c6`
-- Auth Domain: `easy-wardrobe-f10c6.firebaseapp.com`
-- Storage Bucket: `easy-wardrobe-f10c6.firebasestorage.app`
+**Configuration:** Set via environment variables — see `.env.example` for the full list of `VITE_FIREBASE_*` keys.
 
 ### AWS Bedrock (AI Services)
 
