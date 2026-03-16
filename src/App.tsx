@@ -12,10 +12,12 @@ import Login from './pages/Login';
 import { CameraScannerOverlay } from './components/upload/CameraScannerOverlay';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import UserMenu from './components/common/UserMenu';
+import { useWardrobe } from './context/WardrobeContext';
+import { AlertCircle, X } from 'lucide-react';
 
 const Layout = () => {
-  console.log("App Layout Loaded - Production Version");
   const location = useLocation();
+  const { error, clearError } = useWardrobe();
   const [showScanner, setShowScanner] = useState(false);
   const isActive = (path: string) => location.pathname === path;
   const isLoginPage = location.pathname === '/login';
@@ -87,6 +89,15 @@ const Layout = () => {
 
         {/* Main Content Area */}
         <div className="flex-grow overflow-y-auto scrollbar-hide">
+          {error && (
+            <div className="sticky top-0 z-30 flex items-start gap-3 px-4 py-3 bg-red-50 border-b border-red-200 text-red-800">
+              <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+              <p className="flex-1 text-sm">{error}</p>
+              <button onClick={clearError} className="p-1 rounded hover:bg-red-100" aria-label="Dismiss">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
           <main className="px-4 py-6 pb-24">
             <Routes>
               <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
