@@ -49,6 +49,16 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
             return;
         }
 
+        const FIRESTORE_TIMEOUT_MS = 15000;
+
+        const withTimeout = <T,>(p: Promise<T>, msg: string): Promise<T> =>
+            Promise.race([
+                p,
+                new Promise<never>((_, reject) =>
+                    setTimeout(() => reject(new Error(`${msg} (timed out after ${FIRESTORE_TIMEOUT_MS / 1000}s)`)), FIRESTORE_TIMEOUT_MS)
+                ),
+            ]);
+
         const loadUserData = async () => {
             setIsLoading(true);
             setError(null);
@@ -59,15 +69,21 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
                     sessionStorage.removeItem('wardrobe_skip_migration');
                 }
                 if (!skipMigration) {
-                    await firestoreService.migrateFromLocalStorage(uid);
+                    await withTimeout(
+                        firestoreService.migrateFromLocalStorage(uid),
+                        'Migration'
+                    );
                 }
 
                 // Load all data from Firestore
-                const [items, outfitRecords, settings] = await Promise.all([
-                    firestoreService.getWardrobe(uid),
-                    firestoreService.getOutfits(uid),
-                    firestoreService.getUserSettings(uid),
-                ]);
+                const [items, outfitRecords, settings] = await withTimeout(
+                    Promise.all([
+                        firestoreService.getWardrobe(uid),
+                        firestoreService.getOutfits(uid),
+                        firestoreService.getUserSettings(uid),
+                    ]),
+                    'Firestore fetch'
+                );
 
                 // Auto-migrate stale demo items: delete all demo-* items and repopulate
                 // if any demo item has an imageUrl that isn't a stable /demo-images/ path.
@@ -77,10 +93,15 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
                 );
                 let finalItems = items;
                 if (hasStaleDemoItems) {
-                    await firestoreService.deleteAllDemoItems(uid);
-                    for (const item of DEMO_ITEMS) {
-                        await firestoreService.addClothingItem(uid, item);
-                    }
+                    await withTimeout(
+                        (async () => {
+                            await firestoreService.deleteAllDemoItems(uid);
+                            for (const item of DEMO_ITEMS) {
+                                await firestoreService.addClothingItem(uid, item);
+                            }
+                        })(),
+                        'Stale demo migration'
+                    );
                     const userItems = items.filter(i => !i.id.startsWith('demo-'));
                     finalItems = [...userItems, ...DEMO_ITEMS];
                 }
@@ -93,8 +114,9 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
 
                 console.log(`[Wardrobe] Loaded ${items.length} items, ${outfitRecords.length} outfits from Firestore`);
             } catch (err) {
+                const msg = (err as Error)?.message || String(err);
                 console.error('[Wardrobe] Failed to load data from Firestore:', err);
-                setError('Failed to load your wardrobe. Please try again.');
+                setError(`Failed to load wardrobe: ${msg}`);
             } finally {
                 setIsLoading(false);
             }
@@ -127,7 +149,8 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
             // Update local state
             setClothes(prev => [newItem, ...prev]);
         } catch (err) {
-            setError("Failed to add item");
+            const msg = (err as Error)?.message || String(err);
+            setError(`Failed to add item: ${msg}`);
             console.error(err);
         } finally {
             setIsLoading(false);
@@ -319,8 +342,9 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
             await firestoreService.deleteAllOutfits(uid);
             setOutfits([]);
         } catch (err) {
+            const msg = (err as Error)?.message || String(err);
             console.error('[Wardrobe] Failed to populate demo data:', err);
-            setError('Failed to populate demo data');
+            setError(`Failed to populate demo: ${msg}`);
         } finally {
             setIsLoading(false);
         }
@@ -351,6 +375,7 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
             insights,
             isLoading,
             error,
+            clearError: () => setError(null),
             addClothingItem,
             updateClothingItem,
             deleteClothingItem,

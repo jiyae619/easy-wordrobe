@@ -175,6 +175,8 @@ export interface WardrobeContextType {
     isLoading: boolean;
     /** Error message if any operation fails */
     error: string | null;
+    /** Clear the error message */
+    clearError: () => void;
 
     // --- CRUD Operations (async — writes to Firestore) ---
 
