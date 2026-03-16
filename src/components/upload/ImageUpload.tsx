@@ -50,22 +50,25 @@ export const ImageUpload: React.FC = () => {
     };
 
     const handleSave = async () => {
-        if (analyzedItem && selectedImage) {
-            const itemToSave: Omit<ClothingItem, 'id' | 'dateAdded'> = {
-                imageUrl: selectedImage,
-                category: analyzedItem.category || ClothingCategory.Tops,
-                subcategory: analyzedItem.subcategory || "Unknown",
-                color: analyzedItem.color || "Unknown",
-                colorHex: analyzedItem.colorHex || "#000000",
-                season: analyzedItem.season || [Season.Spring],
-                wearFrequency: 0,
-                lastWorn: null,
-                aiTags: analyzedItem.aiTags || [],
-                userNotes: analyzedItem.userNotes || ""
-            };
+        if (!analyzedItem || !selectedImage) return;
+        const itemToSave: Omit<ClothingItem, 'id' | 'dateAdded'> = {
+            imageUrl: selectedImage,
+            category: analyzedItem.category || ClothingCategory.Tops,
+            subcategory: analyzedItem.subcategory || "Unknown",
+            color: analyzedItem.color || "Unknown",
+            colorHex: analyzedItem.colorHex || "#000000",
+            season: analyzedItem.season || [Season.Spring],
+            wearFrequency: 0,
+            lastWorn: null,
+            aiTags: analyzedItem.aiTags || [],
+            userNotes: analyzedItem.userNotes || ""
+        };
+        try {
             await addClothingItem(itemToSave);
             setSelectedImage(null);
             setAnalyzedItem(null);
+        } catch {
+            // Error already surfaced via WardrobeContext.setError; keep form open so user can retry
         }
     };
 

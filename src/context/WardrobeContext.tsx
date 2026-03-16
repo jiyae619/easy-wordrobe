@@ -15,9 +15,18 @@ import { useAuth } from './AuthContext';
 import { DEMO_ITEMS } from '../data/demoItems';
 
 import { awsNovaService } from "../services/awsNova";
+import { prodDiag } from '../utils/productionDiagnostics';
 
 const WardrobeContext = createContext<WardrobeContextType | undefined>(undefined);
 
+const FIRESTORE_TIMEOUT_MS = 30000;
+const withTimeout = <T,>(p: Promise<T>, msg: string): Promise<T> =>
+    Promise.race([
+        p,
+        new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error(`${msg} (timed out after ${FIRESTORE_TIMEOUT_MS / 1000}s)`)), FIRESTORE_TIMEOUT_MS)
+        ),
+    ]);
 
 export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const { user } = useAuth();
@@ -49,19 +58,10 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
             return;
         }
 
-        const FIRESTORE_TIMEOUT_MS = 15000;
-
-        const withTimeout = <T,>(p: Promise<T>, msg: string): Promise<T> =>
-            Promise.race([
-                p,
-                new Promise<never>((_, reject) =>
-                    setTimeout(() => reject(new Error(`${msg} (timed out after ${FIRESTORE_TIMEOUT_MS / 1000}s)`)), FIRESTORE_TIMEOUT_MS)
-                ),
-            ]);
-
         const loadUserData = async () => {
             setIsLoading(true);
             setError(null);
+            prodDiag.loadUserDataStart(uid);
             try {
                 // Skip migration for new sign-ups to prevent cross-user data leak (localStorage is shared)
                 const skipMigration = sessionStorage.getItem('wardrobe_skip_migration') === uid;
@@ -69,21 +69,39 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
                     sessionStorage.removeItem('wardrobe_skip_migration');
                 }
                 if (!skipMigration) {
-                    await withTimeout(
-                        firestoreService.migrateFromLocalStorage(uid),
-                        'Migration'
-                    );
+                    try {
+                        await withTimeout(
+                            firestoreService.migrateFromLocalStorage(uid),
+                            'Migration'
+                        );
+                        prodDiag.loadUserDataMigration(uid, true);
+                    } catch (migErr) {
+                        prodDiag.loadUserDataMigration(uid, false, migErr);
+                        throw migErr;
+                    }
                 }
 
                 // Load all data from Firestore
-                const [items, outfitRecords, settings] = await withTimeout(
-                    Promise.all([
-                        firestoreService.getWardrobe(uid),
-                        firestoreService.getOutfits(uid),
-                        firestoreService.getUserSettings(uid),
-                    ]),
-                    'Firestore fetch'
-                );
+                let items: ClothingItem[];
+                let outfitRecords: WearRecord[];
+                let settings: UserSettings;
+                try {
+                    const [itemsRes, outfitRecordsRes, settingsRes] = await withTimeout(
+                        Promise.all([
+                            firestoreService.getWardrobe(uid),
+                            firestoreService.getOutfits(uid),
+                            firestoreService.getUserSettings(uid),
+                        ]),
+                        'Firestore fetch'
+                    );
+                    items = itemsRes;
+                    outfitRecords = outfitRecordsRes;
+                    settings = settingsRes;
+                    prodDiag.loadUserDataFirestore(uid, true);
+                } catch (fsErr) {
+                    prodDiag.loadUserDataFirestore(uid, false, fsErr);
+                    throw fsErr;
+                }
 
                 // Auto-migrate stale demo items: delete all demo-* items and repopulate
                 // if any demo item has an imageUrl that isn't a stable /demo-images/ path.
@@ -93,17 +111,23 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
                 );
                 let finalItems = items;
                 if (hasStaleDemoItems) {
-                    await withTimeout(
-                        (async () => {
-                            await firestoreService.deleteAllDemoItems(uid);
-                            for (const item of DEMO_ITEMS) {
-                                await firestoreService.addClothingItem(uid, item);
-                            }
-                        })(),
-                        'Stale demo migration'
-                    );
-                    const userItems = items.filter(i => !i.id.startsWith('demo-'));
-                    finalItems = [...userItems, ...DEMO_ITEMS];
+                    try {
+                        await withTimeout(
+                            (async () => {
+                                await firestoreService.deleteAllDemoItems(uid);
+                                for (const item of DEMO_ITEMS) {
+                                    await firestoreService.addClothingItem(uid, item);
+                                }
+                            })(),
+                            'Stale demo migration'
+                        );
+                        prodDiag.loadUserDataStaleDemo(uid, true);
+                        const userItems = items.filter(i => !i.id.startsWith('demo-'));
+                        finalItems = [...userItems, ...DEMO_ITEMS];
+                    } catch (demoErr) {
+                        prodDiag.loadUserDataStaleDemo(uid, false, demoErr);
+                        throw demoErr;
+                    }
                 }
 
                 setClothes(finalItems);
@@ -112,11 +136,16 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
                 setTryItItemIds(settings.tryItItemIds || []);
                 setUserSettings(settings);
 
+                prodDiag.loadUserDataEnd(uid, finalItems.length);
                 console.log(`[Wardrobe] Loaded ${items.length} items, ${outfitRecords.length} outfits from Firestore`);
             } catch (err) {
+                prodDiag.loadUserDataError(uid, err);
                 const msg = (err as Error)?.message || String(err);
                 console.error('[Wardrobe] Failed to load data from Firestore:', err);
-                setError(`Failed to load wardrobe: ${msg}`);
+                const hint = (msg.includes('permission') || msg.includes('Permission') || msg.includes('insufficient'))
+                    ? ' Check Firestore rules (see PRODUCTION_FIREBASE_SETUP.md).'
+                    : '';
+                setError(`Failed to load wardrobe: ${msg}${hint}`);
             } finally {
                 setIsLoading(false);
             }
@@ -139,19 +168,43 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
 
             // If image is a base64 data URL, upload to Cloud Storage
             if (newItem.imageUrl.startsWith('data:')) {
-                const downloadUrl = await storageService.uploadClothingImage(uid, newItem.id, newItem.imageUrl);
-                newItem.imageUrl = downloadUrl;
+                prodDiag.storageUploadStart(uid, newItem.id);
+                try {
+                    const downloadUrl = await withTimeout(
+                        storageService.uploadClothingImage(uid, newItem.id, newItem.imageUrl),
+                        'Storage upload'
+                    );
+                    newItem.imageUrl = downloadUrl;
+                    prodDiag.storageUploadEnd(uid, newItem.id);
+                } catch (storageErr) {
+                    prodDiag.storageUploadError(uid, newItem.id, storageErr);
+                    throw storageErr;
+                }
             }
 
             // Save to Firestore
-            await firestoreService.addClothingItem(uid, newItem);
+            prodDiag.firestoreWriteStart(uid, 'add');
+            try {
+                await withTimeout(
+                    firestoreService.addClothingItem(uid, newItem),
+                    'Firestore add'
+                );
+                prodDiag.firestoreWriteEnd(uid, 'add');
+            } catch (fsErr) {
+                prodDiag.firestoreWriteError(uid, 'add', fsErr);
+                throw fsErr;
+            }
 
             // Update local state
             setClothes(prev => [newItem, ...prev]);
         } catch (err) {
             const msg = (err as Error)?.message || String(err);
-            setError(`Failed to add item: ${msg}`);
+            const hint = (msg.includes('permission') || msg.includes('Permission') || msg.includes('insufficient'))
+                ? ' Check Firebase Storage rules and CORS (see PRODUCTION_FIREBASE_SETUP.md).'
+                : '';
+            setError(`Failed to add item: ${msg}${hint}`);
             console.error(err);
+            throw err;
         } finally {
             setIsLoading(false);
         }
@@ -329,22 +382,25 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
 
         try {
             // 1. Delete all existing demo items before repopulating
-            await firestoreService.deleteAllDemoItems(uid);
+            await withTimeout(firestoreService.deleteAllDemoItems(uid), 'Delete demo items');
 
             // 2. Add fresh DEMO_ITEMS (wearFrequency: 0, lastWorn: null for clean play-around)
             for (const item of DEMO_ITEMS) {
-                await firestoreService.addClothingItem(uid, item);
+                await withTimeout(firestoreService.addClothingItem(uid, item), 'Add demo item');
             }
             // Keep any user-uploaded items alongside fresh demo items
             setClothes(prev => [...prev.filter(i => !i.id.startsWith('demo-')), ...DEMO_ITEMS]);
 
             // 3. Clear outfit history so user starts with clean slate
-            await firestoreService.deleteAllOutfits(uid);
+            await withTimeout(firestoreService.deleteAllOutfits(uid), 'Delete outfits');
             setOutfits([]);
         } catch (err) {
             const msg = (err as Error)?.message || String(err);
             console.error('[Wardrobe] Failed to populate demo data:', err);
-            setError(`Failed to populate demo: ${msg}`);
+            const hint = (msg.includes('permission') || msg.includes('Permission') || msg.includes('insufficient'))
+                ? ' Check Firestore rules (see PRODUCTION_FIREBASE_SETUP.md).'
+                : '';
+            setError(`Failed to populate demo: ${msg}${hint}`);
         } finally {
             setIsLoading(false);
         }
@@ -356,7 +412,10 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
         setIsLoading(true);
         setError(null);
         try {
-            const result = await awsNovaService.generateInsights(clothes, outfits);
+            const result = await withTimeout(
+                awsNovaService.generateInsights(clothes, outfits),
+                'AI insights'
+            );
             setInsights(result);
         } catch (err) {
             console.error("Error fetching insights:", err);

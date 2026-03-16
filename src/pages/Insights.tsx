@@ -13,7 +13,38 @@ const Insights: React.FC = () => {
         }
     }, [clothes.length]);
 
-    if (!insights || isLoading) {
+    if (isLoading) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
+                <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                <p className="text-olive-600 font-medium">Generating your style insights...</p>
+            </div>
+        );
+    }
+
+    if (clothes.length === 0) {
+        return (
+            <div className="space-y-6">
+                <div>
+                    <h1 className="text-2xl md:text-3xl font-bold text-primary tracking-tight">
+                        Style Insights
+                    </h1>
+                    <p className="text-sm text-olive-500 mt-0.5">
+                        Understand how you dress and dress smarter.
+                    </p>
+                </div>
+                <div className="flex flex-col items-center justify-center py-16 bg-white rounded-2xl border-2 border-dashed border-olive-200 text-center">
+                    <Lightbulb className="w-12 h-12 text-olive-300 mb-4" />
+                    <h3 className="text-lg font-semibold text-primary mb-2">No insights yet</h3>
+                    <p className="text-sm text-olive-500 max-w-xs mb-4">
+                        Add items to your wardrobe or populate demo data to get personalized style insights.
+                    </p>
+                </div>
+            </div>
+        );
+    }
+
+    if (!insights) {
         return (
             <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
                 <Loader2 className="w-8 h-8 text-primary animate-spin" />

@@ -1,73 +1,94 @@
-# React + TypeScript + Vite
+# Wardrobe AI (Stylemax)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+An AI-powered fashion companion that helps you maximize your closet. Upload clothing photos, get weather-aware outfit suggestions, and discover insights about your wearing patterns.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **Smart wardrobe intake** — AI analyzes clothing photos and auto-categorizes items by type, color, pattern, and season
+- **Outfit suggestions** — Weather-aware, mood-matched outfit combinations powered by Amazon Nova
+- **Wear insights** — Track wearing patterns and get nudges to diversify your wardrobe
+- **Firebase auth** — Email/password and Google sign-in
+- **Cloud storage** — Clothing images stored in Firebase Storage
 
-## React Compiler
+## Tech Stack
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **Frontend:** React 19, TypeScript, Vite, Tailwind CSS
+- **AI:** AWS Bedrock (Amazon Nova 2 Lite)
+- **Backend:** Firebase (Auth, Firestore, Cloud Storage)
+- **Weather:** OpenWeatherMap API
 
-## Expanding the ESLint configuration
+## Getting Started
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### Prerequisites
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+- Node.js 18+
+- npm or pnpm
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+### Install
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+git clone https://github.com/jiyae619/easy-wordrobe.git
+cd wardrobe-ai
+npm install
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### Environment Variables
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+1. Copy the example env file:
+   ```bash
+   cp .env.example .env
+   ```
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+2. Add your credentials to `.env`:
+   - **AWS Bedrock** — API key for Amazon Nova
+   - **Firebase** — Create a project at [Firebase Console](https://console.firebase.google.com) and add your config
+
+3. **Never commit `.env`** — It is gitignored. See [SECURITY.md](SECURITY.md) for key management and rotation.
+
+### Run
+
+```bash
+npm run dev
 ```
+
+Open [http://localhost:5173](http://localhost:5173).
+
+### Build
+
+```bash
+npm run build
+npm run preview   # preview production build
+```
+
+### Production (Amplify / Firebase)
+
+If the app works locally but fails in production (Populate Demo Data, Add to Wardrobe, camera), configure Firebase for your production domain. See **[PRODUCTION_FIREBASE_SETUP.md](PRODUCTION_FIREBASE_SETUP.md)** for:
+
+- Firestore and Storage security rules
+- Storage CORS configuration (required for uploads)
+- Authorized domains
+
+## Project Structure
+
+```
+src/
+├── components/     # UI components (wardrobe, upload, suggestions, insights)
+├── context/       # AuthContext, WardrobeContext
+├── pages/         # Home, Wardrobe, Suggest, Insights, Login
+├── services/      # Firebase, Bedrock, weather, AI agents
+├── hooks/         # useLocation, etc.
+└── types/         # TypeScript definitions
+```
+
+## Scripts
+
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start dev server |
+| `npm run build` | Production build |
+| `npm run preview` | Preview production build |
+| `npm run lint` | Run ESLint |
+
+## License
+
+MIT
