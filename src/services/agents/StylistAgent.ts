@@ -38,7 +38,6 @@ export const StylistAgent = {
             subcategory: c.subcategory,
             color: c.color,
             season: c.season,
-            aiTags: c.aiTags,
             userMoods: c.userMoods,
         }));
 

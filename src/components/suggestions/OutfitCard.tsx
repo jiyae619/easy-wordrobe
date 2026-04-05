@@ -46,7 +46,7 @@ export const OutfitCard: React.FC<OutfitCardProps> = ({ suggestion, onWear, onSk
                 {/* Explanation */}
                 {suggestion.explanation && (
                     <div className="mt-4 p-3.5 bg-olive-50 rounded-xl border border-olive-100">
-                        <p className="text-sm text-olive-700 leading-relaxed">
+                        <p className="text-sm text-olive-700 leading-relaxed line-clamp-3">
                             {suggestion.explanation}
                         </p>
                     </div>

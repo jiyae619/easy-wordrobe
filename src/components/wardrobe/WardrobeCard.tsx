@@ -20,7 +20,7 @@ export const WardrobeCard: React.FC<WardrobeCardProps> = ({ item, onClick }) => 
             <img
                 src={item.imageUrl}
                 alt={item.subcategory}
-                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                className="w-full h-full object-contain object-center bg-olive-50 transition-transform duration-300 group-hover:scale-105"
             />
 
 

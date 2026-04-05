@@ -72,7 +72,6 @@ export const BehavioralAgent = {
             subcategory: c.subcategory,
             color: c.color,
             season: c.season,
-            aiTags: c.aiTags,
             lastWorn: c.lastWorn,
             wearFrequency: c.wearFrequency
         }));
