@@ -80,7 +80,7 @@ const Layout = () => {
   return (
     <div className="min-h-screen bg-gray-100 flex justify-center font-sans">
       {/* Mobile Container Simulator */}
-      <div className="w-full max-w-[480px] min-h-screen bg-surface flex flex-col relative shadow-2xl">
+      <div className="w-full max-w-[480px] h-[100dvh] bg-surface flex flex-col relative shadow-2xl overflow-hidden">
 
         {/* User Menu - Fixed top right */}
         <div className="absolute top-4 right-4 z-40">

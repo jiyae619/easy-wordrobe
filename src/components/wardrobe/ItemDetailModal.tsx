@@ -88,16 +88,6 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({ item, onClose 
                             </div>
                         </div>
 
-                        {/* Tags */}
-                        {item.aiTags && item.aiTags.length > 0 && (
-                            <section className="flex flex-wrap gap-2">
-                                {item.aiTags.map(tag => (
-                                    <span key={tag} className="px-3 py-1 bg-olive-100 text-secondary text-xs font-semibold rounded-full">
-                                        #{tag}
-                                    </span>
-                                ))}
-                            </section>
-                        )}
                     </div>
                 </div>
 

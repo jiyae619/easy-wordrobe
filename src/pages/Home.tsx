@@ -124,7 +124,7 @@ const Home: React.FC = () => {
                         {/* Explanation */}
                         <div className="p-4">
                             {quickOutfit.explanation && (
-                                <p className="text-sm text-olive-600 leading-relaxed mb-3">
+                                <p className="text-sm text-olive-600 leading-relaxed mb-3 line-clamp-2">
                                     {quickOutfit.explanation}
                                 </p>
                             )}
@@ -190,7 +190,7 @@ const Home: React.FC = () => {
                             <div className="flex items-center gap-2 mb-1">
                                 {getWeatherIcon()}
                                 <span className="text-lg font-medium tracking-tight text-primary">
-                                    {temp}°F | {condition}
+                                    {temp}°C | {condition}
                                 </span>
                             </div>
 

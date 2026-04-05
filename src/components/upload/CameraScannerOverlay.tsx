@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback, type ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Info, Grid3X3, Loader2, CheckCircle, Zap, X } from 'lucide-react';
+import { ArrowLeft, Info, Grid3X3, Loader2, CheckCircle, Zap, X, ChevronDown } from 'lucide-react';
 import { awsNovaService, type DetectedClothingItem } from '../../services/awsNova';
 import { type ClothingItem, ClothingCategory, Season } from '../../types';
 import { useWardrobe } from '../../context/WardrobeContext';
@@ -45,7 +45,7 @@ export const CameraScannerOverlay: React.FC<CameraScannerOverlayProps> = ({ isOp
     const prefillFromItem = (item: DetectedClothingItem) => {
         setItemName(`${item.color} ${item.subcategory}`);
         setSelectedSeasons(item.season as string[]);
-        setSelectedMoods(item.aiTags ?? []);
+        setSelectedMoods([]);
     };
 
     // Initialize camera when opened
@@ -285,7 +285,7 @@ export const CameraScannerOverlay: React.FC<CameraScannerOverlayProps> = ({ isOp
                 >
                     <ArrowLeft className="w-6 h-6" />
                 </button>
-                <h2 className="text-primary text-lg font-bold tracking-tight">AI Wardrobe Scanner</h2>
+                <h2 className="text-primary text-lg font-bold tracking-tight">Your Wardrobe Scanner</h2>
                 <button
                     onClick={() => setShowInfo(true)}
                     className="flex items-center justify-center w-10 h-10 text-primary hover:bg-olive-50 rounded-full transition-colors"
@@ -329,12 +329,21 @@ export const CameraScannerOverlay: React.FC<CameraScannerOverlayProps> = ({ isOp
                             <p className="text-white/50 text-sm mt-1">Detecting items, colors, and styles.</p>
                         </div>
                     ) : currentItem ? (
-                        <div className="bg-black/80 backdrop-blur-xl rounded-2xl w-full max-w-md border border-white/10 max-h-[72vh] overflow-y-auto shadow-2xl">
+                        <div className="bg-black/60 backdrop-blur-xl rounded-2xl w-full max-w-md border border-white/10 max-h-[58vh] overflow-y-auto no-scrollbar shadow-2xl">
                             {/* Header with counter */}
                             <div className="flex items-center justify-between p-5 pb-3">
-                                <div className="flex items-center gap-2 text-white">
-                                    <CheckCircle className="w-5 h-5 text-secondary" />
-                                    <span className="font-medium">Analysis Complete</span>
+                                <div className="flex items-center gap-3 text-white">
+                                    {selectedImage && (
+                                        <img
+                                            src={selectedImage}
+                                            alt="Captured"
+                                            className="w-10 h-10 rounded-lg object-cover border border-white/20 flex-shrink-0"
+                                        />
+                                    )}
+                                    <div className="flex items-center gap-2">
+                                        <CheckCircle className="w-5 h-5 text-secondary" />
+                                        <span className="font-medium">Analysis Complete</span>
+                                    </div>
                                 </div>
                                 {totalItems > 1 && (
                                     <span className="text-xs font-bold px-2.5 py-1 bg-secondary/80 text-white rounded-full">
@@ -356,27 +365,26 @@ export const CameraScannerOverlay: React.FC<CameraScannerOverlayProps> = ({ isOp
                                     />
                                 </div>
 
-                                {/* Category Dropdown */}
-                                <div>
-                                    <label className="block text-xs font-medium text-white/60 mb-1.5">Category</label>
-                                    <select
-                                        value={currentItem.category}
-                                        onChange={(e) => {
-                                            const updated = [...detectedItems];
-                                            updated[currentItemIndex] = { ...currentItem, category: e.target.value as any };
-                                            setDetectedItems(updated);
-                                        }}
-                                        className="w-full rounded-xl bg-black/50 border border-white/20 text-white p-3 text-sm focus:ring-2 focus:ring-secondary/50 focus:border-secondary outline-none"
-                                    >
-                                        {Object.values(ClothingCategory).map(cat => (
-                                            <option key={cat} value={cat} className="text-black">{cat.charAt(0).toUpperCase() + cat.slice(1)}</option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                {/* Detected Color chip */}
-                                <div className="flex flex-wrap gap-2">
-                                    <div className="flex items-center gap-2 bg-white/10 backdrop-blur-md text-white px-3 py-1.5 rounded-lg border border-secondary/40">
+                                {/* Category + Detected Color */}
+                                <div className="grid grid-cols-2 gap-3 items-center">
+                                    <div className="relative w-full">
+                                        <select
+                                            aria-label="Category"
+                                            value={currentItem.category}
+                                            onChange={(e) => {
+                                                const updated = [...detectedItems];
+                                                updated[currentItemIndex] = { ...currentItem, category: e.target.value as any };
+                                                setDetectedItems(updated);
+                                            }}
+                                            className="w-full h-[30px] rounded-lg bg-black/50 border border-white/20 text-white pl-2.5 pr-8 text-[11px] appearance-none focus:ring-2 focus:ring-secondary/50 focus:border-secondary outline-none"
+                                        >
+                                            {Object.values(ClothingCategory).map(cat => (
+                                                <option key={cat} value={cat} className="text-black">{cat.charAt(0).toUpperCase() + cat.slice(1)}</option>
+                                            ))}
+                                        </select>
+                                        <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/70 pointer-events-none" />
+                                    </div>
+                                    <div className="w-full flex items-center justify-center gap-2 bg-white/10 backdrop-blur-md text-white px-3 py-1.5 rounded-lg border border-secondary/40 h-[30px]">
                                         <div className="w-3 h-3 rounded-full border border-white/20" style={{ backgroundColor: currentItem.colorHex || '#000' }} />
                                         <span className="text-xs font-semibold uppercase tracking-wide capitalize">{currentItem.color}</span>
                                     </div>
@@ -410,7 +418,7 @@ export const CameraScannerOverlay: React.FC<CameraScannerOverlayProps> = ({ isOp
                                                 key={m.id}
                                                 onClick={() => toggleMood(m.id)}
                                                 className={`text-xs px-3 py-1.5 rounded-full font-semibold transition-all active:scale-95 ${selectedMoods.includes(m.id)
-                                                    ? 'bg-primary text-white border border-primary shadow-md'
+                                                    ? 'bg-secondary text-white border border-secondary shadow-md'
                                                     : 'bg-white/10 text-white/60 border border-white/20 hover:border-white/40'
                                                     }`}
                                             >
@@ -419,18 +427,6 @@ export const CameraScannerOverlay: React.FC<CameraScannerOverlayProps> = ({ isOp
                                         ))}
                                     </div>
                                 </div>
-
-                                {/* AI Tags */}
-                                {currentItem.aiTags && currentItem.aiTags.length > 0 && (
-                                    <div>
-                                        <label className="block text-xs font-medium text-white/60 mb-1.5">AI Tags</label>
-                                        <div className="flex flex-wrap gap-1.5">
-                                            {currentItem.aiTags.map((tag: string) => (
-                                                <span key={tag} className="text-xs bg-white/10 text-white/80 px-2.5 py-1 rounded-full border border-white/10">#{tag}</span>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
 
                                 {/* Actions */}
                                 <div className="flex gap-3 pt-1">
