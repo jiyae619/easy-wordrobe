@@ -1,17 +1,70 @@
 import React, { useState, useEffect } from 'react';
 import { useWardrobe } from '../context/WardrobeContext';
-import { Cloud, Sun, CloudRain, Wind, Sparkles, Lightbulb, Loader2 } from 'lucide-react';
+import { Cloud, Sun, CloudRain, Wind, Sparkles, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { awsNovaService } from '../services/awsNova';
 import { weatherService } from '../services/weatherService';
-import { type OutfitSuggestion, type WeatherData } from '../types';
+import { type OutfitSuggestion, type WeatherData, type WeatherOutlookPeriod } from '../types';
 import { MOODS } from '../data/moods';
+import { ExpandableText } from '../components/common/ExpandableText';
+
+const WEATHER_CACHE_KEY = 'home-weather-cache-v1';
 
 const Home: React.FC = () => {
-    const { clothes, populateDemoData, isLoading } = useWardrobe();
+    const { clothes, populateDemoData, isLoading, logOutfitWear } = useWardrobe();
     const [weather, setWeather] = useState<WeatherData | null>(null);
+    const [weatherOutlook, setWeatherOutlook] = useState<WeatherOutlookPeriod[]>([]);
+    const [weatherCheer, setWeatherCheer] = useState('');
     const [quickOutfit, setQuickOutfit] = useState<OutfitSuggestion | null>(null);
     const [outfitLoading, setOutfitLoading] = useState(false);
+    const [isWeatherLoading, setIsWeatherLoading] = useState(true);
+    const [isLoggingQuickPick, setIsLoggingQuickPick] = useState(false);
+    const [quickPickLogged, setQuickPickLogged] = useState(false);
+
+    const wardrobeSignature = clothes
+        .map((item) => {
+            const lastWornMs = item.lastWorn ? new Date(item.lastWorn).getTime() : 0;
+            const seasons = [...item.season].sort().join(',');
+            return `${item.id}:${item.wearFrequency}:${lastWornMs}:${seasons}`;
+        })
+        .sort()
+        .join('|');
+
+    const buildQuickPickCacheKey = (wardrobeKey: string, conditionText: string, tempC: number) =>
+        `quick-pick:v2:${wardrobeKey}:${conditionText.toLowerCase()}:${Math.round(tempC)}`;
+
+    const fetchQuickOutfit = async (weatherData: WeatherData, useCache = true) => {
+        if (clothes.length === 0) {
+            setQuickOutfit(null);
+            return;
+        }
+
+        setOutfitLoading(true);
+        try {
+            const cacheKey = buildQuickPickCacheKey(
+                wardrobeSignature,
+                weatherData.condition,
+                weatherData.temperature
+            );
+            const cached = useCache ? sessionStorage.getItem(cacheKey) : null;
+
+            if (cached) {
+                setQuickOutfit(JSON.parse(cached) as OutfitSuggestion);
+                return;
+            }
+
+            const casualMood = MOODS.find(m => m.id === 'casual') || MOODS[1];
+            const outfits = await awsNovaService.suggestOutfits(clothes, casualMood, weatherData);
+            if (outfits.length > 0) {
+                setQuickOutfit(outfits[0]);
+                sessionStorage.setItem(cacheKey, JSON.stringify(outfits[0]));
+            } else {
+                setQuickOutfit(null);
+            }
+        } finally {
+            setOutfitLoading(false);
+        }
+    };
 
     // Time-based greeting
     const getGreeting = () => {
@@ -33,44 +86,78 @@ const Home: React.FC = () => {
 
     // Fetch weather + quick outfit on mount
     useEffect(() => {
+        const cached = sessionStorage.getItem(WEATHER_CACHE_KEY);
+        if (cached) {
+            try {
+                const parsed = JSON.parse(cached) as {
+                    weather: WeatherData;
+                    weatherOutlook: WeatherOutlookPeriod[];
+                    weatherCheer: string;
+                };
+                setWeather(parsed.weather);
+                setWeatherOutlook(parsed.weatherOutlook || []);
+                setWeatherCheer(parsed.weatherCheer || '');
+            } catch {
+                sessionStorage.removeItem(WEATHER_CACHE_KEY);
+            }
+        }
+
         const loadData = async () => {
             try {
                 // Request geolocation consent and fetch weather by coords
                 let weatherData: WeatherData;
+                let outlookData: WeatherOutlookPeriod[];
                 try {
                     const position = await new Promise<GeolocationPosition>((resolve, reject) => {
                         navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 8000 });
                     });
-                    weatherData = await weatherService.getCurrentWeather(
-                        position.coords.latitude,
-                        position.coords.longitude
-                    );
+                    const lat = position.coords.latitude;
+                    const lon = position.coords.longitude;
+                    const [current, outlook] = await Promise.all([
+                        weatherService.getCurrentWeather(lat, lon),
+                        weatherService.getWeatherOutlook(lat, lon),
+                    ]);
+                    weatherData = current;
+                    outlookData = outlook;
                 } catch {
                     // Location denied or unavailable — fallback to default
-                    weatherData = await weatherService.getWeatherByCity('San Francisco');
+                    const [current, outlook] = await Promise.all([
+                        weatherService.getWeatherByCity('San Francisco'),
+                        weatherService.getWeatherOutlookByCity('San Francisco'),
+                    ]);
+                    weatherData = current;
+                    outlookData = outlook;
                 }
                 setWeather(weatherData);
+                setWeatherOutlook(outlookData);
 
-                if (clothes.length > 0) {
-                    setOutfitLoading(true);
-                    const casualMood = MOODS.find(m => m.id === 'casual') || MOODS[1];
-                    const outfits = await awsNovaService.suggestOutfits(clothes, casualMood, weatherData);
-                    if (outfits.length > 0) {
-                        setQuickOutfit(outfits[0]);
-                    }
-                    setOutfitLoading(false);
-                }
+                const cheer = await awsNovaService.generateWeatherCheer(weatherData, outlookData);
+                const finalCheer = cheer || `The ${weatherData.condition.toLowerCase()} vibes are here. You have this today.`;
+                setWeatherCheer(finalCheer);
+
+                sessionStorage.setItem(WEATHER_CACHE_KEY, JSON.stringify({
+                    weather: weatherData,
+                    weatherOutlook: outlookData,
+                    weatherCheer: finalCheer,
+                }));
+
+                await fetchQuickOutfit(weatherData, true);
             } catch (err) {
                 console.error("Home data load error:", err);
                 setOutfitLoading(false);
+            } finally {
+                setIsWeatherLoading(false);
             }
         };
         loadData();
-    }, [clothes.length]);
+    }, [wardrobeSignature]);
 
-    const temp = weather?.temperature ?? 72;
-    const condition = weather?.condition ?? 'Sunny';
-    const location = weather?.location ?? 'New York, NY';
+    const temp = weather?.temperature;
+    const condition = weather?.condition;
+    const location = weather?.location;
+    const starterTarget = 5;
+    const starterCount = Math.min(clothes.length, starterTarget);
+    const starterProgress = Math.round((starterCount / starterTarget) * 100);
 
     return (
         <div className="space-y-8 pb-20">
@@ -79,6 +166,95 @@ const Home: React.FC = () => {
                 <h1 className="text-2xl md:text-3xl font-bold text-primary tracking-tight">
                     {getGreeting()} 👋
                 </h1>
+            </section>
+
+            {clothes.length < starterTarget && (
+                <section>
+                    <div className="rounded-2xl border border-olive-200/70 bg-white p-5">
+                        <div className="flex items-center justify-between gap-3 mb-3">
+                            <h2 className="text-base font-bold text-primary">Build your 5-item starter closet</h2>
+                            <span className="text-xs font-semibold text-secondary">
+                                {starterCount}/{starterTarget}
+                            </span>
+                        </div>
+                        <div className="h-2 rounded-full bg-olive-100 overflow-hidden mb-3">
+                            <div
+                                className="h-full bg-primary transition-all duration-300"
+                                style={{ width: `${starterProgress}%` }}
+                            />
+                        </div>
+                        <p className="text-sm text-olive-600 mb-4">
+                            Start with your most-worn staples. One shelf photo can detect multiple items and unlock better suggestions faster.
+                        </p>
+                        <div className="flex flex-col gap-2 sm:flex-row">
+                            <button
+                                onClick={() => window.dispatchEvent(new CustomEvent('open-scanner'))}
+                                className="flex-1 inline-flex items-center justify-center px-4 py-2.5 bg-primary text-white rounded-xl font-semibold hover:bg-olive-700 transition-colors active:scale-[0.97]"
+                            >
+                                Scan a staple now
+                            </button>
+                            {clothes.length === 0 && (
+                                <button
+                                    onClick={populateDemoData}
+                                    disabled={isLoading}
+                                    className="flex-1 inline-flex items-center justify-center px-4 py-2.5 bg-olive-100 text-secondary rounded-xl font-semibold hover:bg-olive-200 transition-colors active:scale-[0.97] disabled:opacity-50"
+                                >
+                                    {isLoading ? 'Populating...' : 'Use demo wardrobe'}
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                </section>
+            )}
+
+            {/* Weather Section */}
+            <section>
+                <div className="rounded-2xl bg-gradient-to-br from-olive-100/80 to-olive-50 border border-olive-200/60 p-6">
+                    <div className="text-center">
+                        <div className="flex items-center justify-center gap-2 mb-1">
+                            {getWeatherIcon()}
+                            <span className="text-lg font-medium tracking-tight text-primary">
+                                {temp != null && condition ? `${temp}°C | ${condition}` : 'Loading local weather'}
+                            </span>
+                        </div>
+                        <p className="text-xs font-semibold uppercase tracking-wider text-secondary">
+                            {location || 'Locating city'}
+                        </p>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 mt-4">
+                        {weatherOutlook.map((slot) => (
+                            <div key={slot.label} className="rounded-xl bg-white/70 border border-olive-200/70 px-2 py-2 text-center">
+                                <p className="text-[10px] font-bold uppercase tracking-wide text-olive-500">{slot.label}</p>
+                                <p className="text-sm font-semibold text-primary">{slot.temperature}°C</p>
+                                <p className="text-[11px] text-olive-600 line-clamp-1">{slot.condition}</p>
+                            </div>
+                        ))}
+                        {weatherOutlook.length === 0 && (
+                            <>
+                                <div className="rounded-xl bg-white/70 border border-olive-200/70 px-2 py-2 text-center">
+                                    <p className="text-[10px] font-bold uppercase tracking-wide text-olive-500">morning</p>
+                                    <p className="text-sm font-semibold text-primary">--</p>
+                                    <p className="text-[11px] text-olive-600">Loading</p>
+                                </div>
+                                <div className="rounded-xl bg-white/70 border border-olive-200/70 px-2 py-2 text-center">
+                                    <p className="text-[10px] font-bold uppercase tracking-wide text-olive-500">daytime</p>
+                                    <p className="text-sm font-semibold text-primary">--</p>
+                                    <p className="text-[11px] text-olive-600">Loading</p>
+                                </div>
+                                <div className="rounded-xl bg-white/70 border border-olive-200/70 px-2 py-2 text-center">
+                                    <p className="text-[10px] font-bold uppercase tracking-wide text-olive-500">evening</p>
+                                    <p className="text-sm font-semibold text-primary">--</p>
+                                    <p className="text-[11px] text-olive-600">Loading</p>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                    {(weatherCheer || isWeatherLoading) && (
+                        <p className="text-sm text-olive-700 leading-relaxed mt-3 text-center">
+                            {weatherCheer || 'Getting today\'s weather mood'}
+                        </p>
+                    )}
+                </div>
             </section>
 
             {/* Quick Outfit Suggestion */}
@@ -124,17 +300,39 @@ const Home: React.FC = () => {
                         {/* Explanation */}
                         <div className="p-4">
                             {quickOutfit.explanation && (
-                                <p className="text-sm text-olive-600 leading-relaxed mb-3 line-clamp-2">
-                                    {quickOutfit.explanation}
-                                </p>
+                                <ExpandableText
+                                    text={quickOutfit.explanation}
+                                    textClassName="text-sm text-olive-600 leading-relaxed mb-1"
+                                    collapsedClassName="line-clamp-2"
+                                />
                             )}
-                            <Link
-                                to="/suggest"
-                                className="w-full bg-primary hover:bg-olive-700 text-white font-bold py-3 rounded-xl transition-colors flex items-center justify-center gap-2 active:scale-[0.97]"
-                            >
-                                <Sparkles className="w-4 h-4" />
-                                See Full Suggestions
-                            </Link>
+                            <div className="mt-3 flex items-center gap-3">
+                                <button
+                                    onClick={async () => {
+                                        if (!weather || !quickOutfit || isLoggingQuickPick) return;
+                                        setIsLoggingQuickPick(true);
+                                        await logOutfitWear(
+                                            quickOutfit.items.map(item => item.id),
+                                            'casual',
+                                            weather
+                                        );
+                                        setIsLoggingQuickPick(false);
+                                        setQuickPickLogged(true);
+                                        window.setTimeout(() => setQuickPickLogged(false), 2000);
+                                    }}
+                                    disabled={!weather || isLoggingQuickPick}
+                                    className="flex-1 bg-primary hover:bg-olive-700 text-white font-bold py-3 rounded-xl transition-colors active:scale-[0.97] disabled:opacity-60 disabled:cursor-not-allowed"
+                                >
+                                    {isLoggingQuickPick ? 'Logging...' : 'Wear it'}
+                                </button>
+                                <Link
+                                    to="/suggest"
+                                    className="flex-1 bg-olive-100 hover:bg-olive-200 text-secondary font-bold py-3 rounded-xl transition-colors flex items-center justify-center gap-2 active:scale-[0.97]"
+                                >
+                                    <Sparkles className="w-4 h-4" />
+                                    See More
+                                </Link>
+                            </div>
                         </div>
                     </div>
                 )}
@@ -144,14 +342,16 @@ const Home: React.FC = () => {
                         <div className="p-3 bg-olive-100 rounded-full w-fit mx-auto mb-3">
                             <Sparkles className="w-6 h-6 text-secondary" />
                         </div>
-                        <h3 className="font-semibold text-primary mb-1">Start Your Wardrobe</h3>
-                        <p className="text-sm text-olive-500 mb-6">Upload clothes or use demo data to get AI-powered outfit suggestions.</p>
+                        <h3 className="font-semibold text-primary mb-1">Start with 5 staples</h3>
+                        <p className="text-sm text-olive-500 mb-6">
+                            Photograph your most-worn items first. A single shelf photo can capture multiple pieces.
+                        </p>
                         <div className="flex flex-col gap-3">
                             <button
                                 onClick={() => window.dispatchEvent(new CustomEvent('open-scanner'))}
                                 className="w-full inline-flex items-center justify-center px-6 py-3 bg-primary text-white rounded-xl font-medium hover:bg-olive-700 transition-all active:scale-[0.97]"
                             >
-                                Add Your First Item
+                                Scan Starter Items
                             </button>
                             <button
                                 onClick={populateDemoData}
@@ -161,7 +361,7 @@ const Home: React.FC = () => {
                                 {isLoading ? (
                                     <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Populating...</>
                                 ) : (
-                                    'Populate Demo Data'
+                                    'Use Demo Wardrobe'
                                 )}
                             </button>
                         </div>
@@ -171,54 +371,37 @@ const Home: React.FC = () => {
                 {!outfitLoading && !quickOutfit && clothes.length > 0 && (
                     <div className="bg-white rounded-2xl border border-muted p-8 text-center animate-fade-in-up">
                         <p className="text-sm text-olive-500">Couldn't generate a suggestion right now.</p>
-                        <Link
-                            to="/suggest"
-                            className="inline-flex items-center mt-3 px-6 py-2.5 bg-primary text-white rounded-full font-medium hover:bg-olive-700 transition-all active:scale-[0.97]"
-                        >
-                            <Sparkles className="w-4 h-4 mr-2" />
-                            Get Suggestions
-                        </Link>
+                        <div className="mt-3 flex items-center justify-center gap-3">
+                            <button
+                                onClick={() => {
+                                    if (weather) {
+                                        void fetchQuickOutfit(weather, false);
+                                    }
+                                }}
+                                className="inline-flex items-center px-6 py-2.5 bg-olive-100 text-secondary rounded-full font-medium hover:bg-olive-200 transition-colors active:scale-[0.97]"
+                            >
+                                Try Again
+                            </button>
+                            <Link
+                                to="/suggest"
+                                className="inline-flex items-center px-6 py-2.5 bg-primary text-white rounded-full font-medium hover:bg-olive-700 transition-colors active:scale-[0.97]"
+                            >
+                                <Sparkles className="w-4 h-4 mr-2" />
+                                Open Suggest
+                            </Link>
+                        </div>
                     </div>
                 )}
             </section>
 
-            {/* Weather & Stylist Tip Section */}
-            <section>
-                <div className="rounded-2xl bg-gradient-to-br from-olive-100/80 to-olive-50 border border-olive-200/60 p-6">
-                    <div className="flex items-start justify-between mb-4">
-                        <div>
-                            <div className="flex items-center gap-2 mb-1">
-                                {getWeatherIcon()}
-                                <span className="text-lg font-medium tracking-tight text-primary">
-                                    {temp}°C | {condition}
-                                </span>
-                            </div>
-
-                        </div>
-                        <div className="text-right">
-                            <p className="text-xs font-semibold uppercase tracking-wider text-secondary">
-                                {location}
-                            </p>
-
-                        </div>
-                    </div>
-
-                    {/* Integrated Stylist Tip */}
-                    <div className="pt-4 mt-4 border-t border-olive-200/60 flex gap-3">
-                        <Lightbulb className="w-5 h-5 text-secondary flex-shrink-0 mt-0.5" />
-                        <div>
-                            <p className="text-xs font-bold uppercase tracking-wider text-olive-500 mb-1">
-                                Stylist Tip
-                            </p>
-                            <p className="text-sm leading-relaxed text-olive-700">
-                                Since it's clear skies, consider adding a pair of classic aviators to your{' '}
-                                <span className="text-secondary font-semibold">everyday look</span>{' '}
-                                for an effortless commute.
-                            </p>
-                        </div>
+            {quickPickLogged && (
+                <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 animate-fade-in-up">
+                    <div className="flex items-center gap-2 px-5 py-3 bg-primary text-white rounded-full shadow-lg text-sm font-medium">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                        Outfit logged!
                     </div>
                 </div>
-            </section>
+            )}
 
         </div>
     );

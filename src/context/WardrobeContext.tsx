@@ -16,10 +16,14 @@ import { DEMO_ITEMS } from '../data/demoItems';
 
 import { awsNovaService } from "../services/awsNova";
 import { prodDiag } from '../utils/productionDiagnostics';
+import { compressImage, cropImageToBoundingBox, toDataUrl } from '../utils/imageUtils';
+import type { ItemBoundingBox } from '../types';
+import { moodIdsForStyling } from '../services/agents/agentOutputGuards';
 
 const WardrobeContext = createContext<WardrobeContextType | undefined>(undefined);
 
 const FIRESTORE_TIMEOUT_MS = 30000;
+const THUMBNAIL_VERSION = 2;
 const withTimeout = <T,>(p: Promise<T>, msg: string): Promise<T> =>
     Promise.race([
         p,
@@ -27,6 +31,16 @@ const withTimeout = <T,>(p: Promise<T>, msg: string): Promise<T> =>
             setTimeout(() => reject(new Error(`${msg} (timed out after ${FIRESTORE_TIMEOUT_MS / 1000}s)`)), FIRESTORE_TIMEOUT_MS)
         ),
     ]);
+
+const normalizeWardrobeMoodSignals = (item: ClothingItem): ClothingItem => {
+    const moodIds = moodIdsForStyling(item);
+    const existingTags = Array.isArray(item.aiTags) ? item.aiTags.filter((tag) => typeof tag === 'string') : [];
+    return {
+        ...item,
+        aiTags: [...new Set([...existingTags, ...moodIds])],
+        userMoods: moodIds,
+    };
+};
 
 export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const { user } = useAuth();
@@ -44,6 +58,54 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
     const [weather, setWeather] = useState<WeatherData | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    const normalizeLegacyThumbnails = useCallback(async (items: ClothingItem[]) => {
+        if (!uid) return;
+
+        const candidates = items.filter(item =>
+            !item.id.startsWith('demo-') &&
+            (item.thumbnailVersion ?? 0) < THUMBNAIL_VERSION &&
+            Boolean(item.sourceImageUrl || item.imageUrl)
+        );
+        if (candidates.length === 0) return;
+
+        for (const item of candidates) {
+            try {
+                const source = item.sourceImageUrl || item.imageUrl;
+                if (!source) continue;
+
+                const sourceDataUrl = await toDataUrl(source);
+                if (!sourceDataUrl) continue;
+
+                const fallbackBox: ItemBoundingBox = { x: 0, y: 0, width: 1, height: 1 };
+                const cropped = await cropImageToBoundingBox(
+                    sourceDataUrl,
+                    item.detectionBox || fallbackBox,
+                    item.detectionConfidence,
+                    {
+                        minConfidence: 0,
+                        paddingRatio: item.detectionBox ? 0.05 : 0,
+                        zoomInFactor: item.detectionBox ? 1.2 : 1,
+                        targetWidth: 510,
+                        targetHeight: 680,
+                    }
+                );
+                const optimized = await compressImage(cropped.image, 510, 0.85);
+                const uploadedUrl = await storageService.uploadClothingImage(uid, item.id, optimized);
+                const cacheBustedUrl = `${uploadedUrl}${uploadedUrl.includes('?') ? '&' : '?'}tv=${THUMBNAIL_VERSION}`;
+                const updates: Partial<ClothingItem> = {
+                    imageUrl: cacheBustedUrl,
+                    thumbnailUrl: cacheBustedUrl,
+                    thumbnailVersion: THUMBNAIL_VERSION,
+                };
+
+                await firestoreService.updateClothingItem(uid, item.id, updates);
+                setClothes(prev => prev.map(entry => entry.id === item.id ? { ...entry, ...updates } : entry));
+            } catch (thumbErr) {
+                console.warn(`[Wardrobe] Thumbnail migration skipped for ${item.id}`, thumbErr);
+            }
+        }
+    }, [uid]);
 
     // --- Load data from Firestore when user logs in ---
     useEffect(() => {
@@ -130,13 +192,15 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
                     }
                 }
 
-                setClothes(finalItems);
+                const normalizedItems = finalItems.map(normalizeWardrobeMoodSignals);
+                setClothes(normalizedItems);
                 setOutfits(outfitRecords);
                 setBookmarkedItems(settings.bookmarkedItems || []);
                 setTryItItemIds(settings.tryItItemIds || []);
                 setUserSettings(settings);
+                void normalizeLegacyThumbnails(normalizedItems);
 
-                prodDiag.loadUserDataEnd(uid, finalItems.length);
+                prodDiag.loadUserDataEnd(uid, normalizedItems.length);
                 console.log(`[Wardrobe] Loaded ${items.length} items, ${outfitRecords.length} outfits from Firestore`);
             } catch (err) {
                 prodDiag.loadUserDataError(uid, err);
@@ -152,7 +216,7 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
         };
 
         loadUserData();
-    }, [uid]);
+    }, [uid, normalizeLegacyThumbnails]);
 
     // --- Actions ---
 
@@ -165,6 +229,9 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
                 id: crypto.randomUUID(),
                 dateAdded: new Date(),
             };
+            const moodIds = moodIdsForStyling(newItem);
+            newItem.userMoods = moodIds;
+            newItem.aiTags = [...new Set([...(Array.isArray(newItem.aiTags) ? newItem.aiTags : []), ...moodIds])];
 
             // If image is a base64 data URL, upload to Cloud Storage
             if (newItem.imageUrl.startsWith('data:')) {
@@ -175,6 +242,10 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
                         'Storage upload'
                     );
                     newItem.imageUrl = downloadUrl;
+                    if (newItem.thumbnailUrl?.startsWith('data:') || !newItem.thumbnailUrl) {
+                        newItem.thumbnailUrl = downloadUrl;
+                    }
+                    newItem.thumbnailVersion = THUMBNAIL_VERSION;
                     prodDiag.storageUploadEnd(uid, newItem.id);
                 } catch (storageErr) {
                     prodDiag.storageUploadError(uid, newItem.id, storageErr);

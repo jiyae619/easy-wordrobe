@@ -5,6 +5,12 @@ import {
     type Season,
 } from "../../types/index";
 import { callBedrockConverseAPI } from "../bedrockClient";
+import { getAgentFailureReason } from "./agentErrors";
+import { createAgentTraceId, recordAgentMetric } from "./agentTelemetry";
+import {
+    normalizeBehavioralInsights,
+    parseAgentJson,
+} from "./agentOutputGuards";
 
 function getCurrentSeason(): Season {
     const month = new Date().getMonth() + 1; // 1–12
@@ -21,17 +27,17 @@ function buildFallbackNudges(unwornItems: ClothingItem[]): string[] {
     const item2Label = item2 ? `that ${item2.color} ${item2.subcategory}` : 'another forgotten piece';
 
     const hypePools = [
-        `${itemLabel.charAt(0).toUpperCase() + itemLabel.slice(1)} is sitting there waiting. Stop scrolling, start wearing — today's the day.`,
+        `${itemLabel.charAt(0).toUpperCase() + itemLabel.slice(1)} is sitting there waiting. Stop scrolling, start wearing, today is the day.`,
         `Wake up. ${itemLabel.charAt(0).toUpperCase() + itemLabel.slice(1)} has been benched for 3 weeks. Pull it out and remind everyone why you bought it.`,
         `You've got ${itemLabel} collecting dust. That's a crime against fashion. Fix it tomorrow.`,
     ];
     const wittyPools = [
         `You and ${item2Label} used to be so close... what happened? It misses you. Reach out.`,
-        `Your wardrobe called — it says you keep picking the same three things. Time to branch out. ${item2Label} is raising its hand.`,
+        `Your wardrobe called, it says you keep picking the same three things. Time to branch out. ${item2Label} is raising its hand.`,
         `If your closet could talk, ${item2Label} would be filing a formal complaint right about now.`,
     ];
     const editorialPools = [
-        `A wardrobe is only as interesting as its least-worn piece — the untold story is always the most compelling one.`,
+        `A wardrobe is only as interesting as its least worn piece, and the untold story is always the most compelling one.`,
         `The most stylish wardrobes are the most rotated ones. Every item deserves its moment in the light.`,
         `Fashion is a conversation between who you are and who you could be. Let the quieter pieces have a say.`,
     ];
@@ -52,6 +58,7 @@ export const BehavioralAgent = {
         wearHistory: WearRecord[]
     ): Promise<UserInsight> => {
         console.log("[Behavioral Agent] Generating insights from wear history...");
+        const traceId = createAgentTraceId("behavioral");
 
         const currentSeason = getCurrentSeason();
 
@@ -108,10 +115,11 @@ TASKS:
 2. Group and categorize their wearing patterns based on weather and mood.
 3. Identify items from the seasonal wardrobe that have NOT been worn at all in the last 3 weeks. These are the priority items to suggest. Only include items whose "season" array contains "${currentSeason}".
 4. Write exactly 3 behavioral nudges, each in a distinctly different voice:
-   - Nudge 1: A fired-up hype coach — short, punchy, motivating. Reference a specific unworn item by color and type.
-   - Nudge 2: A witty best friend — playful, a little teasing, warm. Call out a wear pattern you spotted (e.g. always the same color, always on rainy days).
-   - Nudge 3: A thoughtful fashion editor — one elegant, inspiring sentence about what the wardrobe could become with more variety.
+   - Nudge 1: A fired up hype coach, short, punchy, motivating. Reference a specific unworn item by color and type.
+   - Nudge 2: A witty best friend, playful, a little teasing, warm. Call out a wear pattern you spotted (e.g. always the same color, always on rainy days).
+   - Nudge 3: A thoughtful fashion editor, one elegant, inspiring sentence about what the wardrobe could become with more variety.
    Each nudge must feel genuinely different in tone. Do NOT use generic phrases like "great job" or "you've been rocking". Be specific and surprising.
+   Do not use hyphen or dash characters.
 5. Calculate their daily wear pattern (how many outfits recorded per day of the week, e.g., Mon, Tue).
 
 OUTPUT STRICTLY AS JSON:
@@ -130,65 +138,44 @@ Return NO markdown outside of the JSON object.`;
                 inferenceConfig: { maxTokens: 1000, temperature: 0.85 },
             };
 
-            const jsonStr = await callBedrockConverseAPI(payload);
-            const aiInsights = JSON.parse(jsonStr);
+            const jsonStr = await callBedrockConverseAPI(payload, { agent: "behavioral", traceId });
+            const aiInsights = parseAgentJson(jsonStr, "behavioral", traceId);
+            const normalized = normalizeBehavioralInsights(
+                aiInsights,
+                clothes,
+                recentHistory,
+                currentSeason,
+                buildFallbackNudges
+            );
 
-            // 4. Map back to TypeScript interfaces
-            const mostWornItemsMap = (aiInsights.mostWornItemIds || []).map((meta: { id: string, count: number }) => {
-                const item = clothes.find(c => c.id === meta.id);
-                return item ? { item, count: meta.count } : null;
-            }).filter(Boolean);
+            recordAgentMetric({
+                agent: "behavioral",
+                traceId,
+                phase: "validation",
+                inputCount: seasonalWardrobeContext.length,
+                outputCount: normalized.insight.leastWornItems.length,
+                invalidIdsDropped: normalized.invalidIdsDropped,
+            });
 
-            const leastWornItemsMap = (aiInsights.leastWornItemIds || []).map((id: string) => {
-                return clothes.find(c => c.id === id);
-            }).filter(Boolean);
-
-            // Fallback: if AI failed to find least worn, dynamically compute it
-            // Only include items suitable for the current season and unworn in the last 3 weeks
-            let finalLeastWorn = leastWornItemsMap;
-            if (finalLeastWorn.length === 0) {
-                const wornIds = new Set(recentHistory.flatMap(h => h.outfitItems));
-                finalLeastWorn = clothes
-                    .filter(c => !wornIds.has(c.id) && c.season.includes(currentSeason))
-                    .slice(0, 5);
-            }
-
-            return {
-                mostWornColors: aiInsights.mostWornColors || [],
-                mostWornItems: mostWornItemsMap,
-                leastWornItems: finalLeastWorn,
-                suggestedVariations: aiInsights.suggestedVariations?.length
-                    ? aiInsights.suggestedVariations
-                    : buildFallbackNudges(finalLeastWorn as ClothingItem[]),
-                weeklyWearPattern: aiInsights.weeklyWearPattern || [
-                    { day: "Mon", count: 0 }, { day: "Tue", count: 0 }, { day: "Wed", count: 0 },
-                    { day: "Thu", count: 0 }, { day: "Fri", count: 0 }, { day: "Sat", count: 0 }, { day: "Sun", count: 0 }
-                ]
-            };
+            return normalized.insight;
 
         } catch (error) {
             console.error("[Behavioral Agent] Insights generation failed, falling back to mock:", error);
-            // Dynamic Mock Fallback — same-season, 3-week unworn filter
-            const wornIds = new Set(recentHistory.flatMap(h => h.outfitItems));
-            const leastWornItems = clothes
-                .filter(c => !wornIds.has(c.id) && c.season.includes(currentSeason))
-                .slice(0, 3);
+            recordAgentMetric({
+                agent: "behavioral",
+                traceId,
+                phase: "fallback",
+                reason: getAgentFailureReason(error),
+            });
 
-            const finalItems = leastWornItems.length > 0 ? leastWornItems : clothes.slice(0, 2);
-
-            return {
-                mostWornColors: [
-                    { color: "Black", hex: "#000000", count: 15 },
-                    { color: "White", hex: "#FFFFFF", count: 12 }
-                ],
-                mostWornItems: [],
-                leastWornItems: finalItems,
-                suggestedVariations: buildFallbackNudges(finalItems),
-                weeklyWearPattern: [
-                    { day: "Mon", count: 2 }, { day: "Tue", count: 1 }, { day: "Wed", count: 3 },
-                    { day: "Thu", count: 2 }, { day: "Fri", count: 4 }, { day: "Sat", count: 5 }, { day: "Sun", count: 1 }
-                ]
-            };
+            // Dynamic fallback uses actual wardrobe and wear-history data only.
+            return normalizeBehavioralInsights(
+                {},
+                clothes,
+                recentHistory,
+                currentSeason,
+                buildFallbackNudges
+            ).insight;
         }
     }
 };

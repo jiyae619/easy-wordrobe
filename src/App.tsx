@@ -82,11 +82,6 @@ const Layout = () => {
       {/* Mobile Container Simulator */}
       <div className="w-full max-w-[480px] h-[100dvh] bg-surface flex flex-col relative shadow-2xl overflow-hidden">
 
-        {/* User Menu - Fixed top right */}
-        <div className="absolute top-4 right-4 z-40">
-          <UserMenu />
-        </div>
-
         {/* Main Content Area */}
         <div className="flex-grow overflow-y-auto scrollbar-hide">
           {error && (
@@ -98,7 +93,12 @@ const Layout = () => {
               </button>
             </div>
           )}
-          <main className="px-4 py-6 pb-24">
+          <main className="px-4 py-6 pb-24 relative">
+            {!showScanner && (
+              <div className="absolute top-6 right-4 z-20">
+                <UserMenu />
+              </div>
+            )}
             <Routes>
               <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
               <Route path="/wardrobe" element={<ProtectedRoute><Wardrobe /></ProtectedRoute>} />
@@ -109,28 +109,31 @@ const Layout = () => {
         </div>
 
         {/* Mobile Navigation - Always Visible */}
-        <div className="fixed bottom-0 left-0 right-0 z-50 flex justify-center pointer-events-none">
-          {/* Constrain nav width to match container */}
-          <div className="w-full max-w-[480px] bg-white/90 backdrop-blur-lg border-t border-muted pointer-events-auto"
-            style={{ paddingBottom: safeAreaBottom }}>
-            <div className="flex justify-around items-center h-[72px] px-2">
-              <NavItem to="/" icon={HomeIcon} label="Home" mobile />
-              <NavItem to="/wardrobe" icon={Shirt} label="Wardrobe" mobile />
-              {/* Camera Button — same style as other NavItems */}
-              <button
-                onClick={() => setShowScanner(true)}
-                className="relative flex flex-col items-center justify-center w-full py-2 group"
-              >
-                <div className="flex items-center justify-center w-10 h-10 rounded-2xl transition-all duration-300 text-gray-400 group-hover:text-secondary group-hover:bg-olive-100">
-                  <Camera className="w-5 h-5" />
-                </div>
-                <span className="text-[10px] font-medium mt-1 text-gray-400">Scan</span>
-              </button>
-              <NavItem to="/suggest" icon={Sparkles} label="Suggest" mobile />
-              <NavItem to="/insights" icon={BarChart2} label="Insights" mobile />
+        {!showScanner && (
+          <div className="fixed bottom-0 left-0 right-0 z-50 flex justify-center pointer-events-none">
+            {/* Constrain nav width to match container */}
+            <div className="w-full max-w-[480px] bg-white/90 backdrop-blur-lg border-t border-muted pointer-events-auto"
+              style={{ paddingBottom: safeAreaBottom }}>
+              <div className="flex justify-around items-center h-[72px] px-2">
+                <NavItem to="/" icon={HomeIcon} label="Home" mobile />
+                <NavItem to="/wardrobe" icon={Shirt} label="Wardrobe" mobile />
+                {/* Camera Button — same style as other NavItems */}
+                <button
+                  onClick={() => setShowScanner(true)}
+                  aria-label="Open wardrobe scanner"
+                  className="relative flex flex-col items-center justify-center w-full py-2 group active:scale-[0.96] transition-transform"
+                >
+                  <div className="flex items-center justify-center w-10 h-10 rounded-2xl transition-all duration-300 text-gray-400 group-hover:text-secondary group-hover:bg-olive-100">
+                    <Camera className="w-5 h-5" />
+                  </div>
+                  <span className="text-[10px] font-medium mt-1 text-gray-400">Scan</span>
+                </button>
+                <NavItem to="/suggest" icon={Sparkles} label="Suggest" mobile />
+                <NavItem to="/insights" icon={BarChart2} label="Insights" mobile />
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Camera Scanner Overlay */}
         <CameraScannerOverlay isOpen={showScanner} onClose={() => setShowScanner(false)} />

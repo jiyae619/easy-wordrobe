@@ -3,12 +3,15 @@ import { Upload, Camera, X, Loader2, CheckCircle } from 'lucide-react';
 import { awsNovaService } from '../../services/awsNova';
 import { type ClothingItem, ClothingCategory, Season } from '../../types';
 import { useWardrobe } from '../../context/WardrobeContext';
+import { MOODS } from '../../data/moods';
+import { normalizeMoodIds } from '../../services/agents/agentOutputGuards';
 
 export const ImageUpload: React.FC = () => {
     const { addClothingItem } = useWardrobe();
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [analyzedItem, setAnalyzedItem] = useState<Partial<ClothingItem> | null>(null);
+    const [selectedMoods, setSelectedMoods] = useState<string[]>([]);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const cameraInputRef = useRef<HTMLInputElement>(null);
 
@@ -35,6 +38,7 @@ export const ImageUpload: React.FC = () => {
             const result = await awsNovaService.analyzeClothingImage(base64);
             if (result.success) {
                 setAnalyzedItem(result.items[0]);
+                setSelectedMoods(normalizeMoodIds(result.items[0].userMoods, result.items[0].aiTags));
             } else {
                 // Handle restricted content
                 alert(result.message);
@@ -51,25 +55,46 @@ export const ImageUpload: React.FC = () => {
 
     const handleSave = async () => {
         if (!analyzedItem || !selectedImage) return;
+        const moodIds = selectedMoods.length > 0
+            ? selectedMoods
+            : normalizeMoodIds(analyzedItem.userMoods, analyzedItem.aiTags);
         const itemToSave: Omit<ClothingItem, 'id' | 'dateAdded'> = {
             imageUrl: selectedImage,
             category: analyzedItem.category || ClothingCategory.Tops,
             subcategory: analyzedItem.subcategory || "Unknown",
             color: analyzedItem.color || "Unknown",
             colorHex: analyzedItem.colorHex || "#000000",
-            season: analyzedItem.season || [Season.Spring],
+            // Default to Spring when no seasons are selected — matches the
+            // fallback in agentOutputGuards.ts:164. Empty arrays silently fail
+            // the season.includes(currentSeason) filters in BehavioralAgent and
+            // would exclude the item from insights and least-worn computation.
+            season:
+                analyzedItem.season && analyzedItem.season.length > 0
+                    ? analyzedItem.season
+                    : [Season.Spring],
             wearFrequency: 0,
             lastWorn: null,
-            aiTags: analyzedItem.aiTags || [],
-            userNotes: analyzedItem.userNotes || ""
+            aiTags: normalizeMoodIds(analyzedItem.aiTags, moodIds),
+            userMoods: moodIds,
+            userNotes: analyzedItem.userNotes || "",
+            scanItemCount: 1,
         };
         try {
             await addClothingItem(itemToSave);
             setSelectedImage(null);
             setAnalyzedItem(null);
+            setSelectedMoods([]);
         } catch {
             // Error already surfaced via WardrobeContext.setError; keep form open so user can retry
         }
+    };
+
+    const toggleMood = (moodId: string) => {
+        setSelectedMoods(prev =>
+            prev.includes(moodId)
+                ? prev.filter((id) => id !== moodId)
+                : [...prev, moodId]
+        );
     };
 
     const handleDragOver = (e: React.DragEvent) => {
@@ -129,7 +154,7 @@ export const ImageUpload: React.FC = () => {
                     <div className="w-full md:w-1/2 relative rounded-2xl overflow-hidden shadow-inner bg-olive-50 aspect-[3/4]">
                         <img src={selectedImage} alt="Preview" className="w-full h-full object-cover" />
                         <button
-                            onClick={() => { setSelectedImage(null); setAnalyzedItem(null); }}
+                            onClick={() => { setSelectedImage(null); setAnalyzedItem(null); setSelectedMoods([]); }}
                             className="absolute top-3 right-3 p-2 bg-black/50 text-white rounded-full hover:bg-black/70 active:scale-95 transition-transform"
                         >
                             <X className="w-5 h-5" />
@@ -155,7 +180,7 @@ export const ImageUpload: React.FC = () => {
                                     <label className="block text-sm font-medium text-primary mb-1">Category</label>
                                     <select
                                         value={analyzedItem.category}
-                                        onChange={(e) => setAnalyzedItem({ ...analyzedItem, category: e.target.value as any })}
+                                        onChange={(e) => setAnalyzedItem({ ...analyzedItem, category: e.target.value as ClothingCategory })}
                                         className="w-full rounded-xl border-olive-200 border p-3 md:p-2.5 focus:ring-2 focus:ring-secondary/30 focus:border-secondary outline-none bg-white"
                                     >
                                         {Object.values(ClothingCategory).map(cat => (
@@ -191,6 +216,28 @@ export const ImageUpload: React.FC = () => {
                                                 className="flex-1 rounded-xl border-olive-200 border p-3 md:p-2.5 focus:ring-2 focus:ring-secondary/30 focus:border-secondary outline-none bg-white"
                                             />
                                         </div>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-primary mb-1">
+                                        Mood Calibration (select all that apply)
+                                    </label>
+                                    <div className="flex flex-wrap gap-2">
+                                        {MOODS.map((mood) => (
+                                            <button
+                                                key={mood.id}
+                                                type="button"
+                                                onClick={() => toggleMood(mood.id)}
+                                                className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all active:scale-[0.97] ${
+                                                    selectedMoods.includes(mood.id)
+                                                        ? 'bg-secondary text-white'
+                                                        : 'bg-olive-100 text-secondary hover:bg-olive-200'
+                                                }`}
+                                            >
+                                                {mood.name}
+                                            </button>
+                                        ))}
                                     </div>
                                 </div>
 

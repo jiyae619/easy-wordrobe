@@ -1,8 +1,9 @@
-import React from 'react';
-import { X, Trash2, Calendar, Hash } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, Trash2, Calendar, Hash, Sparkles } from 'lucide-react';
 import { type ClothingItem } from '../../types';
 import { useWardrobe } from '../../context/WardrobeContext';
 import { format, differenceInDays } from 'date-fns';
+import { awsNovaService } from '../../services/awsNova';
 
 interface ItemDetailModalProps {
     item: ClothingItem;
@@ -10,12 +11,63 @@ interface ItemDetailModalProps {
 }
 
 export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({ item, onClose }) => {
-    const { deleteClothingItem } = useWardrobe();
+    const { deleteClothingItem, updateClothingItem } = useWardrobe();
+    const [isReanalyzing, setIsReanalyzing] = useState(false);
 
     const handleDelete = async () => {
         if (window.confirm('Are you sure you want to delete this item?')) {
             await deleteClothingItem(item.id);
             onClose();
+        }
+    };
+
+    const toDataUrl = async (imageUrl: string): Promise<string> => {
+        const response = await fetch(imageUrl);
+        if (!response.ok) {
+            throw new Error('Could not fetch item image');
+        }
+        const blob = await response.blob();
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.onerror = () => reject(new Error('Could not read item image'));
+            reader.readAsDataURL(blob);
+        });
+    };
+
+    const handleReanalyze = async () => {
+        setIsReanalyzing(true);
+        try {
+            const imageBase64 = item.imageUrl.startsWith('data:')
+                ? item.imageUrl
+                : await toDataUrl(item.imageUrl);
+            const result = await awsNovaService.analyzeClothingImage(imageBase64);
+            if (!result.success) {
+                alert(result.message || 'Re-analysis failed. Please try again.');
+                return;
+            }
+            if (result.items.length === 0) {
+                alert('Re-analysis failed. Please try again.');
+                return;
+            }
+
+            const detected = result.items[0];
+            await updateClothingItem(item.id, {
+                category: detected.category ?? item.category,
+                subcategory: detected.subcategory ?? item.subcategory,
+                color: detected.color ?? item.color,
+                colorHex: detected.colorHex ?? item.colorHex,
+                season: detected.season?.length ? detected.season : item.season,
+                aiTags: detected.aiTags?.length ? detected.aiTags : item.aiTags,
+                userNotes: detected.userNotes ?? item.userNotes ?? '',
+            });
+            alert('Item updated from AI re-analysis.');
+            onClose();
+        } catch (error) {
+            console.error('[ItemDetailModal] Re-analysis failed:', error);
+            alert('Could not re-analyze this item right now.');
+        } finally {
+            setIsReanalyzing(false);
         }
     };
 
@@ -87,6 +139,25 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({ item, onClose 
                                 </div>
                             </div>
                         </div>
+
+                        {item.subcategory.toLowerCase() === 'unknown' && (
+                            <div className="rounded-xl border border-amber-300 bg-amber-50 p-3">
+                                <p className="text-xs font-bold uppercase tracking-wide text-amber-800 mb-2">
+                                    Needs attention
+                                </p>
+                                <p className="text-sm text-amber-900 mb-3">
+                                    This item could not be categorized before. Re-analyze it to recover better outfit suggestions.
+                                </p>
+                                <button
+                                    onClick={handleReanalyze}
+                                    disabled={isReanalyzing}
+                                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-amber-600 text-white rounded-lg text-sm font-semibold hover:bg-amber-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                                >
+                                    <Sparkles className="w-4 h-4" />
+                                    {isReanalyzing ? 'Re-analyzing...' : 'Re-analyze with AI'}
+                                </button>
+                            </div>
+                        )}
 
                     </div>
                 </div>

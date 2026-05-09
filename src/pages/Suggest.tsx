@@ -36,10 +36,25 @@ const Suggest: React.FC = () => {
     const [logged, setLogged] = useState(false);
     const [isRegenerating, setIsRegenerating] = useState(false);
     const [currentIndex, setCurrentIndex] = useState(0);
+    const [pendingWear, setPendingWear] = useState<{ suggestionId: string; timerId: number } | null>(null);
 
     // Touch handling for swipe
     const touchStartX = useRef(0);
     const touchEndX = useRef(0);
+
+    const resolveWeather = async (): Promise<WeatherData> => {
+        try {
+            const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+                navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 8000 });
+            });
+            return weatherService.getCurrentWeather(
+                position.coords.latitude,
+                position.coords.longitude
+            );
+        } catch {
+            return weatherService.getWeatherByCity('San Francisco');
+        }
+    };
 
     useEffect(() => {
         const fetchSuggestions = async () => {
@@ -48,7 +63,7 @@ const Suggest: React.FC = () => {
             setCurrentIndex(0);
 
             try {
-                const weatherData = await weatherService.getWeatherByCity('San Francisco');
+                const weatherData = await resolveWeather();
                 setWeather(weatherData);
 
                 if (clothes.length === 0) {
@@ -110,10 +125,19 @@ const Suggest: React.FC = () => {
 
     const handleWear = (suggestion: OutfitSuggestion) => {
         if (!weather) return;
+        if (pendingWear?.timerId) {
+            window.clearTimeout(pendingWear.timerId);
+        }
+
         const itemIds = suggestion.items.map(item => item.id);
-        logOutfitWear(itemIds, moodId, weather);
-        setLogged(true);
-        setTimeout(() => setLogged(false), 2000);
+        const timerId = window.setTimeout(async () => {
+            await logOutfitWear(itemIds, moodId, weather);
+            setPendingWear(null);
+            setLogged(true);
+            window.setTimeout(() => setLogged(false), 2000);
+        }, 4000);
+
+        setPendingWear({ suggestionId: suggestion.id, timerId });
     };
 
     const handleMoodChange = (id: string) => {
@@ -127,6 +151,12 @@ const Suggest: React.FC = () => {
     const goToPrev = useCallback(() => {
         setCurrentIndex(prev => Math.max(prev - 1, 0));
     }, []);
+
+    const handleUndoWear = () => {
+        if (!pendingWear) return;
+        window.clearTimeout(pendingWear.timerId);
+        setPendingWear(null);
+    };
 
     // Swipe handlers
     const handleTouchStart = (e: React.TouchEvent) => {
@@ -146,6 +176,27 @@ const Suggest: React.FC = () => {
             goToPrev();
         }
     };
+
+    useEffect(() => {
+        const onKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'ArrowRight') {
+                goToNext();
+            } else if (e.key === 'ArrowLeft') {
+                goToPrev();
+            }
+        };
+
+        window.addEventListener('keydown', onKeyDown);
+        return () => window.removeEventListener('keydown', onKeyDown);
+    }, [goToNext, goToPrev]);
+
+    useEffect(() => {
+        return () => {
+            if (pendingWear?.timerId) {
+                window.clearTimeout(pendingWear.timerId);
+            }
+        };
+    }, [pendingWear]);
 
     return (
         <div className="space-y-5 md:space-y-8">
@@ -246,6 +297,7 @@ const Suggest: React.FC = () => {
                             suggestion={suggestions[currentIndex]}
                             onWear={() => handleWear(suggestions[currentIndex])}
                             onSkip={suggestions.length > 1 ? goToNext : undefined}
+                            onSkipLabel="Next Look"
                         />
                     </div>
 
@@ -290,7 +342,7 @@ const Suggest: React.FC = () => {
                         >
                             {isRegenerating
                                 ? <><Loader2 className="w-4 h-4 animate-spin" /> Generating...</>
-                                : <><Sparkles className="w-4 h-4" /> Generate More</>}
+                                : <><Sparkles className="w-4 h-4" /> Show Different Looks</>}
                         </button>
                     </div>
                 </div>
@@ -299,6 +351,21 @@ const Suggest: React.FC = () => {
             {!isLoading && !error && suggestions.length === 0 && (
                 <div className="text-center py-16 text-gray-500 animate-fade-in-up">
                     <p className="font-medium">No suggestions yet. Try a different mood!</p>
+                </div>
+            )}
+
+            {/* Pending wear confirmation toast */}
+            {pendingWear && (
+                <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 animate-fade-in-up">
+                    <div className="flex items-center gap-3 px-4 py-3 bg-primary text-white rounded-full shadow-lg text-sm font-medium">
+                        Logging this outfit in 4s
+                        <button
+                            onClick={handleUndoWear}
+                            className="px-2.5 py-1 rounded-full bg-white/20 hover:bg-white/30 transition-colors text-xs font-semibold"
+                        >
+                            Undo
+                        </button>
+                    </div>
                 </div>
             )}
 

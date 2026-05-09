@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useWardrobe } from '../context/WardrobeContext';
 import { Lightbulb, Sparkles, Loader2 } from 'lucide-react';
 import { WeeklyOutfitTimeline } from '../components/insights/WeeklyOutfitTimeline';
+import { ExpandableText } from '../components/common/ExpandableText';
 
 const Insights: React.FC = () => {
     const { clothes, insights, fetchInsights, isLoading, addTryItItem, removeTryItItem, tryItItemIds } = useWardrobe();
@@ -99,7 +100,7 @@ const Insights: React.FC = () => {
                 <section>
                     <div className="mb-4">
                         <h2 className="text-lg font-bold text-primary">Try Next Week</h2>
-                        <span className="text-xs text-olive-400 font-medium">Least worn items</span>
+                        <span className="text-xs text-olive-400 font-medium">Least worn items during the past 3 weeks</span>
                     </div>
 
                     {/* Behavioral Nudge */}
@@ -108,9 +109,14 @@ const Insights: React.FC = () => {
                             <div className="flex-shrink-0 w-9 h-9 rounded-xl bg-secondary/20 flex items-center justify-center">
                                 <Lightbulb className="w-4 h-4 text-secondary" />
                             </div>
-                            <p className="text-sm leading-relaxed text-olive-600 pt-1.5">
-                                {topNudge}
-                            </p>
+                            <div className="pt-1.5">
+                                <ExpandableText
+                                    text={topNudge}
+                                    textClassName="text-sm leading-relaxed text-olive-600"
+                                    collapsedClassName="line-clamp-2"
+                                    minCharsForToggle={110}
+                                />
+                            </div>
                         </div>
                     </div>
 
@@ -163,9 +169,9 @@ const Insights: React.FC = () => {
 
             {/* Most Worn Leaderboard */}
             <section>
-                <div className="flex items-center justify-between mb-4">
+                <div className="mb-4">
                     <h2 className="text-lg font-bold text-primary">Most Worn</h2>
-                    <span className="text-xs text-olive-400 font-medium">All time</span>
+                    <span className="text-xs text-olive-400 font-medium">During the past 3 weeks</span>
                 </div>
 
                 <div className="space-y-3">

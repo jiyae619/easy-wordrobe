@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { type WeatherData } from '../types';
+import { type WeatherData, type WeatherOutlookPeriod } from '../types';
 
 // ==========================================
 // NWS (National Weather Service) API — Free, no API key required
@@ -26,6 +26,59 @@ const CITY_COORDS: Record<string, { lat: number; lon: number }> = {
     "portland": { lat: 45.5152, lon: -122.6784 },
 };
 
+async function getForecastPayload(lat: number, lon: number) {
+    const pointsUrl = `${NWS_BASE}/points/${lat.toFixed(4)},${lon.toFixed(4)}`;
+    const pointsResponse = await axios.get(pointsUrl, { headers: NWS_HEADERS });
+    const props = pointsResponse.data.properties;
+
+    const forecastUrl = props.forecast;
+    const forecastResponse = await axios.get(forecastUrl, { headers: NWS_HEADERS });
+
+    return {
+        props,
+        periods: forecastResponse.data.properties.periods as Array<{
+            name: string;
+            temperature: number;
+            shortForecast: string;
+            windSpeed?: string;
+        }>
+    };
+}
+
+function normalizeDaypart(label: string): WeatherOutlookPeriod['label'] | null {
+    const lower = label.toLowerCase();
+    if (lower.includes('morning')) return 'morning';
+    if (lower.includes('afternoon') || lower.includes('day')) return 'daytime';
+    if (lower.includes('evening') || lower.includes('night') || lower.includes('tonight')) return 'evening';
+    return null;
+}
+
+function buildOutlookFromPeriods(
+    periods: Array<{ name: string; temperature: number; shortForecast: string }>
+): WeatherOutlookPeriod[] {
+    const bucket = new Map<WeatherOutlookPeriod['label'], WeatherOutlookPeriod>();
+
+    for (const period of periods.slice(0, 10)) {
+        const label = normalizeDaypart(period.name);
+        if (!label || bucket.has(label)) continue;
+
+        const tempC = Math.round((period.temperature - 32) * 5 / 9);
+        bucket.set(label, {
+            label,
+            temperature: tempC,
+            condition: period.shortForecast || 'Unknown',
+        });
+    }
+
+    const fallback = periods[0];
+    const fallbackTemp = fallback ? Math.round((fallback.temperature - 32) * 5 / 9) : 22;
+    const fallbackCondition = fallback?.shortForecast || 'Unknown';
+
+    return (['morning', 'daytime', 'evening'] as const).map((label) =>
+        bucket.get(label) ?? { label, temperature: fallbackTemp, condition: fallbackCondition }
+    );
+}
+
 export const weatherService = {
     /**
      * Get current weather by latitude and longitude using NWS API.
@@ -33,15 +86,8 @@ export const weatherService = {
      */
     getCurrentWeather: async (lat: number, lon: number): Promise<WeatherData> => {
         try {
-            // Step 1: Get grid point info from coordinates
-            const pointsUrl = `${NWS_BASE}/points/${lat.toFixed(4)},${lon.toFixed(4)}`;
-            const pointsResponse = await axios.get(pointsUrl, { headers: NWS_HEADERS });
-            const props = pointsResponse.data.properties;
-
-            // Step 2: Fetch the forecast using the URL from the points response
-            const forecastUrl = props.forecast;
-            const forecastResponse = await axios.get(forecastUrl, { headers: NWS_HEADERS });
-            const currentPeriod = forecastResponse.data.properties.periods[0];
+            const { props, periods } = await getForecastPayload(lat, lon);
+            const currentPeriod = periods[0];
 
             // Step 3: Fetch observation station for humidity data
             let humidity = 50; // default
@@ -90,6 +136,23 @@ export const weatherService = {
     },
 
     /**
+     * Get an at-a-glance outlook for morning/daytime/evening.
+     */
+    getWeatherOutlook: async (lat: number, lon: number): Promise<WeatherOutlookPeriod[]> => {
+        try {
+            const { periods } = await getForecastPayload(lat, lon);
+            return buildOutlookFromPeriods(periods);
+        } catch (error) {
+            console.error("[NWS API] Error fetching weather outlook:", error);
+            return [
+                { label: 'morning', temperature: 21, condition: 'Partly Cloudy' },
+                { label: 'daytime', temperature: 24, condition: 'Sunny' },
+                { label: 'evening', temperature: 18, condition: 'Clear' },
+            ];
+        }
+    },
+
+    /**
      * Get weather by city name. Looks up lat/lon from built-in map, then uses NWS.
      * Falls back to browser geolocation if city is not in the map.
      */
@@ -113,6 +176,31 @@ export const weatherService = {
         } catch {
             console.warn(`[NWS API] City "${city}" not found and geolocation unavailable, using mock`);
             return getMockWeather(city);
+        }
+    },
+
+    getWeatherOutlookByCity: async (city: string): Promise<WeatherOutlookPeriod[]> => {
+        const normalizedCity = city.toLowerCase().trim();
+        const coords = CITY_COORDS[normalizedCity];
+
+        if (coords) {
+            return weatherService.getWeatherOutlook(coords.lat, coords.lon);
+        }
+
+        try {
+            const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+                navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
+            });
+            return weatherService.getWeatherOutlook(
+                position.coords.latitude,
+                position.coords.longitude
+            );
+        } catch {
+            return [
+                { label: 'morning', temperature: 21, condition: 'Partly Cloudy' },
+                { label: 'daytime', temperature: 24, condition: 'Sunny' },
+                { label: 'evening', temperature: 18, condition: 'Clear' },
+            ];
         }
     },
 

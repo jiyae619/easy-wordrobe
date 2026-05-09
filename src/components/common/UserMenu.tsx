@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useWardrobe } from '../../context/WardrobeContext';
 import { LogOut, User, Settings, X, Lock, Camera, Sparkles, Loader2, Info, Cloud, Activity, Heart } from 'lucide-react';
 import { MOODS } from '../../data/moods';
+import { ExpandableText } from './ExpandableText';
 
 const UserMenu: React.FC = () => {
     const { user, logout } = useAuth();
@@ -226,7 +227,7 @@ const UserMenu: React.FC = () => {
                                             <option value="">Not specified</option>
                                             <option value="female">Female</option>
                                             <option value="male">Male</option>
-                                            <option value="non-binary">Non-binary</option>
+                                            <option value="non-binary">Non binary</option>
                                         </select>
                                     </div>
                                     <div>
@@ -326,9 +327,13 @@ const UserMenu: React.FC = () => {
                             </button>
                         </div>
                         <div className="p-5 space-y-4">
-                            <p className="text-sm leading-relaxed text-olive-200">
-                                Our AI considers three key factors when suggesting outfits: <strong className="text-white">current weather conditions</strong> to keep you comfortable, <strong className="text-white">how often you've worn each item</strong> to promote variety, and your <strong className="text-white">selected mood</strong> to match the vibe you're going for.
-                            </p>
+                            <ExpandableText
+                                text="Our AI considers three key factors when suggesting outfits. Current weather conditions keep you comfortable, how often you have worn each item promotes variety, and your selected mood matches the vibe you are going for."
+                                textClassName="text-sm leading-relaxed text-olive-200"
+                                collapsedClassName="line-clamp-3"
+                                minCharsForToggle={120}
+                                buttonClassName="mt-1 text-xs font-semibold text-olive-300 hover:underline"
+                            />
                             <div className="flex items-center gap-4 text-olive-300 text-xs font-medium">
                                 <span className="flex items-center gap-1.5"><Cloud className="w-3.5 h-3.5" /> Weather</span>
                                 <span className="flex items-center gap-1.5"><Activity className="w-3.5 h-3.5" /> Frequency</span>

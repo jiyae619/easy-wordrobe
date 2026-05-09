@@ -21,7 +21,7 @@ export const WardrobeGrid: React.FC<WardrobeGridProps> = ({ items, isLoading }) 
             <div className="grid grid-cols-3 gap-3 md:gap-5">
                 {[...Array(9)].map((_, i) => (
                     <div key={i} className="bg-white rounded-2xl overflow-hidden border border-muted">
-                        <div className="aspect-[3/4] skeleton" />
+                        <div className="aspect-square skeleton" />
                     </div>
                 ))}
             </div>

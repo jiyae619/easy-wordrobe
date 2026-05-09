@@ -105,6 +105,9 @@ const Wardrobe: React.FC = () => {
                 <div className="relative">
                     <button
                         onClick={() => setShowSortDropdown(!showSortDropdown)}
+                        aria-haspopup="menu"
+                        aria-expanded={showSortDropdown}
+                        aria-label="Sort wardrobe items"
                         className="flex items-center gap-1.5 text-xs font-semibold text-secondary hover:text-primary transition-colors"
                     >
                         <ArrowDownAZ className="w-3.5 h-3.5" />
