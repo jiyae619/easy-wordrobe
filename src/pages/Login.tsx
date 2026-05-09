@@ -72,7 +72,7 @@ const Login: React.FC = () => {
                             <Shirt className="w-8 h-8 text-white" />
                         </div>
                         <h1 className="text-2xl font-bold text-primary">Wardrobe AI</h1>
-                        <p className="text-sm text-gray-400 mt-1">Your AI-powered personal stylist</p>
+                        <p className="text-sm text-gray-400 mt-1">Your AI powered personal stylist</p>
                     </div>
 
                     {/* Title for current mode */}
@@ -91,7 +91,7 @@ const Login: React.FC = () => {
 
                     {/* Error Message */}
                     {error && (
-                        <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-4 animate-scale-in">
+                        <div role="alert" aria-live="polite" className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-4 animate-scale-in">
                             <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
                             <p className="text-sm text-red-600">{error}</p>
                         </div>
@@ -99,7 +99,7 @@ const Login: React.FC = () => {
 
                     {/* Reset Success */}
                     {resetSent && (
-                        <div className="flex items-start gap-2 bg-green-50 border border-green-200 rounded-xl px-4 py-3 mb-4 animate-scale-in">
+                        <div role="status" aria-live="polite" className="flex items-start gap-2 bg-green-50 border border-green-200 rounded-xl px-4 py-3 mb-4 animate-scale-in">
                             <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
                             <p className="text-sm text-green-600">Password reset email sent! Check your inbox.</p>
                         </div>
@@ -115,6 +115,7 @@ const Login: React.FC = () => {
                                     id="displayName"
                                     type="text"
                                     placeholder="Full name"
+                                    autoComplete="name"
                                     value={displayName}
                                     onChange={e => setDisplayName(e.target.value)}
                                     required
@@ -130,6 +131,7 @@ const Login: React.FC = () => {
                                 id="email"
                                 type="email"
                                 placeholder="Email address"
+                                autoComplete="email"
                                 value={email}
                                 onChange={e => setEmail(e.target.value)}
                                 required
@@ -145,6 +147,7 @@ const Login: React.FC = () => {
                                     id="password"
                                     type={showPassword ? 'text' : 'password'}
                                     placeholder="Password"
+                                    autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
                                     value={password}
                                     onChange={e => setPassword(e.target.value)}
                                     required
@@ -154,6 +157,7 @@ const Login: React.FC = () => {
                                 <button
                                     type="button"
                                     onClick={() => setShowPassword(!showPassword)}
+                                    aria-label={showPassword ? 'Hide password' : 'Show password'}
                                     className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                                 >
                                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}

@@ -38,6 +38,29 @@ export const Season = {
 export type Season = typeof Season[keyof typeof Season];
 
 /**
+ * Normalized bounding box for a detected clothing item.
+ * All values are in [0, 1] relative to the original image size.
+ */
+export interface ItemBoundingBox {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+}
+
+export interface FocusPoint {
+    x: number;
+    y: number;
+}
+
+export interface FocusRoi {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+}
+
+/**
  * Represents a single item of clothing in the user's wardrobe.
  */
 export interface ClothingItem {
@@ -67,6 +90,24 @@ export interface ClothingItem {
     userMoods?: string[];
     /** Optional personal notes about the item */
     userNotes?: string;
+    /** Optional original full-frame image when catalog image is a crop */
+    sourceImageUrl?: string;
+    /** Optional model-provided item localization (normalized) */
+    detectionBox?: ItemBoundingBox;
+    /** Optional model confidence (0..1) for the localization result */
+    detectionConfidence?: number;
+    /** Optional thumbnail image url for future display overrides */
+    thumbnailUrl?: string;
+    /** Version marker for one-time thumbnail migrations */
+    thumbnailVersion?: number;
+    /** Number of items detected in the originating scan (if scanned) */
+    scanItemCount?: number;
+    /** Optional user-calibrated focus point in percentage coordinates */
+    focusPoint?: FocusPoint;
+    /** Optional user-calibrated focus zoom multiplier */
+    focusZoom?: number;
+    /** Optional user-calibrated crop region in percentage coordinates */
+    focusRoi?: FocusRoi;
 }
 
 /**
@@ -103,6 +144,12 @@ export interface WeatherData {
     windSpeed: number;
     /** Location name (city) */
     location: string;
+}
+
+export interface WeatherOutlookPeriod {
+    label: 'morning' | 'daytime' | 'evening';
+    temperature: number;
+    condition: string;
 }
 
 /**

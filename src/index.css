@@ -195,9 +195,11 @@ body {
   transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
-.card-hover:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 24px -8px rgba(45, 58, 45, 0.12);
+@media (hover: hover) {
+  .card-hover:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px -8px rgba(45, 58, 45, 0.12);
+  }
 }
 
 /* Glass effect */
@@ -256,4 +258,17 @@ body {
 .hide-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in-up,
+  .animate-scale-in,
+  .animate-float,
+  .scanner-line {
+    animation: none !important;
+  }
+
+  .card-hover {
+    transition: none !important;
+  }
 }

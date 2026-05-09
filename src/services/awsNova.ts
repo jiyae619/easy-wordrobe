@@ -2,6 +2,7 @@ import {
     type ClothingItem,
     type FashionMood,
     type WeatherData,
+    type WeatherOutlookPeriod,
     type OutfitSuggestion,
     type UserInsight,
     type WearRecord
@@ -11,6 +12,7 @@ import {
 import { IntakeAgent, type IntakeResult, type DetectedClothingItem } from "./agents/IntakeAgent";
 import { StylistAgent, type BehavioralContext } from "./agents/StylistAgent";
 import { BehavioralAgent } from "./agents/BehavioralAgent";
+import { WeatherAgent } from "./agents/WeatherAgent";
 
 export type { BehavioralContext, IntakeResult, DetectedClothingItem };
 
@@ -68,6 +70,13 @@ export const awsNovaService = {
         wearHistory: WearRecord[]
     ): Promise<UserInsight> => {
         return BehavioralAgent.generateInsights(clothes, wearHistory);
+    },
+
+    generateWeatherCheer: async (
+        weather: WeatherData,
+        outlook: WeatherOutlookPeriod[]
+    ): Promise<string> => {
+        return WeatherAgent.generateWeatherCheer(weather, outlook);
     }
 };
 

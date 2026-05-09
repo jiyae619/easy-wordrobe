@@ -1,25 +1,20 @@
 import {
     type ClothingItem,
     ClothingCategory,
-    Season,
 } from "../../types/index";
 import { v4 as uuidv4 } from 'uuid';
 import { callBedrockConverseAPI } from "../bedrockClient";
-
-// Valid moods coherent across all agents and pages (from src/data/moods.ts)
-const VALID_MOODS = [
-    "professional",
-    "casual",
-    "sporty",
-    "creative",
-    "romantic"
-] as const;
+import { AgentError, getAgentFailureReason } from "./agentErrors";
+import { createAgentTraceId, recordAgentMetric } from "./agentTelemetry";
+import { mapIntakeItem, normalizeIntakeResponse, parseAgentJson } from "./agentOutputGuards";
 
 export type DetectedClothingItem = ClothingItem;
 
 export type IntakeResult = {
     success: true;
     items: DetectedClothingItem[];
+    /** True when analysis failed and a placeholder item was returned */
+    usedFallback?: boolean;
 } | {
     success: false;
     error: "RESTRICTED_CONTENT";
@@ -34,6 +29,7 @@ export const IntakeAgent = {
      */
     analyzeClothingImage: async (imageBase64: string): Promise<IntakeResult> => {
         console.log("[Intake Agent] Analyzing clothing image...");
+        const traceId = createAgentTraceId("intake");
 
         // Strip the data URI prefix (e.g. "data:image/jpeg;base64,") if present
         const base64Data = imageBase64.includes(",")
@@ -70,7 +66,9 @@ If the image is safe, identify up to 3 distinct clothing items visible in the im
     "colorHex": "#1B2A4A",
     "season": ["spring", "summer"],
     "mood": ["casual"],
-    "hasNoisyBackground": false
+    "hasNoisyBackground": false,
+    "bbox": { "x": 0.2, "y": 0.1, "width": 0.5, "height": 0.75 },
+    "confidence": 0.91
   }
 ]
 
@@ -82,6 +80,8 @@ FIELD RULES:
 - "season": a JSON array containing one or more of: "spring", "summer", "fall", "winter"
 - "mood": a JSON array with 1–3 values from: "professional", "casual", "sporty", "creative", "romantic"
 - "hasNoisyBackground": true if the background is cluttered or distracting, otherwise false
+- "bbox": normalized location of the item in the image with x,y,width,height in range 0..1
+- "confidence": confidence for the detection in range 0..1
 
 IMPORTANT:
 - Analyze clothing items ONLY — do NOT include shoes, bags, hats, or accessories
@@ -113,12 +113,18 @@ IMPORTANT:
                 },
             };
 
-            const jsonStr = await callBedrockConverseAPI(payload);
-            const parsed: any[] = JSON.parse(jsonStr);
+            const jsonStr = await callBedrockConverseAPI(payload, { agent: "intake", traceId });
+            const parsed = parseAgentJson(jsonStr, "intake", traceId);
+            const normalized = normalizeIntakeResponse(parsed);
 
-            // Safety check — if any item is restricted, reject the whole image
-            if (!Array.isArray(parsed) || parsed.some(p => p.isRestricted === true)) {
+            if (normalized.status === "restricted") {
                 console.warn("[Intake Agent] Restricted content detected");
+                recordAgentMetric({
+                    agent: "intake",
+                    traceId,
+                    phase: "validation",
+                    reason: "unsafe_content",
+                });
                 return {
                     success: false,
                     error: "RESTRICTED_CONTENT",
@@ -126,56 +132,49 @@ IMPORTANT:
                 };
             }
 
-            const validCategories = Object.values(ClothingCategory);
-            const validSeasons = Object.values(Season);
+            if (normalized.status === "invalid") {
+                throw new AgentError("intake", "schema_invalid", normalized.message, { traceId });
+            }
 
-            const items: DetectedClothingItem[] = parsed.map((p: any) => {
-                const category = validCategories.includes(p.category)
-                    ? p.category
-                    : ClothingCategory.Tops;
+            const items: DetectedClothingItem[] = normalized.items.map((item) =>
+                mapIntakeItem(item, imageBase64, uuidv4)
+            );
 
-                const season = Array.isArray(p.season)
-                    ? p.season.filter((s: string) => validSeasons.includes(s as Season))
-                    : [Season.Spring];
-
-                const moods = Array.isArray(p.mood)
-                    ? p.mood.filter((m: string) => VALID_MOODS.includes(m as typeof VALID_MOODS[number]))
-                    : ["casual"];
-
-                return {
-                    id: uuidv4(),
-                    imageUrl: imageBase64,
-                    category,
-                    subcategory: p.subcategory || "Unknown",
-                    color: p.color || "Unknown",
-                    colorHex: p.colorHex || "#000000",
-                    season: season.length > 0 ? season : [Season.Spring],
-                    wearFrequency: 0,
-                    lastWorn: null,
-                    dateAdded: new Date(),
-                    aiTags: moods,
-                    userNotes: p.hasNoisyBackground ? "Consider retaking with a plain background" : "",
-                };
+            recordAgentMetric({
+                agent: "intake",
+                traceId,
+                phase: "parse_success",
+                inputCount: normalized.items.length,
+                outputCount: items.length,
             });
 
             return { success: true, items };
         } catch (error) {
-            console.error("[Intake Agent] Analysis failed, falling back to mock:", error);
+            console.error("[Intake Agent] Analysis failed, falling back to placeholder:", error);
+            recordAgentMetric({
+                agent: "intake",
+                traceId,
+                phase: "fallback",
+                reason: getAgentFailureReason(error),
+            });
             const fallbackItem: DetectedClothingItem = {
                 id: uuidv4(),
                 imageUrl: imageBase64,
+                sourceImageUrl: imageBase64,
                 category: ClothingCategory.Tops,
-                subcategory: "Casual T-Shirt",
-                color: "Navy Blue",
-                colorHex: "#1a1a2e",
-                season: [Season.Spring, Season.Summer],
+                subcategory: "Unknown",
+                color: "Unknown",
+                colorHex: "#808080",
+                season: [],
                 wearFrequency: 0,
                 lastWorn: null,
                 dateAdded: new Date(),
-                aiTags: ["casual"],
+                aiTags: [],
+                userMoods: [],
                 userNotes: "",
+                detectionConfidence: 0,
             };
-            return { success: true, items: [fallbackItem] };
+            return { success: true, items: [fallbackItem], usedFallback: true };
         }
     }
 };
