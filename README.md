@@ -2,7 +2,7 @@
 
 > Turn closet chaos into curated confidence. Stylemax is a mobile-first AI app that photographs your clothes, understands your mood and the weather, and suggests outfits from your actual wardrobe — powered by a three-agent Amazon Nova pipeline.
 
-**Live Demo:** [https://main.d2zt0kp8qilpd0.amplifyapp.com](https://main.d2zt0kp8qilpd0.amplifyapp.com)  
+**Live Demo:** (https://master.d358bvbeytobdo.amplifyapp.com/)
 **AI Agent Deep Dive:** [AGENTS.md](AGENTS.md)  
 **System Architecture:** [ARCHITECTURE.md](ARCHITECTURE.md)
 
