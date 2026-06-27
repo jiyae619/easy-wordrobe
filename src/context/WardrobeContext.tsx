@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import {
     type ClothingItem,
+    type ColorCorrection,
     type FashionMood,
     type WeatherData,
     type WearRecord,
@@ -19,6 +20,7 @@ import { prodDiag } from '../utils/productionDiagnostics';
 import { compressImage, cropImageToBoundingBox, toDataUrl } from '../utils/imageUtils';
 import type { ItemBoundingBox } from '../types';
 import { moodIdsForStyling } from '../services/agents/agentOutputGuards';
+import { getActiveProvider } from '../services/vision/providerRegistry';
 
 const WardrobeContext = createContext<WardrobeContextType | undefined>(undefined);
 
@@ -261,6 +263,21 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
                     'Firestore add'
                 );
                 prodDiag.firestoreWriteEnd(uid, 'add');
+
+                // Scan-time color correction: if the user changed color away from the AI's guess, log it as eval data.
+                if (newItem.colorSource === 'user' && newItem.aiColor) {
+                    const correction: ColorCorrection = {
+                        id: crypto.randomUUID(),
+                        itemId: newItem.id,
+                        imageRef: newItem.imageUrl,
+                        aiColor: newItem.aiColor,
+                        userColor: { name: newItem.color, hex: newItem.colorHex },
+                        model: getActiveProvider().id,
+                        createdAt: new Date(),
+                    };
+                    firestoreService.logColorCorrection(uid, correction).catch(e =>
+                        console.warn('[Wardrobe] Failed to log scan color correction:', e));
+                }
             } catch (fsErr) {
                 prodDiag.firestoreWriteError(uid, 'add', fsErr);
                 throw fsErr;
@@ -291,6 +308,39 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
             setError('Failed to update item');
         }
     }, [uid]);
+
+    const correctItemColor = useCallback(async (id: string, userColor: { name: string; hex: string }) => {
+        if (!uid) return;
+        const item = clothes.find(c => c.id === id);
+        if (!item) return;
+        // Original AI detection — prefer the immutable aiColor; fall back to current fields for legacy items.
+        const aiColor = item.aiColor ?? { name: item.color, hex: item.colorHex };
+        const updates: Partial<ClothingItem> = {
+            color: userColor.name,
+            colorHex: userColor.hex,
+            colorSource: 'user',
+        };
+        try {
+            await firestoreService.updateClothingItem(uid, id, updates);
+            setClothes(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
+
+            // Log the {AI → user} pair as eval data. Best-effort: a failed log must not block the fix.
+            const correction: ColorCorrection = {
+                id: crypto.randomUUID(),
+                itemId: id,
+                imageRef: item.imageUrl,
+                aiColor,
+                userColor,
+                model: getActiveProvider().id,
+                createdAt: new Date(),
+            };
+            firestoreService.logColorCorrection(uid, correction).catch(err =>
+                console.warn('[Wardrobe] Failed to log color correction:', err));
+        } catch (err) {
+            console.error('[Wardrobe] Failed to correct color:', err);
+            setError('Failed to update color');
+        }
+    }, [uid, clothes]);
 
     const deleteClothingItem = useCallback(async (id: string) => {
         if (!uid) return;
@@ -508,6 +558,7 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
             clearError: () => setError(null),
             addClothingItem,
             updateClothingItem,
+            correctItemColor,
             deleteClothingItem,
             incrementWearCount,
             decrementWearCount,

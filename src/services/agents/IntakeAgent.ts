@@ -3,7 +3,7 @@ import {
     ClothingCategory,
 } from "../../types/index";
 import { v4 as uuidv4 } from 'uuid';
-import { callBedrockConverseAPI } from "../bedrockClient";
+import { getActiveProvider } from "../vision/providerRegistry";
 import { AgentError, getAgentFailureReason } from "./agentErrors";
 import { createAgentTraceId, recordAgentMetric } from "./agentTelemetry";
 import { mapIntakeItem, normalizeIntakeResponse, parseAgentJson } from "./agentOutputGuards";
@@ -90,30 +90,17 @@ IMPORTANT:
 - Return ONLY the raw JSON array — no markdown fences, no explanation, no extra text`;
 
         try {
-            const payload = {
-                messages: [
-                    {
-                        role: "user",
-                        content: [
-                            {
-                                image: {
-                                    format,
-                                    source: { bytes: base64Data },
-                                },
-                            },
-                            {
-                                text: prompt,
-                            },
-                        ],
-                    },
-                ],
-                inferenceConfig: {
+            const provider = getActiveProvider();
+            const jsonStr = await provider.call(
+                {
+                    imageBase64: base64Data,
+                    mimeType: `image/${format}`,
+                    systemPrompt: prompt,
                     maxTokens: 1024,
                     temperature: 0.2,
                 },
-            };
-
-            const jsonStr = await callBedrockConverseAPI(payload, { agent: "intake", traceId });
+                { agent: "intake", traceId }
+            );
             const parsed = parseAgentJson(jsonStr, "intake", traceId);
             const normalized = normalizeIntakeResponse(parsed);
 
@@ -165,6 +152,8 @@ IMPORTANT:
                 subcategory: "Unknown",
                 color: "Unknown",
                 colorHex: "#808080",
+                aiColor: { name: "Unknown", hex: "#808080" },
+                colorSource: "ai",
                 season: [],
                 wearFrequency: 0,
                 lastWorn: null,

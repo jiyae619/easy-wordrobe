@@ -9,7 +9,7 @@ import {
     writeBatch,
 } from 'firebase/firestore';
 import { db } from './firebaseConfig';
-import type { ClothingItem, WearRecord } from '../types';
+import type { ClothingItem, WearRecord, ColorCorrection } from '../types';
 
 // ==========================================
 // Helper: Serialize/deserialize dates
@@ -97,6 +97,14 @@ export const firestoreService = {
     async deleteClothingItem(uid: string, itemId: string): Promise<void> {
         const docRef = doc(db, 'users', uid, 'wardrobe', itemId);
         await deleteDoc(docRef);
+    },
+
+    // ------ Color corrections (eval / fine-tune dataset) ------
+
+    /** Append one {AI → user} color correction. Per-user collection (multi-tenant isolation). */
+    async logColorCorrection(uid: string, correction: ColorCorrection): Promise<void> {
+        const docRef = doc(db, 'users', uid, 'colorCorrections', correction.id);
+        await setDoc(docRef, { ...correction, createdAt: correction.createdAt.toISOString() });
     },
 
     async deleteAllDemoItems(uid: string): Promise<void> {

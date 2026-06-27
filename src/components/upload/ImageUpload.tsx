@@ -4,6 +4,7 @@ import { awsNovaService } from '../../services/awsNova';
 import { type ClothingItem, ClothingCategory, Season } from '../../types';
 import { useWardrobe } from '../../context/WardrobeContext';
 import { MOODS } from '../../data/moods';
+import { COLOR_PALETTE } from '../../data/colorPalette';
 import { normalizeMoodIds } from '../../services/agents/agentOutputGuards';
 
 export const ImageUpload: React.FC = () => {
@@ -64,6 +65,8 @@ export const ImageUpload: React.FC = () => {
             subcategory: analyzedItem.subcategory || "Unknown",
             color: analyzedItem.color || "Unknown",
             colorHex: analyzedItem.colorHex || "#000000",
+            aiColor: analyzedItem.aiColor,
+            colorSource: analyzedItem.colorSource,
             // Default to Spring when no seasons are selected — matches the
             // fallback in agentOutputGuards.ts:164. Empty arrays silently fail
             // the season.includes(currentSeason) filters in BehavioralAgent and
@@ -199,23 +202,27 @@ export const ImageUpload: React.FC = () => {
                                     />
                                 </div>
 
-                                <div className="flex space-x-4">
-                                    <div className="flex-1">
-                                        <label className="block text-sm font-medium text-primary mb-1">Color</label>
-                                        <div className="flex items-center space-x-2">
-                                            <input
-                                                type="color"
-                                                value={analyzedItem.colorHex}
-                                                onChange={(e) => setAnalyzedItem({ ...analyzedItem, colorHex: e.target.value })}
-                                                className="h-11 w-11 md:h-10 md:w-10 p-1 rounded-lg border border-olive-200 cursor-pointer"
-                                            />
-                                            <input
-                                                type="text"
-                                                value={analyzedItem.color}
-                                                onChange={(e) => setAnalyzedItem({ ...analyzedItem, color: e.target.value })}
-                                                className="flex-1 rounded-xl border-olive-200 border p-3 md:p-2.5 focus:ring-2 focus:ring-secondary/30 focus:border-secondary outline-none bg-white"
-                                            />
-                                        </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-primary mb-1">Color</label>
+                                    <div className="flex flex-wrap gap-2">
+                                        {COLOR_PALETTE.map((c) => {
+                                            const selected = analyzedItem.color === c.name;
+                                            return (
+                                                <button
+                                                    key={c.name}
+                                                    type="button"
+                                                    onClick={() => setAnalyzedItem({ ...analyzedItem, color: c.name, colorHex: c.hex, colorSource: 'user' })}
+                                                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-semibold border transition-all active:scale-95 ${
+                                                        selected
+                                                            ? 'border-secondary bg-olive-50 text-primary'
+                                                            : 'border-olive-200 bg-white text-secondary hover:bg-olive-50'
+                                                    }`}
+                                                >
+                                                    <span className="w-3.5 h-3.5 rounded-full border border-black/10" style={{ backgroundColor: c.hex }} />
+                                                    {c.name}
+                                                </button>
+                                            );
+                                        })}
                                     </div>
                                 </div>
 

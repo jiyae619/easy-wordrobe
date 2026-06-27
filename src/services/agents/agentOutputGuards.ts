@@ -9,6 +9,7 @@ import {
     type WearRecord,
 } from "../../types";
 import { AgentError, type AgentName } from "./agentErrors";
+import { nearestPaletteColor } from "../../data/colorPalette";
 
 export const VALID_MOODS = [
     "professional",
@@ -153,14 +154,22 @@ export function mapIntakeItem(
         ? raw.category as ClothingCategory
         : ClothingCategory.Tops;
 
+    // Color: keep the model's raw hex exactly, but show the nearest palette NAME (snap-to-nearest).
+    // The original detection is preserved in `aiColor` so a later user correction can be scored against it.
+    const rawColorName = typeof raw.color === "string" && raw.color.trim() ? raw.color : "Unknown";
+    const rawColorHex = normalizeColorHex(raw.colorHex);
+    const snapped = nearestPaletteColor(rawColorHex);
+
     return {
         id: createId(),
         imageUrl: imageBase64,
         sourceImageUrl: imageBase64,
         category,
         subcategory: typeof raw.subcategory === "string" && raw.subcategory.trim() ? raw.subcategory : "Unknown",
-        color: typeof raw.color === "string" && raw.color.trim() ? raw.color : "Unknown",
-        colorHex: normalizeColorHex(raw.colorHex),
+        color: snapped.name,
+        colorHex: rawColorHex,
+        aiColor: { name: rawColorName, hex: rawColorHex },
+        colorSource: "ai",
         season: season.length > 0 ? season : [Season.Spring],
         wearFrequency: 0,
         lastWorn: null,

@@ -74,8 +74,12 @@ export interface ClothingItem {
     subcategory: string;
     /** Primary color name detected by AI or set by user */
     color: string;
-    /** Hex code for the primary color */
+    /** Hex code for the primary color (raw — kept exactly as detected/measured, never snapped) */
     colorHex: string;
+    /** The model's first color detection, before snap-to-palette or any user fix (immutable) */
+    aiColor?: { name: string; hex: string };
+    /** Whether `color` is the AI's snapped guess or a user correction */
+    colorSource?: 'ai' | 'user';
     /** List of seasons this item is suitable for */
     season: Season[];
     /** Number of times this item has been worn */
@@ -108,6 +112,24 @@ export interface ClothingItem {
     focusZoom?: number;
     /** Optional user-calibrated crop region in percentage coordinates */
     focusRoi?: FocusRoi;
+}
+
+/**
+ * A user's correction of an AI-detected color.
+ * One record per correction — accumulates into the offline eval / fine-tune dataset.
+ */
+export interface ColorCorrection {
+    id: string;
+    itemId: string;
+    /** Image the correction refers to (the item's imageUrl). */
+    imageRef: string;
+    /** The model's first guess: raw color name + hex, before snapping. */
+    aiColor: { name: string; hex: string };
+    /** The human-verified color the user chose. */
+    userColor: { name: string; hex: string };
+    /** Vision provider id that produced the AI guess (e.g. "nova-2-lite"). */
+    model: string;
+    createdAt: Date;
 }
 
 /**
@@ -232,6 +254,9 @@ export interface WardrobeContextType {
 
     /** Update an existing clothing item */
     updateClothingItem: (id: string, updates: Partial<ClothingItem>) => Promise<void>;
+
+    /** Correct an item's color from the palette — updates the item and logs the {AI → user} pair as eval data */
+    correctItemColor: (id: string, userColor: { name: string; hex: string }) => Promise<void>;
 
     /** Delete a clothing item by ID */
     deleteClothingItem: (id: string) => Promise<void>;

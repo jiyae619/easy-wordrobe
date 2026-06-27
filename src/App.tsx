@@ -9,6 +9,7 @@ import Wardrobe from './pages/Wardrobe';
 import Suggest from './pages/Suggest';
 import Insights from './pages/Insights';
 import Login from './pages/Login';
+import DevModelTest from './pages/DevModelTest';
 import { CameraScannerOverlay } from './components/upload/CameraScannerOverlay';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import UserMenu from './components/common/UserMenu';
@@ -104,6 +105,7 @@ const Layout = () => {
               <Route path="/wardrobe" element={<ProtectedRoute><Wardrobe /></ProtectedRoute>} />
               <Route path="/suggest" element={<ProtectedRoute><Suggest /></ProtectedRoute>} />
               <Route path="/insights" element={<ProtectedRoute><Insights /></ProtectedRoute>} />
+              {import.meta.env.DEV && <Route path="/dev/model-test" element={<DevModelTest />} />}
             </Routes>
           </main>
         </div>
