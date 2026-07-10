@@ -1,10 +1,6 @@
 import { AgentError, type AgentName } from "./agents/agentErrors";
 import { createAgentTraceId, recordAgentMetric } from "./agents/agentTelemetry";
-
-export const NOVA_MODEL_ID = "us.amazon.nova-2-lite-v1:0";
-export const AWS_REGION = import.meta.env.VITE_AWS_REGION || "us-east-2";
-export const BEDROCK_API_KEY = import.meta.env.VITE_BEDROCK_API_KEY || "";
-export const BEDROCK_URL = `https://bedrock-runtime.${AWS_REGION}.amazonaws.com/model/${encodeURIComponent(NOVA_MODEL_ID)}/converse`;
+import { AI_PROXY_URL, getProxyIdToken } from "./aiProxyClient";
 
 export interface BedrockConversePayload {
     messages: Array<{
@@ -72,8 +68,8 @@ export async function callBedrockConverseAPI(
     const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     const maxRetries = options.maxRetries ?? DEFAULT_MAX_RETRIES;
 
-    if (!BEDROCK_API_KEY) {
-        throw new AgentError(agent, "transport_error", "Missing VITE_BEDROCK_API_KEY in environment variables.", { traceId });
+    if (!AI_PROXY_URL) {
+        throw new AgentError(agent, "transport_error", "AI service not configured (missing VITE_AI_PROXY_URL).", { traceId });
     }
 
     for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
@@ -83,13 +79,14 @@ export async function callBedrockConverseAPI(
 
         recordAgentMetric({ agent, traceId, phase: "bedrock_start", attempt });
         try {
-            const response = await fetch(BEDROCK_URL, {
+            const idToken = await getProxyIdToken();
+            const response = await fetch(AI_PROXY_URL, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    "Authorization": `Bearer ${BEDROCK_API_KEY}`,
+                    "Authorization": `Bearer ${idToken}`,
                 },
-                body: JSON.stringify(payload),
+                body: JSON.stringify({ target: "bedrock", payload }),
                 signal: controller.signal,
             });
 

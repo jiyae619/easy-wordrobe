@@ -7,6 +7,7 @@ import {
     type WearRecord,
     type WardrobeContextType,
     type UserInsight,
+    type SuggestionEvent,
 } from '../types';
 import { type UserSettings } from '../services/firestoreService';
 import { weatherService } from '../services/weatherService';
@@ -19,13 +20,19 @@ import { awsNovaService } from "../services/awsNova";
 import { prodDiag } from '../utils/productionDiagnostics';
 import { compressImage, cropImageToBoundingBox, toDataUrl } from '../utils/imageUtils';
 import type { ItemBoundingBox } from '../types';
-import { moodIdsForStyling } from '../services/agents/agentOutputGuards';
+import { computeBehavioralAnalytics, computeSeasonalLeastWornIds, getCurrentSeason, moodIdsForStyling } from '../services/agents/agentOutputGuards';
+import { drainAgentMetricTally } from '../services/agents/agentTelemetry';
 import { getActiveProvider } from '../services/vision/providerRegistry';
 
 const WardrobeContext = createContext<WardrobeContextType | undefined>(undefined);
 
 const FIRESTORE_TIMEOUT_MS = 30000;
 const THUMBNAIL_VERSION = 2;
+const RECENT_OUTFITS_DAYS = 90;                    // wear history loaded into memory on login
+const SUGGESTION_EVENTS_DAYS = 60;                 // rejection-signal window loaded on login
+const RECENT_WEAR_DAYS = 21;                        // window BehavioralAgent analyzes for insights
+const INSIGHTS_MAX_AGE_MS = 24 * 60 * 60 * 1000;   // regenerate cached nudges at least daily
+const AGENT_HEALTH_FLUSH_MS = 60_000;              // how often the telemetry tally is flushed
 const withTimeout = <T,>(p: Promise<T>, msg: string): Promise<T> =>
     Promise.race([
         p,
@@ -56,6 +63,7 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
     const [userSettings, setUserSettings] = useState<UserSettings | null>(null);
     const [currentMood, setCurrentMood] = useState<FashionMood | null>(null);
     const [insights, setInsights] = useState<UserInsight | null>(null);
+    const [suggestionEvents, setSuggestionEvents] = useState<SuggestionEvent[]>([]);
 
     const [weather, setWeather] = useState<WeatherData | null>(null);
     const [isLoading, setIsLoading] = useState(false);
@@ -118,6 +126,7 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
             setBookmarkedItems([]);
             setUserSettings(null);
             setCurrentMood(null);
+            setSuggestionEvents([]);
             setError(null);
             return;
         }
@@ -153,7 +162,7 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
                     const [itemsRes, outfitRecordsRes, settingsRes] = await withTimeout(
                         Promise.all([
                             firestoreService.getWardrobe(uid),
-                            firestoreService.getOutfits(uid),
+                            firestoreService.getRecentOutfits(uid, RECENT_OUTFITS_DAYS),
                             firestoreService.getUserSettings(uid),
                         ]),
                         'Firestore fetch'
@@ -201,6 +210,11 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
                 setTryItItemIds(settings.tryItItemIds || []);
                 setUserSettings(settings);
                 void normalizeLegacyThumbnails(normalizedItems);
+
+                // Non-blocking: load the rejection signal (never fails the critical load).
+                firestoreService.getRecentSuggestionEvents(uid, SUGGESTION_EVENTS_DAYS)
+                    .then(setSuggestionEvents)
+                    .catch((e) => console.warn('[Wardrobe] Failed to load suggestion events:', e));
 
                 prodDiag.loadUserDataEnd(uid, normalizedItems.length);
                 console.log(`[Wardrobe] Loaded ${items.length} items, ${outfitRecords.length} outfits from Firestore`);
@@ -527,17 +541,77 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
         }
     }, [uid]);
 
-    // --- Insights Calculation ---
-    // Instead of computing locally, we call the Behavioral Agent!
+    // --- Suggestion rejection logging (feeds Stylist personalization) ---
+    const logSuggestionEvent = useCallback(async (
+        action: SuggestionEvent['action'],
+        itemIds: string[],
+        moodId: string,
+    ) => {
+        if (!uid || itemIds.length === 0) return;
+        const event: SuggestionEvent = {
+            id: crypto.randomUUID(),
+            action,
+            itemIds,
+            mood: moodId,
+            date: new Date(),
+        };
+        // Optimistic local update so the signal is available immediately this session.
+        setSuggestionEvents(prev => [event, ...prev]);
+        firestoreService.logSuggestionEvent(uid, event).catch(e =>
+            console.warn('[Wardrobe] Failed to log suggestion event:', e));
+    }, [uid]);
+
+    // --- Demo cleanup (one-tap, after the demo tour) ---
+    const clearDemoItems = useCallback(async () => {
+        if (!uid) return;
+        try {
+            await firestoreService.deleteAllDemoItems(uid);
+            setClothes(prev => prev.filter(item => !item.id.startsWith('demo-')));
+        } catch (err) {
+            console.error('[Wardrobe] Failed to clear demo items:', err);
+            setError('Failed to clear demo items');
+        }
+    }, [uid]);
+
+    // --- Insights ---
+    // Analytics (counts, least/most worn, weekly pattern) are deterministic and recomputed in code.
+    // Only the LLM nudge copy is expensive, so we cache just that in Firestore keyed by a signature
+    // of the wear state — repeat visits skip the Bedrock call entirely unless something changed.
     const fetchInsights = async () => {
+        if (!uid) return;
         setIsLoading(true);
         setError(null);
         try {
+            const season = getCurrentSeason();
+            const cutoff = Date.now() - RECENT_WEAR_DAYS * 24 * 60 * 60 * 1000;
+            const recentHistory = outfits.filter((record) => {
+                const time = (record.date instanceof Date ? record.date : new Date(record.date)).getTime();
+                return Number.isFinite(time) && time >= cutoff;
+            });
+            const signature = `${season}:${outfits.length}:${computeSeasonalLeastWornIds(clothes, outfits).join(',')}`;
+
+            const cached = await firestoreService.getInsightsCache(uid).catch(() => null);
+            const cacheFresh = cached
+                && cached.signature === signature
+                && cached.nudges.length > 0
+                && Date.now() - new Date(cached.computedAt).getTime() < INSIGHTS_MAX_AGE_MS;
+
+            if (cacheFresh && cached) {
+                setInsights({
+                    ...computeBehavioralAnalytics(clothes, recentHistory, season),
+                    suggestedVariations: cached.nudges,
+                });
+                return;
+            }
+
             const result = await withTimeout(
                 awsNovaService.generateInsights(clothes, outfits),
                 'AI insights'
             );
             setInsights(result);
+            // Persist just the nudges so the next visit can skip the Bedrock call (best-effort).
+            firestoreService.saveInsightsCache(uid, result.suggestedVariations, signature)
+                .catch((e) => console.warn('[Wardrobe] Failed to cache insights:', e));
         } catch (err) {
             console.error("Error fetching insights:", err);
             setError("Failed to generate AI insights.");
@@ -545,6 +619,30 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
             setIsLoading(false);
         }
     };
+
+    // --- Agent health telemetry flush ---
+    // Periodically drain the in-memory KPI tally into a daily Firestore aggregate so agent
+    // fallback rate is observable in production. Best-effort; never blocks the UI.
+    useEffect(() => {
+        if (!uid) return;
+        const flush = () => {
+            const counts = drainAgentMetricTally();
+            if (Object.keys(counts).length === 0) return;
+            const dateKey = new Date().toISOString().slice(0, 10); // YYYY-MM-DD (UTC)
+            firestoreService.recordAgentHealth(uid, dateKey, counts)
+                .catch((e) => console.warn('[Wardrobe] Failed to flush agent health:', e));
+        };
+        const onVisibility = () => { if (document.hidden) flush(); };
+        const interval = window.setInterval(flush, AGENT_HEALTH_FLUSH_MS);
+        window.addEventListener('pagehide', flush);
+        document.addEventListener('visibilitychange', onVisibility);
+        return () => {
+            window.clearInterval(interval);
+            window.removeEventListener('pagehide', flush);
+            document.removeEventListener('visibilitychange', onVisibility);
+            flush();
+        };
+    }, [uid]);
 
     return (
         <WardrobeContext.Provider value={{
@@ -567,6 +665,9 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
             refreshWeather,
             fetchInsights,
             populateDemoData,
+            clearDemoItems,
+            suggestionEvents,
+            logSuggestionEvent,
         bookmarkedItems,
         bookmarkItem,
         unbookmarkItem,

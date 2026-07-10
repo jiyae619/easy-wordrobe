@@ -27,6 +27,24 @@ export interface AgentMetric {
 
 const metrics: AgentMetric[] = [];
 
+/**
+ * Running KPI tally (per-agent total/fallback + parse errors) accumulated as metrics are recorded.
+ * Drained by the app layer and flushed to Firestore so fallback rate is observable in production.
+ * Kept here (no Firebase import) so the agents layer stays decoupled from persistence.
+ */
+const metricTally: Record<string, number> = {};
+
+function bumpTally(key: string): void {
+    metricTally[key] = (metricTally[key] ?? 0) + 1;
+}
+
+/** Return the accumulated counters since the last drain and reset them. */
+export function drainAgentMetricTally(): Record<string, number> {
+    const drained = { ...metricTally };
+    for (const key of Object.keys(metricTally)) delete metricTally[key];
+    return drained;
+}
+
 type BrowserAgentMetrics = {
     events: () => AgentMetric[];
     summary: () => ReturnType<typeof getAgentMetricSummary>;
@@ -48,6 +66,16 @@ export function createAgentTraceId(agent: AgentName): string {
 export function recordAgentMetric(metric: Omit<AgentMetric, "ts">): AgentMetric {
     const fullMetric: AgentMetric = { ...metric, ts: Date.now() };
     metrics.push(fullMetric);
+
+    // Accumulate the KPI tally: one "total" per terminal agent outcome, plus fallback / parse-error counts.
+    if (metric.phase === "fallback") {
+        bumpTally(`${metric.agent}Fallback`);
+        bumpTally(`${metric.agent}Total`);
+    } else if (metric.phase === "parse_success" || metric.phase === "validation") {
+        bumpTally(`${metric.agent}Total`);
+    }
+    if (metric.reason === "parse_error") bumpTally("parseErrors");
+
     return fullMetric;
 }
 

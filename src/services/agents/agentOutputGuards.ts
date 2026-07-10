@@ -5,6 +5,7 @@ import {
     type FashionMood,
     type ItemBoundingBox,
     type OutfitSuggestion,
+    type SuggestionEvent,
     type UserInsight,
     type WearRecord,
 } from "../../types";
@@ -35,11 +36,6 @@ export interface StylistMappingResult {
     invalidOutfitsDropped: number;
 }
 
-export interface BehavioralNormalizationResult {
-    insight: UserInsight;
-    invalidIdsDropped: number;
-}
-
 export function sanitizeUiCopy(text: string): string {
     return text.replace(/[—–-]/g, " ").replace(/\s+/g, " ").trim();
 }
@@ -55,16 +51,6 @@ function clamp(value: number, min: number, max: number): number {
 function finiteNumber(value: unknown): number | null {
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : null;
-}
-
-function nonNegativeInteger(value: unknown): number {
-    const parsed = finiteNumber(value);
-    return parsed === null ? 0 : Math.max(0, Math.round(parsed));
-}
-
-function score(value: unknown, fallback: number): number {
-    const parsed = finiteNumber(value);
-    return parsed === null ? fallback : clamp(Math.round(parsed), 0, 100);
 }
 
 function isValidHex(value: unknown): value is string {
@@ -86,6 +72,88 @@ export function normalizeMoodIds(...sources: unknown[]): string[] {
 
 export function moodIdsForStyling(item: Pick<ClothingItem, "userMoods" | "aiTags">): string[] {
     return normalizeMoodIds(item.userMoods, item.aiTags);
+}
+
+// ==========================================
+// Deterministic seasonality & outfit scoring
+// Counting/scoring is code's job, never the model's (CLAUDE.md Rule 5 / AGENTS.md).
+// ==========================================
+
+export const ALL_SEASONS: Season[] = [Season.Spring, Season.Summer, Season.Fall, Season.Winter];
+
+const THREE_WEEKS_MS = 21 * 24 * 60 * 60 * 1000;
+
+/**
+ * Current season from the local month (Northern-hemisphere mapping).
+ * NOTE: hemisphere-aware seasonality needs the user's latitude and is tracked as a follow-up.
+ */
+export function getCurrentSeason(): Season {
+    const month = new Date().getMonth() + 1; // 1–12
+    if (month >= 3 && month <= 5) return Season.Spring;
+    if (month >= 6 && month <= 8) return Season.Summer;
+    if (month >= 9 && month <= 11) return Season.Fall;
+    return Season.Winter;
+}
+
+function seasonForTemperature(temperatureC: number): Season {
+    if (temperatureC <= 5) return Season.Winter;
+    if (temperatureC <= 15) return Season.Fall;
+    if (temperatureC <= 24) return Season.Spring;
+    return Season.Summer;
+}
+
+/**
+ * Weather appropriateness (0-100), computed from item seasons vs. the current temperature.
+ * 100 when every item suits the temperature's season, 50 when none do. Never read from the model.
+ */
+export function computeWeatherMatch(items: ClothingItem[], temperatureC: number): number {
+    if (items.length === 0) return 0;
+    const target = seasonForTemperature(temperatureC);
+    const matching = items.filter((item) => item.season.includes(target)).length;
+    return clamp(Math.round(50 + 50 * (matching / items.length)), 0, 100);
+}
+
+/**
+ * Rotation priority (0-100), computed from real wear counts — higher for less-worn outfits,
+ * measured against the most-worn item in the wardrobe. Never read from the model.
+ */
+export function computeWearScore(items: ClothingItem[], wardrobe: ClothingItem[]): number {
+    if (items.length === 0) return 0;
+    const maxWear = Math.max(1, ...wardrobe.map((item) => item.wearFrequency));
+    const avgWear = items.reduce((sum, item) => sum + item.wearFrequency, 0) / items.length;
+    return clamp(Math.round(100 * (1 - avgWear / maxWear)), 0, 100);
+}
+
+export interface WardrobeReadiness {
+    /** True when the wardrobe can form at least one valid outfit (top+bottom OR a dress). */
+    canMakeOutfit: boolean;
+    hasTopLayer: boolean;
+    hasBottom: boolean;
+    hasDress: boolean;
+    hasShoes: boolean;
+    /** Human-readable pieces to add to unlock outfit suggestions (empty when already able). */
+    missingForOutfit: string[];
+}
+
+/**
+ * Whether the wardrobe can produce any outfit under the same rules the Stylist enforces, and if
+ * not, what's missing. Lets the UI tell a new user exactly what to add (e.g. "add a bottom") instead
+ * of showing an empty suggestions screen with no explanation.
+ */
+export function getWardrobeReadiness(clothes: ClothingItem[]): WardrobeReadiness {
+    const hasTopLayer = clothes.some((c) => c.category === ClothingCategory.Tops || c.category === ClothingCategory.Outerwear);
+    const hasBottom = clothes.some((c) => c.category === ClothingCategory.Bottoms);
+    const hasDress = clothes.some((c) => c.category === ClothingCategory.Dresses);
+    const hasShoes = clothes.some((c) => c.category === ClothingCategory.Shoes);
+    const canMakeOutfit = (hasTopLayer && hasBottom) || hasDress;
+
+    const missingForOutfit: string[] = [];
+    if (!canMakeOutfit) {
+        if (!hasTopLayer) missingForOutfit.push("a top or jacket");
+        if (!hasBottom) missingForOutfit.push("a bottom");
+    }
+
+    return { canMakeOutfit, hasTopLayer, hasBottom, hasDress, hasShoes, missingForOutfit };
 }
 
 export function normalizeIntakeResponse(raw: unknown): IntakeNormalization {
@@ -170,7 +238,7 @@ export function mapIntakeItem(
         colorHex: rawColorHex,
         aiColor: { name: rawColorName, hex: rawColorHex },
         colorSource: "ai",
-        season: season.length > 0 ? season : [Season.Spring],
+        season: season.length > 0 ? season : [...ALL_SEASONS],
         wearFrequency: 0,
         lastWorn: null,
         dateAdded: new Date(),
@@ -201,7 +269,8 @@ export function mapStylistSuggestions(
     raw: unknown,
     clothes: ClothingItem[],
     mood: FashionMood,
-    createId: () => string
+    createId: () => string,
+    temperatureC: number
 ): StylistMappingResult {
     const clothesById = new Map(clothes.map((item) => [item.id, item]));
     const rawSuggestions = normalizeStylistRawSuggestions(raw);
@@ -235,13 +304,29 @@ export function mapStylistSuggestions(
                 item.category === ClothingCategory.Tops || item.category === ClothingCategory.Outerwear
             );
             const bottoms = orderedUniqueItems.filter((item) => item.category === ClothingCategory.Bottoms);
+            const dresses = orderedUniqueItems.filter((item) => item.category === ClothingCategory.Dresses);
+            const outerwear = orderedUniqueItems.filter((item) => item.category === ClothingCategory.Outerwear);
+            const shoes = orderedUniqueItems.filter((item) => item.category === ClothingCategory.Shoes);
 
-            if (topLayers.length === 0 || bottoms.length === 0) {
+            // A valid outfit is EITHER bottoms-based (1 bottom + >=1 top layer) OR dress-based
+            // (1 dress + optional outerwear). Matches the AGENTS.md composition rules.
+            let outfitItems: ClothingItem[] | null = null;
+            if (topLayers.length > 0 && bottoms.length > 0) {
+                outfitItems = [...topLayers, bottoms[0]];
+            } else if (dresses.length > 0) {
+                outfitItems = [dresses[0], ...outerwear];
+            }
+
+            if (!outfitItems) {
                 invalidOutfitsDropped += 1;
                 return null;
             }
 
-            const outfitItems = [...topLayers, bottoms[0]];
+            // Shoes are an optional finishing item on either shape (at most one).
+            if (shoes.length > 0) {
+                outfitItems = [...outfitItems, shoes[0]];
+            }
+
             const explanation = typeof suggestion.explanation === "string"
                 ? sanitizeUiCopy(suggestion.explanation)
                 : "";
@@ -250,14 +335,21 @@ export function mapStylistSuggestions(
                 id: createId(),
                 items: outfitItems,
                 mood,
-                weatherMatch: score(suggestion.weatherMatch, 80),
-                wearScore: score(suggestion.wearScore, 80),
+                // Scores are computed from real data — the model's self-reported numbers are ignored.
+                weatherMatch: computeWeatherMatch(outfitItems, temperatureC),
+                wearScore: computeWearScore(outfitItems, clothes),
                 explanation,
             };
         })
         .filter((suggestion): suggestion is OutfitSuggestion => Boolean(suggestion));
 
     return { suggestions, invalidIdsDropped, invalidOutfitsDropped };
+}
+
+function lastActivityMs(item: ClothingItem): number {
+    const ref = item.lastWorn ?? item.dateAdded;
+    const time = new Date(ref).getTime();
+    return Number.isFinite(time) ? time : 0;
 }
 
 export function computeLeastWornItems(
@@ -267,9 +359,135 @@ export function computeLeastWornItems(
     limit: number
 ): ClothingItem[] {
     const wornIds = new Set(recentHistory.flatMap((record) => record.outfitItems));
+    const graceCutoff = Date.now() - THREE_WEEKS_MS;
     return clothes
-        .filter((item) => !wornIds.has(item.id) && item.season.includes(currentSeason))
+        .filter((item) =>
+            !wornIds.has(item.id) &&
+            item.season.includes(currentSeason) &&
+            // Grace period: an item must be owned 3+ weeks before it counts as "neglected", so a
+            // freshly added wardrobe is not nudged about with false "unworn for weeks" claims.
+            new Date(item.dateAdded).getTime() <= graceCutoff
+        )
+        .sort((a, b) => lastActivityMs(a) - lastActivityMs(b))
         .slice(0, limit);
+}
+
+/**
+ * Behavioral priority IDs (least-worn, in-season, owned 3+ weeks) computed directly from wear
+ * history with no model call. Lets StylistAgent honor wear-history priorities on every request,
+ * regardless of whether the Insights page (BehavioralAgent) has run this session.
+ */
+export function computeSeasonalLeastWornIds(
+    clothes: ClothingItem[],
+    outfits: WearRecord[],
+    limit = 8
+): string[] {
+    const cutoff = Date.now() - THREE_WEEKS_MS;
+    const recentHistory = outfits.filter((record) => {
+        const time = new Date(record.date).getTime();
+        return Number.isFinite(time) && time >= cutoff;
+    });
+    return computeLeastWornItems(clothes, recentHistory, getCurrentSeason(), limit).map((item) => item.id);
+}
+
+const SKIP_THRESHOLD = 3;
+
+/**
+ * Items the user consistently skips: shown & passed over at least SKIP_THRESHOLD times and never
+ * once worn. Conservative on purpose — the wearFrequency guard means it can never deprioritize an
+ * item the user actually wears. Fed into the Stylist so repeatedly rejected pieces surface less.
+ */
+export function computeDeprioritizedItemIds(events: SuggestionEvent[], clothes: ClothingItem[]): string[] {
+    const wearFreqById = new Map(clothes.map((item) => [item.id, item.wearFrequency]));
+    const skipCounts = new Map<string, number>();
+    for (const event of events) {
+        for (const id of event.itemIds) {
+            skipCounts.set(id, (skipCounts.get(id) ?? 0) + 1);
+        }
+    }
+    return [...skipCounts.entries()]
+        .filter(([id, count]) => count >= SKIP_THRESHOLD && (wearFreqById.get(id) ?? 0) === 0)
+        .map(([id]) => id);
+}
+
+/**
+ * A short, honest "because" line for an outfit — derived in code from the real priority context and
+ * the items actually in the outfit (never asked of the model). Explains why this look surfaced:
+ * a "Try it" request, a neglected item being rotated in, or weather fit. Returns null if nothing
+ * notable to say.
+ */
+export function describeOutfitReason(
+    suggestion: OutfitSuggestion,
+    context: { tryItItemIds: string[]; leastWornItemIds: string[] },
+    weather?: { temperature: number; condition: string },
+): string | null {
+    const tryItSet = new Set(context.tryItItemIds);
+    const leastWornSet = new Set(context.leastWornItemIds);
+
+    const tried = suggestion.items.find((item) => tryItSet.has(item.id));
+    if (tried) {
+        return `Featuring the ${tried.color.toLowerCase()} ${tried.subcategory.toLowerCase()} you wanted to try.`;
+    }
+
+    const neglected = suggestion.items.find((item) => leastWornSet.has(item.id));
+    if (neglected) {
+        return `Bringing your ${neglected.color.toLowerCase()} ${neglected.subcategory.toLowerCase()} back into rotation.`;
+    }
+
+    if (weather) {
+        return `Picked for today's ${Math.round(weather.temperature)}° ${weather.condition.toLowerCase()}.`;
+    }
+
+    return null;
+}
+
+function toLocalDateKey(date: Date): string {
+    return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+}
+
+/**
+ * Consecutive-day outfit-logging streak (local calendar days). `loggedToday` tells the UI whether
+ * today already counts. If today isn't logged yet the streak still counts up to yesterday, so the
+ * UI can nudge "log today to keep it going" without prematurely showing the streak as broken.
+ */
+export function computeWearStreak(outfits: WearRecord[]): { current: number; loggedToday: boolean } {
+    const days = new Set<string>();
+    for (const record of outfits) {
+        const date = record.date instanceof Date ? record.date : new Date(record.date);
+        if (Number.isFinite(date.getTime())) days.add(toLocalDateKey(date));
+    }
+
+    const loggedToday = days.has(toLocalDateKey(new Date()));
+
+    let current = 0;
+    const cursor = new Date();
+    if (!loggedToday) cursor.setDate(cursor.getDate() - 1);
+    while (days.has(toLocalDateKey(cursor))) {
+        current += 1;
+        cursor.setDate(cursor.getDate() - 1);
+    }
+
+    return { current, loggedToday };
+}
+
+/** Share of the wardrobe worn in the last 30 days — a gentle "use more of your closet" stat. */
+export function computeMonthlyRotation(
+    clothes: ClothingItem[],
+    outfits: WearRecord[],
+): { worn: number; total: number; percent: number } {
+    const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    const recentWornIds = new Set(
+        outfits
+            .filter((record) => {
+                const time = new Date(record.date).getTime();
+                return Number.isFinite(time) && time >= cutoff;
+            })
+            .flatMap((record) => record.outfitItems),
+    );
+    const total = clothes.length;
+    const worn = clothes.filter((item) => recentWornIds.has(item.id)).length;
+    const percent = total > 0 ? Math.round((100 * worn) / total) : 0;
+    return { worn, total, percent };
 }
 
 function computeMostWornItems(clothes: ClothingItem[], recentHistory: WearRecord[]): UserInsight["mostWornItems"] {
@@ -305,99 +523,32 @@ export function computeMostWornColors(
     return [...colorCounts.values()].sort((a, b) => b.count - a.count).slice(0, 5);
 }
 
-export function normalizeBehavioralInsights(
-    raw: unknown,
+export function computeWeeklyWearPattern(recentHistory: WearRecord[]): UserInsight["weeklyWearPattern"] {
+    const weeklyCounts = new Map<string, number>();
+    recentHistory.forEach((record) => {
+        const date = record.date instanceof Date ? record.date : new Date(record.date);
+        if (!Number.isFinite(date.getTime())) return;
+        const day = DAYS[(date.getDay() + 6) % 7];
+        weeklyCounts.set(day, (weeklyCounts.get(day) ?? 0) + 1);
+    });
+    return DAYS.map((day) => ({ day, count: weeklyCounts.get(day) ?? 0 }));
+}
+
+/**
+ * Compute every analytics field deterministically from wear history — no LLM involved.
+ * Counting is exact code; the model only writes nudge copy on top of these numbers
+ * (see BehavioralAgent). This is why that agent can run hot (temp 0.85) without risking
+ * the integrity of the counts.
+ */
+export function computeBehavioralAnalytics(
     clothes: ClothingItem[],
     recentHistory: WearRecord[],
-    currentSeason: Season,
-    fallbackNudges: (items: ClothingItem[]) => string[]
-): BehavioralNormalizationResult {
-    const payload = isRecord(raw) ? raw : {};
-    const clothesById = new Map(clothes.map((item) => [item.id, item]));
-    const recentWornIds = new Set(recentHistory.flatMap((record) => record.outfitItems));
-    let invalidIdsDropped = 0;
-
-    const mostWornItems = Array.isArray(payload.mostWornItemIds)
-        ? payload.mostWornItemIds
-            .map((entry) => {
-                if (!isRecord(entry) || typeof entry.id !== "string") {
-                    invalidIdsDropped += 1;
-                    return null;
-                }
-                const item = clothesById.get(entry.id);
-                if (!item) {
-                    invalidIdsDropped += 1;
-                    return null;
-                }
-                return { item, count: nonNegativeInteger(entry.count) };
-            })
-            .filter((entry): entry is UserInsight["mostWornItems"][number] => entry !== null && entry.count > 0)
-        : computeMostWornItems(clothes, recentHistory);
-
-    const aiLeastWorn = Array.isArray(payload.leastWornItemIds)
-        ? payload.leastWornItemIds
-            .map((id) => {
-                if (typeof id !== "string") {
-                    invalidIdsDropped += 1;
-                    return null;
-                }
-                const item = clothesById.get(id);
-                if (!item || !item.season.includes(currentSeason) || recentWornIds.has(item.id)) {
-                    invalidIdsDropped += 1;
-                    return null;
-                }
-                return item;
-            })
-            .filter((item): item is ClothingItem => Boolean(item))
-        : [];
-    const leastWornItems = aiLeastWorn.length > 0
-        ? aiLeastWorn.slice(0, 5)
-        : computeLeastWornItems(clothes, recentHistory, currentSeason, 5);
-
-    const suggestedVariations = Array.isArray(payload.suggestedVariations)
-        ? payload.suggestedVariations
-            .filter((line): line is string => typeof line === "string" && line.trim().length > 0)
-            .map(sanitizeUiCopy)
-            .slice(0, 3)
-        : [];
-
-    const rawColors = Array.isArray(payload.mostWornColors) ? payload.mostWornColors : [];
-    const mostWornColors = rawColors
-        .map((entry) => {
-            if (!isRecord(entry) || typeof entry.color !== "string") return null;
-            return {
-                color: entry.color,
-                hex: normalizeColorHex(entry.hex, "#808080"),
-                count: nonNegativeInteger(entry.count),
-            };
-        })
-        .filter((entry): entry is UserInsight["mostWornColors"][number] => entry !== null && entry.count > 0);
-
-    const rawWeekly = Array.isArray(payload.weeklyWearPattern) ? payload.weeklyWearPattern : [];
-    const weeklyCounts = new Map<string, number>();
-    rawWeekly.forEach((entry) => {
-        if (!isRecord(entry) || typeof entry.day !== "string" || !DAYS.includes(entry.day as typeof DAYS[number])) return;
-        weeklyCounts.set(entry.day, nonNegativeInteger(entry.count));
-    });
-    if (weeklyCounts.size === 0) {
-        recentHistory.forEach((record) => {
-            const date = record.date instanceof Date ? record.date : new Date(record.date);
-            if (!Number.isFinite(date.getTime())) return;
-            const day = DAYS[(date.getDay() + 6) % 7];
-            weeklyCounts.set(day, (weeklyCounts.get(day) ?? 0) + 1);
-        });
-    }
-
+    currentSeason: Season
+): Omit<UserInsight, "suggestedVariations"> {
     return {
-        insight: {
-            mostWornColors: mostWornColors.length > 0 ? mostWornColors : computeMostWornColors(clothes, recentHistory),
-            mostWornItems,
-            leastWornItems,
-            suggestedVariations: suggestedVariations.length > 0
-                ? suggestedVariations
-                : fallbackNudges(leastWornItems).map(sanitizeUiCopy),
-            weeklyWearPattern: DAYS.map((day) => ({ day, count: weeklyCounts.get(day) ?? 0 })),
-        },
-        invalidIdsDropped,
+        mostWornColors: computeMostWornColors(clothes, recentHistory),
+        mostWornItems: computeMostWornItems(clothes, recentHistory),
+        leastWornItems: computeLeastWornItems(clothes, recentHistory, currentSeason, 5),
+        weeklyWearPattern: computeWeeklyWearPattern(recentHistory),
     };
 }

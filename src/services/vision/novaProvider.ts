@@ -1,19 +1,11 @@
 import { AgentError } from "../agents/agentErrors";
 import { recordAgentMetric } from "../agents/agentTelemetry";
-import {
-    AWS_REGION,
-    BEDROCK_API_KEY,
-    NOVA_MODEL_ID,
-    extractJsonFromText,
-} from "../bedrockClient";
+import { extractJsonFromText } from "../bedrockClient";
+import { AI_PROXY_URL, getProxyIdToken } from "../aiProxyClient";
 import type { VisionCallOptions, VisionProvider, VisionRequest } from "./VisionProvider";
 
 const DEFAULT_TIMEOUT_MS = 30000;
 const DEFAULT_MAX_RETRIES = 1;
-
-function bedrockUrl(): string {
-    return `https://bedrock-runtime.${AWS_REGION}.amazonaws.com/model/${encodeURIComponent(NOVA_MODEL_ID)}/converse`;
-}
 
 function formatFromMime(mimeType: string): string {
     const match = /image\/(\w+)/.exec(mimeType);
@@ -41,7 +33,7 @@ export const novaProvider: VisionProvider = {
     label: "AWS Nova 2 Lite",
 
     isConfigured(): boolean {
-        return Boolean(BEDROCK_API_KEY);
+        return Boolean(AI_PROXY_URL);
     },
 
     async call(request: VisionRequest, options: VisionCallOptions): Promise<string> {
@@ -49,8 +41,8 @@ export const novaProvider: VisionProvider = {
         const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
         const maxRetries = options.maxRetries ?? DEFAULT_MAX_RETRIES;
 
-        if (!BEDROCK_API_KEY) {
-            throw new AgentError(agent, "transport_error", "Missing VITE_BEDROCK_API_KEY in environment variables.", { traceId });
+        if (!AI_PROXY_URL) {
+            throw new AgentError(agent, "transport_error", "AI service not configured (missing VITE_AI_PROXY_URL).", { traceId });
         }
 
         const payload = {
@@ -81,13 +73,14 @@ export const novaProvider: VisionProvider = {
 
             recordAgentMetric({ agent, traceId, phase: "bedrock_start", attempt });
             try {
-                const response = await fetch(bedrockUrl(), {
+                const idToken = await getProxyIdToken();
+                const response = await fetch(AI_PROXY_URL, {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
-                        "Authorization": `Bearer ${BEDROCK_API_KEY}`,
+                        "Authorization": `Bearer ${idToken}`,
                     },
-                    body: JSON.stringify(payload),
+                    body: JSON.stringify({ target: "bedrock", payload }),
                     signal: controller.signal,
                 });
 

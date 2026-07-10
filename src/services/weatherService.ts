@@ -26,6 +26,15 @@ const CITY_COORDS: Record<string, { lat: number; lon: number }> = {
     "portland": { lat: 45.5152, lon: -122.6784 },
 };
 
+/**
+ * Cities with local NWS weather support (US-only). Single source for the manual city picker;
+ * getWeatherByCity lowercases input, so these display-cased names resolve correctly.
+ */
+export const SUPPORTED_CITIES = [
+    "San Francisco", "New York", "Los Angeles", "Chicago", "Seattle",
+    "Miami", "Boston", "Denver", "Austin", "Portland",
+] as const;
+
 async function getForecastPayload(lat: number, lon: number) {
     const pointsUrl = `${NWS_BASE}/points/${lat.toFixed(4)},${lon.toFixed(4)}`;
     const pointsResponse = await axios.get(pointsUrl, { headers: NWS_HEADERS });

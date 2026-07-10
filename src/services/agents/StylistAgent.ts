@@ -9,13 +9,15 @@ import { v4 as uuidv4 } from 'uuid';
 import { callBedrockConverseAPI } from "../bedrockClient";
 import { getAgentFailureReason } from "./agentErrors";
 import { createAgentTraceId, recordAgentMetric } from "./agentTelemetry";
-import { mapStylistSuggestions, moodIdsForStyling, parseAgentJson, sanitizeUiCopy } from "./agentOutputGuards";
+import { computeWearScore, computeWeatherMatch, mapStylistSuggestions, moodIdsForStyling, parseAgentJson, sanitizeUiCopy } from "./agentOutputGuards";
 
 export type BehavioralContext = {
     /** Items flagged by BehavioralAgent as unworn for 3+ weeks in the current season */
     leastWornItemIds: string[];
     /** Items the user explicitly tapped "Try it" on from the Insights page */
     tryItItemIds: string[];
+    /** Items the user consistently skips — the Stylist should surface these less */
+    deprioritizeItemIds?: string[];
 };
 
 export const StylistAgent = {
@@ -52,13 +54,22 @@ export const StylistAgent = {
         // Build behavioral priority hint for the prompt
         const tryItIds = behavioralContext?.tryItItemIds ?? [];
         const leastWornIds = behavioralContext?.leastWornItemIds ?? [];
-        const priorityIds = [...new Set([...tryItIds, ...leastWornIds])];
+        const deprioritizeIds = behavioralContext?.deprioritizeItemIds ?? [];
+        // Priority = explicit "try it" (always wins) OR least-worn the user hasn't been skipping.
+        const priorityIds = [...new Set([...tryItIds, ...leastWornIds])]
+            .filter(id => tryItIds.includes(id) || !deprioritizeIds.includes(id));
         const priorityItems = wardrobeContext.filter(c => priorityIds.includes(c.id));
+        // Avoid = repeatedly-skipped items, unless the user explicitly asked to try them.
+        const avoidIds = deprioritizeIds.filter(id => !tryItIds.includes(id));
 
         const behavioralHint = priorityItems.length > 0
             ? `\nBEHAVIORAL PRIORITY ITEMS (incorporate at least one of these across your 3 outfits; the user wants to wear these more):
 ${JSON.stringify(priorityItems)}
 ${tryItIds.length > 0 ? `USER "TRY IT" REQUESTS (highest priority; the user explicitly asked to wear these): ${JSON.stringify(tryItIds)}` : ''}`
+            : '';
+
+        const avoidHint = avoidIds.length > 0
+            ? `\nDEPRIORITIZE these item IDs (the user keeps skipping past them; use at most one across all 3 outfits, ideally none): ${JSON.stringify(avoidIds)}`
             : '';
 
         // Prompt tailored to output clothing combinations and engaging commentary
@@ -69,7 +80,7 @@ CONDITIONS:
 - Current Weather: ${weather.temperature}° (Feels like ${weather.feelsLike}°), ${weather.condition}.
 - Desired Mood/Vibe: ${mood.name} (${mood.description})
 - ${profileContext}
-${behavioralHint}
+${behavioralHint}${avoidHint}
 PRIORITIZE items whose "userMoods" array includes "${mood.id}" — these are items the user categorized for this vibe when adding them.
 AVAILABLE WARDROBE (JSON format):
 ${JSON.stringify(wardrobeContext)}
@@ -77,12 +88,10 @@ ${JSON.stringify(wardrobeContext)}
 TASK:
 Create 3 different outfit combinations using ONLY the available items.
 For each outfit, provide the IDs of the items used.
-STRICT COMPOSITION RULES:
-- REQUIRED: Exactly 1 bottoms item
-- REQUIRED: At least 1 top-layer item from "tops" or "outerwear"
-- OPTIONAL: Additional top layers (cardigans, jackets, jumpers, coats)
-- NEVER include 2 bottoms in one outfit
-- Do not include dresses in suggestions
+STRICT COMPOSITION RULES (each outfit must be ONE of these two shapes):
+- Bottoms-based: EXACTLY 1 bottoms item AND at least 1 top layer from "tops" or "outerwear". Additional outerwear layers (cardigans, jackets, coats) are optional. NEVER include 2 bottoms.
+- Dress-based: EXACTLY 1 dresses item, with optional outerwear. NEVER mix a dress with bottoms.
+- OPTIONAL for either shape: add 0 or 1 "shoes" item to complete the look. Never add more than 1.
 
 Provide a brief explanation of why it works, and an engaging one-sentence comment for the user.
 Output strictly as a JSON array of objects, with NO markdown formatting around it:
@@ -104,7 +113,7 @@ Output strictly as a JSON array of objects, with NO markdown formatting around i
 
             const jsonStr = await callBedrockConverseAPI(payload, { agent: "stylist", traceId });
             const parsed = parseAgentJson(jsonStr, "stylist", traceId);
-            const mapped = mapStylistSuggestions(parsed, clothes, mood, uuidv4);
+            const mapped = mapStylistSuggestions(parsed, clothes, mood, uuidv4, weather.temperature);
 
             recordAgentMetric({
                 agent: "stylist",
@@ -130,7 +139,7 @@ Output strictly as a JSON array of objects, with NO markdown formatting around i
                 phase: "fallback",
                 reason: getAgentFailureReason(error),
             });
-            return getMockOutfitSuggestions(clothes, mood);
+            return getMockOutfitSuggestions(clothes, mood, weather);
         }
     }
 };
@@ -153,7 +162,7 @@ function buildFallbackExplanation(items: ClothingItem[], mood: FashionMood, tone
     }
 }
 
-function getMockOutfitSuggestions(clothes: ClothingItem[], mood: FashionMood): OutfitSuggestion[] {
+function getMockOutfitSuggestions(clothes: ClothingItem[], mood: FashionMood, weather: WeatherData): OutfitSuggestion[] {
     const moodId = mood.id;
 
     const filterByMood = (arr: ClothingItem[]) => {
@@ -164,29 +173,51 @@ function getMockOutfitSuggestions(clothes: ClothingItem[], mood: FashionMood): O
     const tops = clothes.filter(c => c.category === ClothingCategory.Tops);
     const bottoms = clothes.filter(c => c.category === ClothingCategory.Bottoms);
     const outerwear = clothes.filter(c => c.category === ClothingCategory.Outerwear);
+    const dresses = clothes.filter(c => c.category === ClothingCategory.Dresses);
+    const shoes = clothes.filter(c => c.category === ClothingCategory.Shoes);
 
     const prioritizedTops = filterByMood(tops);
     const prioritizedBottoms = filterByMood(bottoms);
     const prioritizedOuterwear = filterByMood(outerwear);
+    const prioritizedDresses = filterByMood(dresses);
+    const prioritizedShoes = filterByMood(shoes);
     const prioritizedTopLayers = [...prioritizedTops, ...prioritizedOuterwear];
 
     const getRandomItem = (arr: ClothingItem[]) => arr.length > 0 ? arr[Math.floor(Math.random() * arr.length)] : null;
 
-    const createOutfit = () => {
-        const items: ClothingItem[] = [];
-        const top = getRandomItem(prioritizedTopLayers);
-        const bottom = getRandomItem(prioritizedBottoms);
-        if (top) items.push(top);
-        if (bottom) items.push(bottom);
+    const createOutfit = (): ClothingItem[] => {
+        // Prefer a bottoms-based look; fall back to a dress-based look (mirrors the composition rules).
+        if (prioritizedTopLayers.length > 0 && prioritizedBottoms.length > 0) {
+            const items: ClothingItem[] = [];
+            const top = getRandomItem(prioritizedTopLayers);
+            const bottom = getRandomItem(prioritizedBottoms);
+            if (top) items.push(top);
+            if (bottom) items.push(bottom);
 
-        // Optional second top-layer (never a second bottom)
-        if (Math.random() > 0.5) {
-            const secondLayer = getRandomItem(prioritizedOuterwear);
-            if (secondLayer && !items.includes(secondLayer)) {
-                items.unshift(secondLayer);
+            // Optional second top-layer (never a second bottom)
+            if (Math.random() > 0.5) {
+                const secondLayer = getRandomItem(prioritizedOuterwear);
+                if (secondLayer && !items.includes(secondLayer)) {
+                    items.unshift(secondLayer);
+                }
             }
+            const shoe = getRandomItem(prioritizedShoes);
+            if (shoe) items.push(shoe);
+            return items;
         }
-        return items;
+
+        const dress = getRandomItem(prioritizedDresses);
+        if (dress) {
+            const items: ClothingItem[] = [dress];
+            if (Math.random() > 0.5) {
+                const layer = getRandomItem(prioritizedOuterwear);
+                if (layer) items.unshift(layer);
+            }
+            const shoe = getRandomItem(prioritizedShoes);
+            if (shoe) items.push(shoe);
+            return items;
+        }
+        return [];
     };
 
     const tones: Array<'hype' | 'editorial' | 'warm'> = ['hype', 'editorial', 'warm'];
@@ -198,18 +229,26 @@ function getMockOutfitSuggestions(clothes: ClothingItem[], mood: FashionMood): O
             item.category === ClothingCategory.Tops || item.category === ClothingCategory.Outerwear
         );
         const bottom = createdItems.find(item => item.category === ClothingCategory.Bottoms);
-        const outfitItems = bottom ? [...topLayers, bottom] : topLayers;
+        const dress = createdItems.find(item => item.category === ClothingCategory.Dresses);
+        const shoe = createdItems.find(item => item.category === ClothingCategory.Shoes);
+        const base = dress
+            ? [...topLayers, dress]
+            : bottom ? [...topLayers, bottom] : topLayers;
+        const outfitItems = shoe ? [...base, shoe] : base;
 
         return {
             id: uuidv4(),
             items: outfitItems,
             mood,
-            weatherMatch: i === 0 ? 95 : i === 1 ? 90 : 86,
-            wearScore: i === 0 ? 100 : i === 1 ? 94 : 88,
+            // Even fallback picks get real, computed scores — no fabricated numbers.
+            weatherMatch: computeWeatherMatch(outfitItems, weather.temperature),
+            wearScore: computeWearScore(outfitItems, clothes),
             explanation: sanitizeUiCopy(buildFallbackExplanation(outfitItems, mood, shuffledTones[i] ?? 'warm')),
+            isFallback: true,
         };
     }).filter(outfit =>
-        outfit.items.some(item => item.category === ClothingCategory.Bottoms) &&
-        outfit.items.some(item => item.category === ClothingCategory.Tops || item.category === ClothingCategory.Outerwear)
+        outfit.items.some(item => item.category === ClothingCategory.Dresses) ||
+        (outfit.items.some(item => item.category === ClothingCategory.Bottoms) &&
+            outfit.items.some(item => item.category === ClothingCategory.Tops || item.category === ClothingCategory.Outerwear))
     );
 }

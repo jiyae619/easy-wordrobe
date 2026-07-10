@@ -1,17 +1,13 @@
 import { AgentError } from "../agents/agentErrors";
 import { recordAgentMetric } from "../agents/agentTelemetry";
 import { extractJsonFromText } from "../bedrockClient";
+import { AI_PROXY_URL, getProxyIdToken } from "../aiProxyClient";
 import type { VisionCallOptions, VisionProvider, VisionRequest } from "./VisionProvider";
 
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || "";
 const GEMINI_MODEL = import.meta.env.VITE_GEMINI_MODEL || "gemini-2.5-flash";
 
 const DEFAULT_TIMEOUT_MS = 30000;
 const DEFAULT_MAX_RETRIES = 1;
-
-function geminiUrl(): string {
-    return `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
-}
 
 function extractResponseText(result: unknown): string {
     const parts = (result as {
@@ -34,7 +30,7 @@ export const geminiProvider: VisionProvider = {
     label: `Google ${GEMINI_MODEL}`,
 
     isConfigured(): boolean {
-        return Boolean(GEMINI_API_KEY);
+        return Boolean(AI_PROXY_URL);
     },
 
     async call(request: VisionRequest, options: VisionCallOptions): Promise<string> {
@@ -42,8 +38,8 @@ export const geminiProvider: VisionProvider = {
         const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
         const maxRetries = options.maxRetries ?? DEFAULT_MAX_RETRIES;
 
-        if (!GEMINI_API_KEY) {
-            throw new AgentError(agent, "transport_error", "Missing VITE_GEMINI_API_KEY in environment variables.", { traceId });
+        if (!AI_PROXY_URL) {
+            throw new AgentError(agent, "transport_error", "AI service not configured (missing VITE_AI_PROXY_URL).", { traceId });
         }
 
         const payload = {
@@ -69,10 +65,14 @@ export const geminiProvider: VisionProvider = {
 
             recordAgentMetric({ agent, traceId, phase: "bedrock_start", attempt });
             try {
-                const response = await fetch(geminiUrl(), {
+                const idToken = await getProxyIdToken();
+                const response = await fetch(AI_PROXY_URL, {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(payload),
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${idToken}`,
+                    },
+                    body: JSON.stringify({ target: "gemini", model: GEMINI_MODEL, payload }),
                     signal: controller.signal,
                 });
 

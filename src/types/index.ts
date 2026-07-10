@@ -20,6 +20,7 @@ export const ClothingCategory = {
     Bottoms: "bottoms",
     Outerwear: "outerwear",
     Dresses: "dresses",
+    Shoes: "shoes",
 } as const;
 
 export type ClothingCategory = typeof ClothingCategory[keyof typeof ClothingCategory];
@@ -189,6 +190,8 @@ export interface OutfitSuggestion {
     explanation: string;
     /** Priority score based on wear frequency (higher for less worn items if trying to rotate) */
     wearScore: number;
+    /** True when these are code-assembled fallback picks (the AI stylist was unavailable) */
+    isFallback?: boolean;
 }
 
 /**
@@ -204,6 +207,21 @@ export interface WearRecord {
     mood: string;
     /** Weather conditions on that day */
     weather: WeatherData;
+}
+
+/**
+ * A rejected outfit suggestion — the user skipped past it or regenerated the whole batch.
+ * Accumulates into a conservative "tends to skip these" signal fed back into the Stylist.
+ */
+export interface SuggestionEvent {
+    id: string;
+    /** 'skipped' = tapped Next Look; 'regenerated' = tapped Show Different Looks (whole batch) */
+    action: 'skipped' | 'regenerated';
+    /** Item IDs of the outfit(s) that were passed over */
+    itemIds: string[];
+    /** Mood the suggestion was made under */
+    mood: string;
+    date: Date;
 }
 
 /**
@@ -286,6 +304,15 @@ export interface WardrobeContextType {
 
     /** Populate wardrobe with diverse demo data */
     populateDemoData: () => Promise<void>;
+
+    /** Remove all demo items (those with a `demo-` id prefix) — one-tap cleanup after the demo tour */
+    clearDemoItems: () => Promise<void>;
+
+    /** Recent rejected-suggestion events (skipped / regenerated) — feeds Stylist personalization */
+    suggestionEvents: SuggestionEvent[];
+
+    /** Log a rejected suggestion (best-effort; never blocks the UI) */
+    logSuggestionEvent: (action: SuggestionEvent['action'], itemIds: string[], moodId: string) => Promise<void>;
 
     /** IDs of items bookmarked to try next week */
     bookmarkedItems: string[];

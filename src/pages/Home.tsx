@@ -6,12 +6,14 @@ import { awsNovaService } from '../services/awsNova';
 import { weatherService } from '../services/weatherService';
 import { type OutfitSuggestion, type WeatherData, type WeatherOutlookPeriod } from '../types';
 import { MOODS } from '../data/moods';
+import { getWardrobeReadiness } from '../services/agents/agentOutputGuards';
+import { StreakCard } from '../components/home/StreakCard';
 import { ExpandableText } from '../components/common/ExpandableText';
 
 const WEATHER_CACHE_KEY = 'home-weather-cache-v1';
 
 const Home: React.FC = () => {
-    const { clothes, populateDemoData, isLoading, logOutfitWear } = useWardrobe();
+    const { clothes, populateDemoData, clearDemoItems, isLoading, logOutfitWear, userSettings } = useWardrobe();
     const [weather, setWeather] = useState<WeatherData | null>(null);
     const [weatherOutlook, setWeatherOutlook] = useState<WeatherOutlookPeriod[]>([]);
     const [weatherCheer, setWeatherCheer] = useState('');
@@ -20,6 +22,7 @@ const Home: React.FC = () => {
     const [isWeatherLoading, setIsWeatherLoading] = useState(true);
     const [isLoggingQuickPick, setIsLoggingQuickPick] = useState(false);
     const [quickPickLogged, setQuickPickLogged] = useState(false);
+    const [usingDefaultLocation, setUsingDefaultLocation] = useState(false);
 
     const wardrobeSignature = clothes
         .map((item) => {
@@ -119,14 +122,17 @@ const Home: React.FC = () => {
                     ]);
                     weatherData = current;
                     outlookData = outlook;
+                    setUsingDefaultLocation(false);
                 } catch {
-                    // Location denied or unavailable — fallback to default
+                    // Location denied/unavailable — use the user's chosen city, else the default.
+                    const fallbackCity = userSettings?.city || 'San Francisco';
                     const [current, outlook] = await Promise.all([
-                        weatherService.getWeatherByCity('San Francisco'),
-                        weatherService.getWeatherOutlookByCity('San Francisco'),
+                        weatherService.getWeatherByCity(fallbackCity),
+                        weatherService.getWeatherOutlookByCity(fallbackCity),
                     ]);
                     weatherData = current;
                     outlookData = outlook;
+                    setUsingDefaultLocation(!userSettings?.city);
                 }
                 setWeather(weatherData);
                 setWeatherOutlook(outlookData);
@@ -150,7 +156,7 @@ const Home: React.FC = () => {
             }
         };
         loadData();
-    }, [wardrobeSignature]);
+    }, [wardrobeSignature, userSettings?.city]);
 
     const temp = weather?.temperature;
     const condition = weather?.condition;
@@ -158,6 +164,8 @@ const Home: React.FC = () => {
     const starterTarget = 5;
     const starterCount = Math.min(clothes.length, starterTarget);
     const starterProgress = Math.round((starterCount / starterTarget) * 100);
+    const readiness = getWardrobeReadiness(clothes);
+    const hasDemoItems = clothes.some((c) => c.id.startsWith('demo-'));
 
     return (
         <div className="space-y-8 pb-20">
@@ -168,7 +176,53 @@ const Home: React.FC = () => {
                 </h1>
             </section>
 
-            {clothes.length < starterTarget && (
+            {/* Styling streak (gamified engagement) */}
+            <StreakCard />
+
+            {hasDemoItems && (
+                <section>
+                    <div className="rounded-2xl border border-secondary/30 bg-secondary/5 p-4">
+                        <p className="text-sm font-bold text-primary">You're exploring a demo closet</p>
+                        <p className="text-xs text-olive-600 mt-0.5">
+                            Get a feel for outfit suggestions, then swap in your own wardrobe.
+                        </p>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                            <button
+                                onClick={() => window.dispatchEvent(new CustomEvent('open-scanner'))}
+                                className="inline-flex items-center px-3 py-2 bg-primary text-white rounded-lg text-xs font-semibold hover:bg-olive-700 transition-colors active:scale-[0.97]"
+                            >
+                                Scan my items
+                            </button>
+                            <button
+                                onClick={clearDemoItems}
+                                disabled={isLoading}
+                                className="inline-flex items-center px-3 py-2 bg-white border border-olive-200 text-secondary rounded-lg text-xs font-semibold hover:bg-olive-50 transition-colors active:scale-[0.97] disabled:opacity-50"
+                            >
+                                Clear demo closet
+                            </button>
+                        </div>
+                    </div>
+                </section>
+            )}
+
+            {clothes.length > 0 && !readiness.canMakeOutfit && (
+                <section>
+                    <div className="rounded-2xl border border-amber-300/70 bg-amber-50 p-5">
+                        <h2 className="text-base font-bold text-amber-900">Almost ready to style you</h2>
+                        <p className="text-sm text-amber-800 mt-1 mb-4">
+                            Add {readiness.missingForOutfit.join(' and ')} so we can build complete outfits from your closet.
+                        </p>
+                        <button
+                            onClick={() => window.dispatchEvent(new CustomEvent('open-scanner'))}
+                            className="inline-flex items-center justify-center px-4 py-2.5 bg-primary text-white rounded-xl font-semibold hover:bg-olive-700 transition-colors active:scale-[0.97]"
+                        >
+                            Scan {readiness.missingForOutfit[0] ?? 'an item'}
+                        </button>
+                    </div>
+                </section>
+            )}
+
+            {clothes.length < starterTarget && (clothes.length === 0 || readiness.canMakeOutfit) && (
                 <section>
                     <div className="rounded-2xl border border-olive-200/70 bg-white p-5">
                         <div className="flex items-center justify-between gap-3 mb-3">
@@ -192,6 +246,12 @@ const Home: React.FC = () => {
                                 className="flex-1 inline-flex items-center justify-center px-4 py-2.5 bg-primary text-white rounded-xl font-semibold hover:bg-olive-700 transition-colors active:scale-[0.97]"
                             >
                                 Scan a staple now
+                            </button>
+                            <button
+                                onClick={() => window.dispatchEvent(new CustomEvent('open-bulk-upload'))}
+                                className="flex-1 inline-flex items-center justify-center px-4 py-2.5 bg-olive-100 text-secondary rounded-xl font-semibold hover:bg-olive-200 transition-colors active:scale-[0.97]"
+                            >
+                                Add 10 photos
                             </button>
                             {clothes.length === 0 && (
                                 <button
@@ -220,6 +280,14 @@ const Home: React.FC = () => {
                         <p className="text-xs font-semibold uppercase tracking-wider text-secondary">
                             {location || 'Locating city'}
                         </p>
+                        {usingDefaultLocation && (
+                            <button
+                                onClick={() => window.dispatchEvent(new CustomEvent('open-settings'))}
+                                className="mt-1.5 text-[11px] font-semibold text-secondary underline underline-offset-2 hover:text-primary"
+                            >
+                                Location off — set your city for local weather
+                            </button>
+                        )}
                     </div>
                     <div className="grid grid-cols-3 gap-2 mt-4">
                         {weatherOutlook.map((slot) => (
@@ -352,6 +420,12 @@ const Home: React.FC = () => {
                                 className="w-full inline-flex items-center justify-center px-6 py-3 bg-primary text-white rounded-xl font-medium hover:bg-olive-700 transition-all active:scale-[0.97]"
                             >
                                 Scan Starter Items
+                            </button>
+                            <button
+                                onClick={() => window.dispatchEvent(new CustomEvent('open-bulk-upload'))}
+                                className="w-full inline-flex items-center justify-center px-6 py-3 bg-olive-100 text-secondary rounded-xl font-medium hover:bg-olive-200 transition-all active:scale-[0.97]"
+                            >
+                                Add up to 10 photos
                             </button>
                             <button
                                 onClick={populateDemoData}

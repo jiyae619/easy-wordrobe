@@ -22,8 +22,8 @@ For a focused explanation of the three AI agents specifically, see [AGENTS.md](A
 Wardrobe AI is a **React-based mobile web application** with a **three-tier architecture**:
 
 - **Frontend**: React 19 with TypeScript, Vite, React Router
-- **Backend**: Firebase (Authentication, Firestore, Cloud Storage)
-- **AI Services**: AWS Bedrock with Nova 2 Lite models
+- **Backend**: Firebase (Authentication, Firestore, Cloud Storage, Cloud Functions)
+- **AI Services**: AWS Bedrock (Nova 2 Lite), reached through an auth-checked Cloud Functions proxy (`aiProxy`) that keeps the key server-side
 - **External APIs**: National Weather Service (NWS)
 
 ### Technology Stack
@@ -101,6 +101,7 @@ App.tsx (Layout wrapper with navigation)
 │   │   │       └── ItemDetailModal
 │   │   └── CameraScannerOverlay (global)
 │   │       └── ImageUpload
+│   ├── BulkUploadOverlay (global) — up to 10 photos → analyze → auto-save
 │   ├── /suggest → Suggest (ProtectedRoute)
 │   │   ├── MoodSelector
 │   │   │   └── MoodCard (multiple)
@@ -111,7 +112,8 @@ App.tsx (Layout wrapper with navigation)
 │       ├── WearFrequencyChart
 │       ├── ColorDistribution
 │       ├── NudgeCard
-│       └── WeeklyOutfitTimeline
+│       ├── WeeklyOutfitTimeline
+│       └── OutfitHistory (browse past wears + one-tap re-wear)
 │
 └── Navigation (fixed bottom mobile nav)
     ├── Home icon
@@ -159,7 +161,7 @@ App.tsx (Layout wrapper with navigation)
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
 │  Model: Amazon Nova 2 Lite (us.amazon.nova-2-lite-v1:0)        │
-│  Auth: Bearer Token (VITE_BEDROCK_API_KEY)                     │
+│  Access: via aiProxy Cloud Function (key stays server-side)    │
 │  API: Converse API (multimodal)                                │
 │                                                                 │
 │  ┌────────────────┐ ┌────────────────┐ ┌──────────────────┐   │
@@ -184,20 +186,23 @@ App.tsx (Layout wrapper with navigation)
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-**API Endpoint:**
-```
-POST https://bedrock-runtime.us-east-2.amazonaws.com/model/us.amazon.nova-2-lite-v1:0/converse
+**How the client reaches the models (via the AI proxy):**
 
-Headers:
-- Content-Type: application/json
-- Authorization: Bearer {VITE_BEDROCK_API_KEY}
+The browser NEVER holds a model key. It POSTs to the `aiProxy` Cloud Function
+(`VITE_AI_PROXY_URL`) with the signed-in user's Firebase ID token; the function verifies the
+token, rate-limits per user, and forwards to Bedrock/Gemini with the server-side key.
 
-Body:
-{
-  messages: [{ role: "user", content: [...] }],
-  inferenceConfig: { maxTokens: 512, temperature: 0.3 }
-}
 ```
+Browser                             aiProxy (Cloud Function)         AWS Bedrock / Gemini
+POST {VITE_AI_PROXY_URL}            verifyIdToken(token) → uid
+  Authorization: Bearer <idToken>   rate-limit(uid) [Firestore]
+  { target: "bedrock",         ──▶  forward with SERVER key      ──▶ POST .../converse
+    payload: { messages,             ◀───── raw upstream JSON ───────◀   (key in Secret Manager)
+      inferenceConfig } }       ◀──  (passed straight through)
+```
+
+Auth is a Firebase **ID token**, never an API key. The same proxy serves the Gemini vision path
+(`target: "gemini"`). Response parsing stays entirely on the client. See `functions/README.md`.
 
 ---
 
@@ -284,6 +289,11 @@ User visits app
 ```
 
 ### Flow 2: Add Clothing Item (Camera → AI Analysis → Storage)
+
+> **Bulk variant:** `BulkUploadOverlay` runs up to 10 gallery photos through the same
+> analyze → crop-to-bbox → save pipeline sequentially with a progress bar, auto-saving each
+> detected item with its AI labels (low-confidence / "Unknown" items keep the "needs attention"
+> badge for later fix-up). No per-item review screen — optimized for fast wardrobe onboarding.
 
 ```
 User taps Camera button in Navigation
@@ -408,16 +418,17 @@ User navigates to /suggest page
 ┌──────────────────────────────────────────┐
 │  AWS Bedrock (Nova 2 Lite)               │
 │  • Generate 3 outfit combinations        │
-│  • Calculate weatherMatch score          │
 │  • Prioritize least-worn items           │
-│  • Return JSON array                     │
+│  • Return item IDs + explanation copy    │
 └──────────────────────────────────────────┘
       │
-      │ OutfitSuggestion[] (3 suggestions)
+      │ raw suggestions (itemIds + copy)
       ▼
 ┌──────────────────────────────────────────┐
-│  Map item IDs to ClothingItem objects    │
+│  Map + score in code (agentOutputGuards) │
 │  • Look up each ID in context.clothes    │
+│  • Validate outfit composition           │
+│  • Compute weatherMatch & wearScore       │
 │  • Prepare OutfitCard data               │
 └──────────────────────────────────────────┘
       │
@@ -467,34 +478,28 @@ User navigates to /insights page
       ▼
 ┌──────────────────────────────────────────┐
 │  fetchInsights()                         │
-│  • Collect wardrobe data (last 14 days)  │
-│  • Collect wear history (all outfits)    │
+│  • Compute analytics IN CODE             │
+│    (most/least worn, colors, weekly)     │
+│  • Build signature of season+wear state  │
+│  • Read /insights/latest nudge cache     │
 └──────────────────────────────────────────┘
       │
-      │ Wardrobe[] + WearRecord[]
+      ├─ cache hit (signature matches, <24h) ─▶ use cached nudges + code analytics
+      │                                          (NO Bedrock call)
+      │ cache miss / stale
       ▼
 ┌──────────────────────────────────────────┐
 │  BehavioralAgent.generateInsights()      │
-│  • Prepare detailed prompt               │
+│  • analytics computed in code            │
+│  • Bedrock writes ONLY the 3 nudges      │
 └──────────────────────────────────────────┘
       │
-      │ POST /model/{modelId}/converse
-      ▼
-┌──────────────────────────────────────────┐
-│  AWS Bedrock (Nova 2 Lite)               │
-│  • Analyze wear patterns                 │
-│  • Identify most/least worn items        │
-│  • Generate 3 behavioral nudges          │
-│  • Calculate weekly wear distribution    │
-│  • Return JSON with insights             │
-└──────────────────────────────────────────┘
-      │
-      │ UserInsight object
+      │ POST → aiProxy → Bedrock (nudge copy only)
       ▼
 ┌──────────────────────────────────────────┐
 │  Update WardrobeContext.insights         │
-│  • Store insights                        │
-│  • Timestamp for cache invalidation      │
+│  • Save nudges + signature to Firestore  │
+│    (/insights/latest) for next visit     │
 └──────────────────────────────────────────┘
       │
       │ Trigger re-render with new data
@@ -597,7 +602,7 @@ Home page loads OR Suggest page requests weather
 {
   id: string                    // UUID
   imageUrl: string              // Firebase Cloud Storage URL
-  category: string              // "tops" | "bottoms" | "outerwear" | "dresses" | "shoes" | "accessories" | "bags"
+  category: string              // "tops" | "bottoms" | "outerwear" | "dresses" | "shoes"  (accessories/bags = future)
   subcategory: string           // e.g., "Crew Neck T-Shirt", "Slim Fit Jeans"
   color: string                 // e.g., "Navy Blue", "Forest Green"
   colorHex: string              // e.g., "#1B2A4A"
@@ -615,12 +620,13 @@ Home page loads OR Suggest page requests weather
 
 ```typescript
 {
-  items: ClothingItem[]         // Array of 3-5 items: top, bottom, shoes, optional outerwear/bag
-  weatherMatch: number          // 0-100 score indicating weather appropriateness
-  wearScore: number             // Priority score based on least-worn items
-  explanation: string           // "Perfect for 18°C sunny weather..."
-  comment: string               // "This combo will turn heads!"
-  mood: string                  // "Minimal Chic"
+  id: string                    // UUID generated app-side
+  items: ClothingItem[]         // Bottoms-based (top layer(s) + 1 bottom) OR dress-based (1 dress + optional outerwear)
+  weatherMatch: number          // 0-100, COMPUTED IN CODE from item seasons vs. current temperature
+  wearScore: number             // 0-100, COMPUTED IN CODE from real wear counts (higher = less worn)
+  explanation: string           // "Perfect for 18°C sunny weather..." (from the model, sanitized)
+  mood: FashionMood             // The selected mood object
+  isFallback?: boolean          // true when these are code-assembled picks (AI stylist unavailable)
 }
 ```
 
@@ -682,7 +688,8 @@ Home page loads OR Suggest page requests weather
 | Firebase Auth | idToken (JWT) | JSON | 10 req/sec |
 | Firestore | Firebase Auth | JSON + subcollections | 10K writes/day (free) |
 | Cloud Storage | Firebase Auth | Binary (JPEG/PNG) | 5GB storage (free) |
-| AWS Bedrock | Bearer token | JSON (Converse API) | 100 req/min |
+| aiProxy (Cloud Function) | Firebase ID token | JSON | Per-user (default 30/min) |
+| AWS Bedrock (behind proxy) | Server-side key (Secret Manager) | JSON (Converse API) | 100 req/min |
 | NWS Weather API | User-Agent header | JSON (GeoJSON) | None (public) |
 
 ### Firestore Collection Structure
@@ -696,10 +703,28 @@ Home page loads OR Suggest page requests weather
       /{outfitId}               → WearRecord document
     /settings                   (Subcollection - user preferences)
       /preferences              → UserSettings document
+    /insights                   (Subcollection - cached Insights nudge copy)
+      /latest                   → { nudges[], signature, computedAt }
+    /colorCorrections           (Subcollection - {AI → user} color eval data)
+      /{correctionId}           → ColorCorrection document
+    /suggestionEvents           (Subcollection - rejected suggestions: skipped / regenerated)
+      /{eventId}                → SuggestionEvent document (feeds Stylist deprioritization)
+    /agentHealth                (Subcollection - daily agent telemetry aggregate)
+      /{YYYY-MM-DD}             → { <agent>Total, <agent>Fallback, parseErrors } (atomic increments)
+
+  /aiRateLimits                 (Top-level; written only by the aiProxy function via Admin SDK)
+    /{uid}                      → { windowStart, count }
+
+Notes:
+  • Wear history is loaded date-bounded (last 90 days) — getRecentOutfits(uid, days) — not the full history.
+  • Only BehavioralAgent's LLM nudge copy is cached in /insights; the analytics (counts, most/least
+    worn, weekly pattern) are recomputed deterministically in code on every read. The cache is keyed
+    by a signature of season + wear state and expires after 24h, so a repeat visit skips the Bedrock
+    call unless something changed.
 
 Indexes:
   • wardrobe: indexed by category, dateAdded, wearFrequency
-  • outfits: indexed by date (descending)
+  • outfits: indexed by date (descending) — supports the date-bounded recent-outfits query
 ```
 
 ### Error Handling & Fallbacks

@@ -11,6 +11,7 @@ import Insights from './pages/Insights';
 import Login from './pages/Login';
 import DevModelTest from './pages/DevModelTest';
 import { CameraScannerOverlay } from './components/upload/CameraScannerOverlay';
+import { BulkUploadOverlay } from './components/upload/BulkUploadOverlay';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import UserMenu from './components/common/UserMenu';
 import { useWardrobe } from './context/WardrobeContext';
@@ -139,6 +140,9 @@ const Layout = () => {
 
         {/* Camera Scanner Overlay */}
         <CameraScannerOverlay isOpen={showScanner} onClose={() => setShowScanner(false)} />
+
+        {/* Bulk gallery intake (listens for the `open-bulk-upload` event) */}
+        <BulkUploadOverlay />
 
       </div>
     </div>

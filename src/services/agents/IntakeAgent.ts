@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { getActiveProvider } from "../vision/providerRegistry";
 import { AgentError, getAgentFailureReason } from "./agentErrors";
 import { createAgentTraceId, recordAgentMetric } from "./agentTelemetry";
-import { mapIntakeItem, normalizeIntakeResponse, parseAgentJson } from "./agentOutputGuards";
+import { ALL_SEASONS, mapIntakeItem, normalizeIntakeResponse, parseAgentJson } from "./agentOutputGuards";
 
 export type DetectedClothingItem = ClothingItem;
 
@@ -73,7 +73,7 @@ If the image is safe, identify up to 3 distinct clothing items visible in the im
 ]
 
 FIELD RULES:
-- "category": must be exactly one of: "tops", "bottoms", "outerwear", "dresses"
+- "category": must be exactly one of: "tops", "bottoms", "outerwear", "dresses", "shoes"
 - "subcategory": a specific descriptive label, e.g. "Slim-Fit Chinos", "Oversized Hoodie", "Wrap Dress"
 - "color": the dominant color name in plain English, e.g. "Olive Green", "Cream", "Burgundy"
 - "colorHex": a valid 6-digit hex code matching the color, e.g. "#6B7C45"
@@ -84,7 +84,7 @@ FIELD RULES:
 - "confidence": confidence for the detection in range 0..1
 
 IMPORTANT:
-- Analyze clothing items ONLY — do NOT include shoes, bags, hats, or accessories
+- Analyze clothing items and shoes — do NOT include bags, hats, or accessories
 - If only one item is visible, still return a single-element array
 - Order items by how prominent or central they are in the image
 - Return ONLY the raw JSON array — no markdown fences, no explanation, no extra text`;
@@ -154,7 +154,7 @@ IMPORTANT:
                 colorHex: "#808080",
                 aiColor: { name: "Unknown", hex: "#808080" },
                 colorSource: "ai",
-                season: [],
+                season: [...ALL_SEASONS],
                 wearFrequency: 0,
                 lastWorn: null,
                 dateAdded: new Date(),

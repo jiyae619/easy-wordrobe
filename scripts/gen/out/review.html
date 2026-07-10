@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Catalog bake-off review</title>
+<style>
+  :root { --bd:#e3e3e0; --mut:#666; --accent:#c45a3a; --keep:#2d7a3a; --drop:#a82929; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:14px/1.5 -apple-system,BlinkMacSystemFont,sans-serif; color:#1a1a1a; background:#fafaf7; }
+  header { padding:18px 24px; border-bottom:1px solid var(--bd); position:sticky; top:0; background:#fafaf7; z-index:5; }
+  h1 { font-size:18px; margin:0 0 4px; }
+  .sub { color:var(--mut); font-size:13px; }
+  .bar { margin-top:10px; display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  button { font:inherit; padding:6px 12px; border:1px solid var(--bd); border-radius:6px; background:#fff; cursor:pointer; }
+  button:hover { border-color:var(--accent); color:var(--accent); }
+  main { padding:24px; overflow-x:auto; }
+  table { border-collapse:collapse; }
+  th, td { border:1px solid var(--bd); padding:8px; vertical-align:top; text-align:left; }
+  th { background:#fdf2ee; font-size:13px; position:sticky; top:0; }
+  .combo { min-width:170px; max-width:200px; }
+  .combo .cat { font-weight:600; }
+  .combo .meta { color:var(--mut); font-size:12px; margin-top:4px; }
+  .chip { display:inline-block; font-size:11px; padding:1px 6px; border-radius:8px; background:#f0eee8; margin:2px 2px 0 0; }
+  .swatch { display:inline-block; width:11px; height:11px; border-radius:50%; border:1px solid #0002; vertical-align:middle; margin-right:4px; }
+  figure { margin:0; width:220px; }
+  figure img { width:220px; height:220px; object-fit:contain; background:#fff; border-radius:4px; border:1px solid var(--bd); display:block; }
+  .missing { width:220px; height:220px; display:flex; align-items:center; justify-content:center; color:var(--mut); background:#f3f1ec; border:1px dashed var(--bd); border-radius:4px; font-size:12px; }
+  .cell.dropped figure img, .cell.dropped .missing { opacity:.3; filter:grayscale(1); }
+  .keepbtn { margin-top:6px; width:100%; font-size:12px; }
+  .keepbtn.keep { border-color:var(--keep); color:var(--keep); }
+  .keepbtn.drop { border-color:var(--drop); color:var(--drop); }
+  .seed { font-size:11px; color:var(--mut); margin-top:4px; }
+  #loader { padding:24px; }
+  code { background:#fdf2ee; padding:1px 5px; border-radius:3px; color:var(--accent); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Catalog bake-off review</h1>
+  <div class="sub">Same combos + seeds across engines. Compare quality, then keep/drop for the demo subset.</div>
+  <div class="bar">
+    <span id="stats" class="sub"></span>
+    <button id="exportBtn">Export kept stems (JSON)</button>
+    <button id="keepAll">Keep all</button>
+    <button id="dropAll">Drop all</button>
+    <input id="fileInput" type="file" accept=".jsonl" style="display:none">
+    <button id="loadBtn">Load meta.jsonl…</button>
+  </div>
+</header>
+<main>
+  <div id="loader" class="sub">Loading <code>meta.jsonl</code>… if nothing appears, click “Load meta.jsonl…” and pick the file, or serve this folder: <code>python3 -m http.server</code></div>
+  <table id="grid" style="display:none"><thead></thead><tbody></tbody></table>
+</main>
+
+<script>
+const dropped = new Set(); // stems the user dropped
+
+function parseJsonl(text) {
+  return text.split("\n").map(l => l.trim()).filter(Boolean).map(l => {
+    try { return JSON.parse(l); } catch { return null; }
+  }).filter(Boolean);
+}
+
+function render(records) {
+  document.getElementById("loader").style.display = "none";
+  const grid = document.getElementById("grid");
+  grid.style.display = "";
+
+  const engines = [...new Set(records.map(r => r.engine))].sort();
+  const byCombo = new Map();
+  for (const r of records) {
+    if (!byCombo.has(r.comboKey)) byCombo.set(r.comboKey, { meta: r, cells: {} });
+    byCombo.get(r.comboKey).cells[r.engine] = r;
+  }
+
+  const thead = grid.querySelector("thead");
+  thead.innerHTML = "<tr><th>Combo</th>" + engines.map(e => `<th>${e}</th>`).join("") + "</tr>";
+
+  const tbody = grid.querySelector("tbody");
+  tbody.innerHTML = "";
+  for (const [combo, { meta, cells }] of byCombo) {
+    const tr = document.createElement("tr");
+    const moods = (meta.expectedMoods || []).map(m => `<span class="chip">${m}</span>`).join("");
+    const seasons = (meta.expectedSeasons || []).map(s => `<span class="chip">${s}</span>`).join("");
+    tr.innerHTML = `<td class="combo">
+      <div class="cat">${meta.category} · ${meta.subcategory}</div>
+      <div class="meta"><span class="swatch" style="background:${meta.colorHex}"></span>${meta.color} ${meta.colorHex}</div>
+      <div class="meta">${(meta.subcategoryKeywords||[]).join(", ")}</div>
+      <div>${moods}${seasons}</div>
+    </td>`;
+    for (const e of engines) {
+      const rec = cells[e];
+      const td = document.createElement("td");
+      td.className = "cell";
+      if (!rec) { td.innerHTML = `<div class="missing">— not generated —</div>`; tr.appendChild(td); continue; }
+      const fig = document.createElement("figure");
+      fig.innerHTML = `<img loading="lazy" src="${rec.path}" alt="${rec.stem}"
+        onerror="this.outerHTML='<div class=&quot;missing&quot;>image not found<br>${rec.path}</div>'">
+        <div class="seed">seed ${rec.seed}${rec.noisy ? " · noisy" : ""}</div>`;
+      const btn = document.createElement("button");
+      btn.className = "keepbtn keep";
+      btn.textContent = "✓ keep";
+      btn.onclick = () => toggle(rec.stem, td, btn);
+      fig.appendChild(btn);
+      td.appendChild(fig);
+      tr.appendChild(td);
+    }
+    tbody.appendChild(tr);
+  }
+  updateStats(records, engines);
+}
+
+function toggle(stem, td, btn) {
+  if (dropped.has(stem)) {
+    dropped.delete(stem); td.classList.remove("dropped");
+    btn.className = "keepbtn keep"; btn.textContent = "✓ keep";
+  } else {
+    dropped.add(stem); td.classList.add("dropped");
+    btn.className = "keepbtn drop"; btn.textContent = "✗ dropped";
+  }
+  updateStats();
+}
+
+let allRecords = [];
+function updateStats() {
+  const total = allRecords.length;
+  const kept = total - allRecords.filter(r => dropped.has(r.stem)).length;
+  document.getElementById("stats").textContent = `${kept}/${total} kept`;
+}
+
+document.getElementById("exportBtn").onclick = () => {
+  const kept = allRecords.filter(r => !dropped.has(r.stem)).map(r => r.stem);
+  const blob = new Blob([JSON.stringify({ kept }, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "kept-stems.json";
+  a.click();
+};
+document.getElementById("keepAll").onclick = () => { dropped.clear(); document.querySelectorAll(".cell").forEach(td=>td.classList.remove("dropped")); document.querySelectorAll(".keepbtn").forEach(b=>{b.className="keepbtn keep";b.textContent="✓ keep";}); updateStats(); };
+document.getElementById("dropAll").onclick = () => { allRecords.forEach(r=>dropped.add(r.stem)); document.querySelectorAll(".cell").forEach(td=>td.classList.add("dropped")); document.querySelectorAll(".keepbtn").forEach(b=>{b.className="keepbtn drop";b.textContent="✗ dropped";}); updateStats(); };
+
+function load(records) { allRecords = records; render(records); }
+
+document.getElementById("loadBtn").onclick = () => document.getElementById("fileInput").click();
+document.getElementById("fileInput").onchange = (e) => {
+  const f = e.target.files[0]; if (!f) return;
+  const reader = new FileReader();
+  reader.onload = () => load(parseJsonl(reader.result));
+  reader.readAsText(f);
+};
+
+fetch("meta.jsonl").then(r => { if (!r.ok) throw new Error(); return r.text(); })
+  .then(t => load(parseJsonl(t)))
+  .catch(() => { document.getElementById("loader").innerHTML =
+    'Could not auto-load <code>meta.jsonl</code>. Click <b>Load meta.jsonl…</b> and pick <code>scripts/gen/out/meta.jsonl</code>, or serve this folder with <code>python3 -m http.server</code> and reload.'; });
+</script>
+</body>
+</html>

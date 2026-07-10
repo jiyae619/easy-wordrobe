@@ -1,0 +1,5 @@
+# Generated catalog images + metadata are heavy and reproducible — don't commit.
+# Keep the review tool and this ignore file.
+*
+!.gitignore
+!review.html
