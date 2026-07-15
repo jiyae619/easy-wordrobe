@@ -83,16 +83,36 @@ export const ALL_SEASONS: Season[] = [Season.Spring, Season.Summer, Season.Fall,
 
 const THREE_WEEKS_MS = 21 * 24 * 60 * 60 * 1000;
 
+// Latitude hint for hemisphere-aware seasons, set from the weather fetch — the one place a real
+// coordinate is known. `null` means "unknown" and preserves the original Northern-hemisphere mapping.
+let knownLatitude: number | null = null;
+
+/** Record the user's latitude so seasonal logic can flip for the Southern hemisphere. */
+export function setSeasonLatitude(latitude: number): void {
+    if (Number.isFinite(latitude)) knownLatitude = latitude;
+}
+
+const OPPOSITE_SEASON: Record<Season, Season> = {
+    [Season.Spring]: Season.Fall,
+    [Season.Summer]: Season.Winter,
+    [Season.Fall]: Season.Spring,
+    [Season.Winter]: Season.Summer,
+};
+
 /**
- * Current season from the local month (Northern-hemisphere mapping).
- * NOTE: hemisphere-aware seasonality needs the user's latitude and is tracked as a follow-up.
+ * Current season from the local month, hemisphere-aware when a latitude has been recorded (via
+ * setSeasonLatitude). Southern-hemisphere seasons are the Northern mapping shifted by six months.
+ * With no latitude known yet, it falls back to the Northern-hemisphere mapping (the original behavior).
  */
 export function getCurrentSeason(): Season {
     const month = new Date().getMonth() + 1; // 1–12
-    if (month >= 3 && month <= 5) return Season.Spring;
-    if (month >= 6 && month <= 8) return Season.Summer;
-    if (month >= 9 && month <= 11) return Season.Fall;
-    return Season.Winter;
+    const northern: Season =
+        month >= 3 && month <= 5 ? Season.Spring :
+        month >= 6 && month <= 8 ? Season.Summer :
+        month >= 9 && month <= 11 ? Season.Fall :
+        Season.Winter;
+
+    return knownLatitude !== null && knownLatitude < 0 ? OPPOSITE_SEASON[northern] : northern;
 }
 
 function seasonForTemperature(temperatureC: number): Season {
@@ -154,6 +174,44 @@ export function getWardrobeReadiness(clothes: ClothingItem[]): WardrobeReadiness
     }
 
     return { canMakeOutfit, hasTopLayer, hasBottom, hasDress, hasShoes, missingForOutfit };
+}
+
+export interface WardrobeCompleteness {
+    /** 0..1 progress across the starter milestones, for a meter/progress bar. */
+    ratio: number;
+    /** Short human label for the current stage. */
+    stage: string;
+    /** The single most valuable next addition, or null once the starter closet is complete. */
+    nextUnlock: string | null;
+}
+
+/**
+ * Graduated "how complete is this wardrobe" signal for the Home meter — deterministic, no model.
+ * Milestones are ordered by value; the first unmet one becomes the nudge. Complements
+ * getWardrobeReadiness (which answers the binary "can we style at all?") by guiding growth past
+ * the first outfit.
+ */
+export function getWardrobeCompleteness(clothes: ClothingItem[]): WardrobeCompleteness {
+    const readiness = getWardrobeReadiness(clothes);
+    const milestones: Array<{ met: boolean; unlock: string }> = [
+        {
+            met: readiness.canMakeOutfit,
+            unlock: readiness.missingForOutfit.length > 0
+                ? `Add ${readiness.missingForOutfit.join(" and ")} to make your first outfit`
+                : "Add a top and a bottom to make your first outfit",
+        },
+        { met: clothes.length >= 5, unlock: "Add a few more pieces for outfit variety" },
+        { met: clothes.length >= 8, unlock: "A few more pieces unlock richer combinations" },
+        { met: readiness.hasShoes, unlock: "Add shoes to finish your looks" },
+    ];
+    const metCount = milestones.filter((m) => m.met).length;
+    const next = milestones.find((m) => !m.met) ?? null;
+    const stage = metCount >= milestones.length
+        ? "Closet looking complete"
+        : metCount === 0
+            ? "Just getting started"
+            : "Building your closet";
+    return { ratio: metCount / milestones.length, stage, nextUnlock: next?.unlock ?? null };
 }
 
 export function normalizeIntakeResponse(raw: unknown): IntakeNormalization {
@@ -222,8 +280,9 @@ export function mapIntakeItem(
         ? raw.category as ClothingCategory
         : ClothingCategory.Tops;
 
-    // Color: keep the model's raw hex exactly, but show the nearest palette NAME (snap-to-nearest).
-    // The original detection is preserved in `aiColor` so a later user correction can be scored against it.
+    // Color: snap to the nearest palette color for BOTH the display name and the swatch hex, so the
+    // shown swatch always matches its label. The model's raw detection is preserved untouched in
+    // `aiColor` so a later user correction can still be scored against the original guess.
     const rawColorName = typeof raw.color === "string" && raw.color.trim() ? raw.color : "Unknown";
     const rawColorHex = normalizeColorHex(raw.colorHex);
     const snapped = nearestPaletteColor(rawColorHex);
@@ -235,7 +294,7 @@ export function mapIntakeItem(
         category,
         subcategory: typeof raw.subcategory === "string" && raw.subcategory.trim() ? raw.subcategory : "Unknown",
         color: snapped.name,
-        colorHex: rawColorHex,
+        colorHex: snapped.hex,
         aiColor: { name: rawColorName, hex: rawColorHex },
         colorSource: "ai",
         season: season.length > 0 ? season : [...ALL_SEASONS],

@@ -6,7 +6,7 @@ import { awsNovaService } from '../services/awsNova';
 import { weatherService } from '../services/weatherService';
 import { type OutfitSuggestion, type WeatherData, type WeatherOutlookPeriod } from '../types';
 import { MOODS } from '../data/moods';
-import { getWardrobeReadiness } from '../services/agents/agentOutputGuards';
+import { getWardrobeReadiness, getWardrobeCompleteness } from '../services/agents/agentOutputGuards';
 import { StreakCard } from '../components/home/StreakCard';
 import { ExpandableText } from '../components/common/ExpandableText';
 
@@ -165,6 +165,8 @@ const Home: React.FC = () => {
     const starterCount = Math.min(clothes.length, starterTarget);
     const starterProgress = Math.round((starterCount / starterTarget) * 100);
     const readiness = getWardrobeReadiness(clothes);
+    const completeness = getWardrobeCompleteness(clothes);
+    const completenessPct = Math.round(completeness.ratio * 100);
     const hasDemoItems = clothes.some((c) => c.id.startsWith('demo-'));
 
     return (
@@ -262,6 +264,38 @@ const Home: React.FC = () => {
                                     {isLoading ? 'Populating...' : 'Use demo wardrobe'}
                                 </button>
                             )}
+                        </div>
+                    </div>
+                </section>
+            )}
+
+            {clothes.length >= starterTarget && readiness.canMakeOutfit && completeness.nextUnlock && (
+                <section>
+                    <div className="rounded-2xl border border-olive-200/70 bg-white p-5">
+                        <div className="flex items-center justify-between gap-3 mb-3">
+                            <h2 className="text-base font-bold text-primary">{completeness.stage}</h2>
+                            <span className="text-xs font-semibold text-secondary">{completenessPct}%</span>
+                        </div>
+                        <div className="h-2 rounded-full bg-olive-100 overflow-hidden mb-3">
+                            <div
+                                className="h-full bg-primary transition-all duration-300"
+                                style={{ width: `${completenessPct}%` }}
+                            />
+                        </div>
+                        <p className="text-sm text-olive-600 mb-4">{completeness.nextUnlock}.</p>
+                        <div className="flex flex-col gap-2 sm:flex-row">
+                            <button
+                                onClick={() => window.dispatchEvent(new CustomEvent('open-scanner'))}
+                                className="flex-1 inline-flex items-center justify-center px-4 py-2.5 bg-primary text-white rounded-xl font-semibold hover:bg-olive-700 transition-colors active:scale-[0.97]"
+                            >
+                                Scan an item
+                            </button>
+                            <button
+                                onClick={() => window.dispatchEvent(new CustomEvent('open-bulk-upload'))}
+                                className="flex-1 inline-flex items-center justify-center px-4 py-2.5 bg-olive-100 text-secondary rounded-xl font-semibold hover:bg-olive-200 transition-colors active:scale-[0.97]"
+                            >
+                                Add photos
+                            </button>
                         </div>
                     </div>
                 </section>

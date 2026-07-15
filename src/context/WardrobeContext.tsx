@@ -444,6 +444,21 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
         }
     }, [uid, clothes]);
 
+    const toggleOutfitFavorite = useCallback(async (id: string) => {
+        if (!uid) return;
+        const target = outfits.find(o => o.id === id);
+        if (!target) return;
+        const favorite = !target.favorite;
+        // Optimistic local update; persist best-effort and roll back on failure.
+        setOutfits(prev => prev.map(o => o.id === id ? { ...o, favorite } : o));
+        try {
+            await firestoreService.setOutfitFavorite(uid, id, favorite);
+        } catch (err) {
+            console.error('[Wardrobe] Failed to update favorite:', err);
+            setOutfits(prev => prev.map(o => o.id === id ? { ...o, favorite: !favorite } : o));
+        }
+    }, [uid, outfits]);
+
     const refreshWeather = async (lat: number, lon: number) => {
         setIsLoading(true);
         try {
@@ -661,6 +676,7 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
             incrementWearCount,
             decrementWearCount,
             logOutfitWear,
+            toggleOutfitFavorite,
             setMood,
             refreshWeather,
             fetchInsights,

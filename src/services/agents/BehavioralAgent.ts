@@ -3,7 +3,7 @@ import {
     type WearRecord,
     type UserInsight,
 } from "../../types/index";
-import { callBedrockConverseAPI } from "../bedrockClient";
+import { getTextProvider } from "../vision/providerRegistry";
 import { getAgentFailureReason } from "./agentErrors";
 import { createAgentTraceId, recordAgentMetric } from "./agentTelemetry";
 import {
@@ -112,13 +112,11 @@ OUTPUT STRICTLY AS JSON, no markdown:
 { "suggestedVariations": ["Nudge 1", "Nudge 2", "Nudge 3"] }`;
 
         try {
-            const payload = {
-                messages: [{ role: "user", content: [{ text: prompt }] }],
-                // Temp 0.85 is for the COPY only — every count above is computed in code.
-                inferenceConfig: { maxTokens: 512, temperature: 0.85 },
-            };
-
-            const jsonStr = await callBedrockConverseAPI(payload, { agent: "behavioral", traceId });
+            // Temp 0.85 is for the COPY only — every count above is computed in code.
+            const jsonStr = await getTextProvider().callText(
+                { prompt, maxTokens: 512, temperature: 0.85 },
+                { agent: "behavioral", traceId },
+            );
             const parsed = parseAgentJson(jsonStr, "behavioral", traceId);
             const rawNudges = Array.isArray(parsed)
                 ? parsed

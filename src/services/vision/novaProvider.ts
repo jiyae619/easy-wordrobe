@@ -1,8 +1,8 @@
 import { AgentError } from "../agents/agentErrors";
 import { recordAgentMetric } from "../agents/agentTelemetry";
-import { extractJsonFromText } from "../bedrockClient";
+import { callBedrockConverseAPI, extractJsonFromText } from "../bedrockClient";
 import { AI_PROXY_URL, getProxyIdToken } from "../aiProxyClient";
-import type { VisionCallOptions, VisionProvider, VisionRequest } from "./VisionProvider";
+import type { TextRequest, VisionCallOptions, VisionProvider, VisionRequest } from "./VisionProvider";
 
 const DEFAULT_TIMEOUT_MS = 30000;
 const DEFAULT_MAX_RETRIES = 1;
@@ -129,5 +129,20 @@ export const novaProvider: VisionProvider = {
         }
 
         throw new AgentError(agent, "transport_error", "Nova request failed after retries.", { traceId });
+    },
+
+    // Text-only path (Stylist / Behavioral). Delegates to the shared Bedrock converse helper —
+    // the exact call the text agents used before the registry unification, so behavior is unchanged.
+    async callText(request: TextRequest, options: VisionCallOptions): Promise<string> {
+        return callBedrockConverseAPI(
+            {
+                messages: [{ role: "user", content: [{ text: request.prompt }] }],
+                inferenceConfig: {
+                    maxTokens: request.maxTokens ?? 1000,
+                    temperature: request.temperature ?? 0.7,
+                },
+            },
+            options,
+        );
     },
 };

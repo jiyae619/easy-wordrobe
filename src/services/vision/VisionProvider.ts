@@ -23,6 +23,17 @@ export interface VisionCallOptions {
 }
 
 /**
+ * A normalized text-only (no image) model request, used by the Stylist and Behavioral agents.
+ * Adapters translate this into each vendor's wire format.
+ */
+export interface TextRequest {
+    /** The full instruction/prompt text. */
+    prompt: string;
+    maxTokens?: number;
+    temperature?: number;
+}
+
+/**
  * Common contract every vision model adapter must satisfy.
  * Adapters return a raw JSON string (already de-fenced and trimmed).
  */
@@ -35,4 +46,10 @@ export interface VisionProvider {
     isConfigured(): boolean;
     /** Send the request and return the raw JSON string. Throws on failure. */
     call(request: VisionRequest, options: VisionCallOptions): Promise<string>;
+    /**
+     * Send a text-only request and return the raw JSON string (de-fenced, trimmed). Optional so
+     * image-only adapters stay valid; the text agents resolve a text-capable provider via
+     * getTextProvider().
+     */
+    callText?(request: TextRequest, options: VisionCallOptions): Promise<string>;
 }

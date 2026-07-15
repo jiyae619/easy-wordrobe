@@ -6,7 +6,7 @@ import {
     ClothingCategory
 } from "../../types/index";
 import { v4 as uuidv4 } from 'uuid';
-import { callBedrockConverseAPI } from "../bedrockClient";
+import { getTextProvider } from "../vision/providerRegistry";
 import { getAgentFailureReason } from "./agentErrors";
 import { createAgentTraceId, recordAgentMetric } from "./agentTelemetry";
 import { computeWearScore, computeWeatherMatch, mapStylistSuggestions, moodIdsForStyling, parseAgentJson, sanitizeUiCopy } from "./agentOutputGuards";
@@ -106,12 +106,10 @@ Output strictly as a JSON array of objects, with NO markdown formatting around i
 ]`;
 
         try {
-            const payload = {
-                messages: [{ role: "user", content: [{ text: prompt }] }],
-                inferenceConfig: { maxTokens: 1000, temperature: 0.75 },
-            };
-
-            const jsonStr = await callBedrockConverseAPI(payload, { agent: "stylist", traceId });
+            const jsonStr = await getTextProvider().callText(
+                { prompt, maxTokens: 1000, temperature: 0.75 },
+                { agent: "stylist", traceId },
+            );
             const parsed = parseAgentJson(jsonStr, "stylist", traceId);
             const mapped = mapStylistSuggestions(parsed, clothes, mood, uuidv4, weather.temperature);
 

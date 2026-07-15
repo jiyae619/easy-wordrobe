@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { type WeatherData, type WeatherOutlookPeriod } from '../types';
+import { setSeasonLatitude } from './agents/agentOutputGuards';
 
 // ==========================================
 // NWS (National Weather Service) API — Free, no API key required
@@ -36,6 +37,9 @@ export const SUPPORTED_CITIES = [
 ] as const;
 
 async function getForecastPayload(lat: number, lon: number) {
+    // Every weather path (geolocation, saved city, fallback) funnels through here with a real
+    // coordinate, so this is the single place to record hemisphere for seasonal logic.
+    setSeasonLatitude(lat);
     const pointsUrl = `${NWS_BASE}/points/${lat.toFixed(4)},${lon.toFixed(4)}`;
     const pointsResponse = await axios.get(pointsUrl, { headers: NWS_HEADERS });
     const props = pointsResponse.data.properties;

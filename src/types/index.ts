@@ -75,7 +75,8 @@ export interface ClothingItem {
     subcategory: string;
     /** Primary color name detected by AI or set by user */
     color: string;
-    /** Hex code for the primary color (raw — kept exactly as detected/measured, never snapped) */
+    /** Hex code for the primary color — snapped to the nearest palette color so the swatch matches the
+     * shown name. The raw model detection is preserved in `aiColor` (used for correction scoring). */
     colorHex: string;
     /** The model's first color detection, before snap-to-palette or any user fix (immutable) */
     aiColor?: { name: string; hex: string };
@@ -207,6 +208,8 @@ export interface WearRecord {
     mood: string;
     /** Weather conditions on that day */
     weather: WeatherData;
+    /** User marked this worn outfit as a favorite to re-wear (optional; absent = not favorited) */
+    favorite?: boolean;
 }
 
 /**
@@ -287,6 +290,8 @@ export interface WardrobeContextType {
 
     /** Log an outfit as worn today */
     logOutfitWear: (outfitItems: string[], moodId: string, weather: WeatherData) => Promise<void>;
+    /** Toggle a worn outfit's favorite flag (persisted; optimistic local update). */
+    toggleOutfitFavorite: (id: string) => Promise<void>;
 
     // --- State & Analysis ---
 

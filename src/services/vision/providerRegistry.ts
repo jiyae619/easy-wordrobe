@@ -2,6 +2,9 @@ import { geminiProvider } from "./geminiProvider";
 import { novaProvider } from "./novaProvider";
 import type { VisionProvider } from "./VisionProvider";
 
+/** A provider guaranteed to support the text-only path (callText is present). */
+export type TextProvider = VisionProvider & { callText: NonNullable<VisionProvider["callText"]> };
+
 /**
  * Single source of truth for which vision adapters exist in the app.
  * Add a new model: build the adapter, then append it here.
@@ -50,4 +53,25 @@ export function getActiveProvider(): VisionProvider {
         return getProviderById(DEFAULT_ID);
     }
     return fallback;
+}
+
+function hasTextCall(provider: VisionProvider): provider is TextProvider {
+    return typeof provider.callText === "function";
+}
+
+/**
+ * The provider the Stylist and Behavioral (text) agents use. Mirrors getActiveProvider so the
+ * Nova/Gemini eval applies to all three agents — but if the active provider can't do text, it falls
+ * back to Nova. This keeps text generation working even if the vision provider is switched to one
+ * that (or whose server key) isn't wired for text.
+ */
+export function getTextProvider(): TextProvider {
+    const active = getActiveProvider();
+    if (active.isConfigured() && hasTextCall(active)) return active;
+
+    const nova = getProviderById("nova-2-lite");
+    if (hasTextCall(nova)) return nova;
+
+    // Both registered providers implement callText, so this is defensive only.
+    throw new Error("No text-capable vision provider is registered.");
 }

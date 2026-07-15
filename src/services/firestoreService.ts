@@ -161,6 +161,12 @@ export const firestoreService = {
         await setDoc(docRef, serializeOutfit(record));
     },
 
+    /** Mark or unmark a worn outfit as a favorite (single-field update on the existing doc). */
+    async setOutfitFavorite(uid: string, outfitId: string, favorite: boolean): Promise<void> {
+        const docRef = doc(db, 'users', uid, 'outfits', outfitId);
+        await updateDoc(docRef, { favorite });
+    },
+
     async deleteAllOutfits(uid: string): Promise<void> {
         const snapshot = await getDocs(collection(db, 'users', uid, 'outfits'));
         const batch = writeBatch(db);

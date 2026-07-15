@@ -6,10 +6,13 @@ import {
     computeLeastWornItems,
     computeWearStreak,
     describeOutfitReason,
+    getCurrentSeason,
+    getWardrobeCompleteness,
     getWardrobeReadiness,
     mapIntakeItem,
     mapStylistSuggestions,
     normalizeIntakeResponse,
+    setSeasonLatitude,
 } from "../agentOutputGuards";
 
 const mood: FashionMood = {
@@ -252,6 +255,54 @@ describe("wardrobe readiness", () => {
         const r = getWardrobeReadiness([item("s1", ClothingCategory.Shoes)]);
         expect(r.canMakeOutfit).toBe(false);
         expect(r.missingForOutfit).toEqual(["a top or jacket", "a bottom"]);
+    });
+});
+
+describe("wardrobe completeness meter", () => {
+    it("nudges toward the first outfit when the closet is empty", () => {
+        const c = getWardrobeCompleteness([]);
+        expect(c.ratio).toBe(0);
+        expect(c.nextUnlock).toContain("first outfit");
+    });
+
+    it("advances to a variety nudge once an outfit is possible but the closet is thin", () => {
+        const c = getWardrobeCompleteness([
+            item("t1", ClothingCategory.Tops),
+            item("b1", ClothingCategory.Bottoms),
+        ]);
+        // canMakeOutfit milestone met, but not the 5+ item milestone.
+        expect(c.ratio).toBeGreaterThan(0);
+        expect(c.nextUnlock).toMatch(/variety/i);
+    });
+
+    it("reports no further unlock once the closet is full and has shoes", () => {
+        const clothes = [
+            ...Array.from({ length: 6 }, (_, i) => item(`t${i}`, ClothingCategory.Tops)),
+            item("b1", ClothingCategory.Bottoms),
+            item("s1", ClothingCategory.Shoes),
+        ];
+        const c = getWardrobeCompleteness(clothes);
+        expect(c.ratio).toBe(1);
+        expect(c.nextUnlock).toBeNull();
+    });
+});
+
+describe("hemisphere-aware seasons", () => {
+    const opposite: Record<Season, Season> = {
+        [Season.Spring]: Season.Fall,
+        [Season.Summer]: Season.Winter,
+        [Season.Fall]: Season.Spring,
+        [Season.Winter]: Season.Summer,
+    };
+
+    it("flips the season for southern-hemisphere latitudes and leaves northern unchanged", () => {
+        setSeasonLatitude(40.7); // New York — northern
+        const north = getCurrentSeason();
+        setSeasonLatitude(-33.8); // Sydney — southern
+        const south = getCurrentSeason();
+        setSeasonLatitude(40.7); // restore northern so later tests see the default mapping
+        expect(south).toBe(opposite[north]);
+        expect(south).not.toBe(north);
     });
 });
 
