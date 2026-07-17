@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { ClothingCategory, Season, type ClothingItem, type FashionMood, type OutfitSuggestion, type SuggestionEvent, type WearRecord } from "../../../types";
 import { COLOR_PALETTE } from "../../../data/colorPalette";
-import { STARTER_CATALOG, buildCatalogItem, catalogImageUrl } from "../../../data/starterCatalog";
+import { STARTER_CATALOG, buildCatalogItem, buildStarterDeck, catalogImageUrl } from "../../../data/starterCatalog";
 import { extractJsonFromText } from "../../bedrockClient";
 import {
     VALID_MOODS,
@@ -450,6 +450,22 @@ describe("starter catalog integrity", () => {
             dateAdded: new Date(),
         })) as ClothingItem[];
         expect(getWardrobeReadiness(picks).canMakeOutfit).toBe(true);
+    });
+
+    it("builds a category-filtered deck for deep-links and dedupes owned colors", () => {
+        // Deep-link filter: only bottoms cards come back.
+        const bottomsOnly = buildStarterDeck([], [ClothingCategory.Bottoms]);
+        expect(bottomsOnly.length).toBeGreaterThan(0);
+        bottomsOnly.forEach((card) => expect(card.entry.category).toBe(ClothingCategory.Bottoms));
+
+        // Dedupe: owning the default-color tee removes that color but keeps the card's other colors.
+        const tee = STARTER_CATALOG.find((e) => e.slug === "tops-crew-tee")!;
+        const owned = { ...buildCatalogItem(tee), id: "own-1", dateAdded: new Date() } as ClothingItem;
+        const deck = buildStarterDeck([owned]);
+        const teeCard = deck.find((c) => c.entry.slug === "tops-crew-tee");
+        expect(teeCard).toBeDefined();
+        expect(teeCard!.colors).not.toContain(tee.colors[0]);
+        expect(teeCard!.colors.length).toBe(tee.colors.length - 1);
     });
 
     it("materializes palette-exact color name/hex pairs (3.12 contract)", () => {

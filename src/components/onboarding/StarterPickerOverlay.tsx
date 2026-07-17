@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X, CheckCircle2, Loader2 } from 'lucide-react';
 import { useWardrobe } from '../../context/WardrobeContext';
-import { STARTER_CATALOG, buildCatalogItem, catalogImageUrl, type StarterCatalogEntry } from '../../data/starterCatalog';
+import { buildCatalogItem, buildStarterDeck, catalogImageUrl, type StarterDeckCard } from '../../data/starterCatalog';
 import { COLOR_PALETTE } from '../../data/colorPalette';
 import { ClothingCategory, type ClothingItem } from '../../types';
 
@@ -17,12 +17,7 @@ import { ClothingCategory, type ClothingItem } from '../../types';
 const DOT_HINT_KEY = 'starter-picker-color-hint-v1';
 
 type Phase = 'idle' | 'deck' | 'saving' | 'done';
-
-interface DeckCard {
-    entry: StarterCatalogEntry;
-    /** Colors still offerable after de-duping against the existing wardrobe. */
-    colors: string[];
-}
+type DeckCard = StarterDeckCard;
 
 const CATEGORY_LABELS: Record<string, string> = {
     [ClothingCategory.Tops]: 'Tops',
@@ -34,17 +29,6 @@ const CATEGORY_LABELS: Record<string, string> = {
 
 function paletteHex(name: string): string {
     return COLOR_PALETTE.find((c) => c.name === name)?.hex ?? '#1C1C1C';
-}
-
-/** Deck minus what the user already owns (same subcategory + color ⇒ skip that color). */
-function buildDeck(clothes: ClothingItem[]): DeckCard[] {
-    const owned = new Set(clothes.map((c) => `${c.subcategory.toLowerCase()}|${c.color.toLowerCase()}`));
-    return STARTER_CATALOG
-        .map((entry) => ({
-            entry,
-            colors: entry.colors.filter((color) => !owned.has(`${entry.subcategory.toLowerCase()}|${color.toLowerCase()}`)),
-        }))
-        .filter((card) => card.colors.length > 0);
 }
 
 export const StarterPickerOverlay: React.FC = () => {
@@ -71,14 +55,17 @@ export const StarterPickerOverlay: React.FC = () => {
         setShownColor(first ?? '');
     };
 
-    // Open on the global event; deck is (re)built against the wardrobe at open time.
+    // Open on the global event; deck is (re)built against the wardrobe at open time. Deep-links may
+    // pass a category filter in the event detail, e.g. { categories: ['bottoms'] } from the
+    // "add a bottom" readiness callout — the progress bar collapses to the relevant segment(s).
     useEffect(() => {
-        const open = () => {
+        const open = (event: Event) => {
+            const detail = (event as CustomEvent<{ categories?: ClothingCategory[] }>).detail;
             acceptedRef.current = [];
             setAcceptedCount(0);
             setSaveError(null);
             setIdx(0);
-            const built = buildDeck(clothes);
+            const built = buildStarterDeck(clothes, detail?.categories);
             setDeck(built);
             selectDefaultFor(built[0]);
             setPhase('deck');

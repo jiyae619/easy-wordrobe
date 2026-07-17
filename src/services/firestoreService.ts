@@ -133,15 +133,6 @@ export const firestoreService = {
         await setDoc(docRef, { ...correction, createdAt: correction.createdAt.toISOString() });
     },
 
-    async deleteAllDemoItems(uid: string): Promise<void> {
-        const snapshot = await getDocs(collection(db, 'users', uid, 'wardrobe'));
-        const batch = writeBatch(db);
-        snapshot.docs
-            .filter(d => d.id.startsWith('demo-'))
-            .forEach(d => batch.delete(d.ref));
-        await batch.commit();
-    },
-
     // ------ Outfits (WearRecord) ------
 
     async getOutfits(uid: string): Promise<WearRecord[]> {

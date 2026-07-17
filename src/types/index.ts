@@ -307,12 +307,6 @@ export interface WardrobeContextType {
     /** Calculate and return user insights based on current wardrobe state */
     fetchInsights: () => Promise<void>;
 
-    /** Populate wardrobe with diverse demo data */
-    populateDemoData: () => Promise<void>;
-
-    /** Remove all demo items (those with a `demo-` id prefix) — one-tap cleanup after the demo tour */
-    clearDemoItems: () => Promise<void>;
-
     /** Batch-add starter-picker accepts as real items (one atomic Firestore batch, no Storage upload) */
     addCatalogItems: (payloads: Array<Omit<ClothingItem, 'id' | 'dateAdded'>>) => Promise<void>;
 

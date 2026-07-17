@@ -72,6 +72,28 @@ export function catalogImageUrl(entry: StarterCatalogEntry, colorName: string): 
     return `/catalog-images/${entry.slug}-${colorName.toLowerCase()}.webp`;
 }
 
+export interface StarterDeckCard {
+    entry: StarterCatalogEntry;
+    /** Colors still offerable after de-duping against the existing wardrobe. */
+    colors: string[];
+}
+
+/**
+ * Build the deck the picker walks through: the catalog minus what the user already owns
+ * (same subcategory + color ⇒ that color is dropped; a card with no colors left is skipped),
+ * optionally filtered to specific categories (deep-links, e.g. "add a bottom" → bottoms only).
+ */
+export function buildStarterDeck(clothes: ClothingItem[], categories?: ClothingCategory[]): StarterDeckCard[] {
+    const owned = new Set(clothes.map((c) => `${c.subcategory.toLowerCase()}|${c.color.toLowerCase()}`));
+    return STARTER_CATALOG
+        .filter((entry) => !categories || categories.includes(entry.category))
+        .map((entry) => ({
+            entry,
+            colors: entry.colors.filter((color) => !owned.has(`${entry.subcategory.toLowerCase()}|${color.toLowerCase()}`)),
+        }))
+        .filter((card) => card.colors.length > 0);
+}
+
 /**
  * Materialize an accepted card as a wardrobe item payload for addClothingItem
  * (which assigns the real id and dateAdded). Color name AND hex are palette-exact;

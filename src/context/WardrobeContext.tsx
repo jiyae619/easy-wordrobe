@@ -14,7 +14,6 @@ import { weatherService } from '../services/weatherService';
 import { firestoreService } from '../services/firestoreService';
 import { storageService } from '../services/storageService';
 import { useAuth } from './AuthContext';
-import { DEMO_ITEMS } from '../data/demoItems';
 
 import { awsNovaService } from "../services/awsNova";
 import { prodDiag } from '../utils/productionDiagnostics';
@@ -176,34 +175,7 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
                     throw fsErr;
                 }
 
-                // Auto-migrate stale demo items: delete all demo-* items and repopulate
-                // if any demo item has an imageUrl that isn't a stable /demo-images/ path.
-                const hasStaleDemoItems = items.some(item =>
-                    item.id.startsWith('demo-') &&
-                    !item.imageUrl?.startsWith('/demo-images/')
-                );
-                let finalItems = items;
-                if (hasStaleDemoItems) {
-                    try {
-                        await withTimeout(
-                            (async () => {
-                                await firestoreService.deleteAllDemoItems(uid);
-                                for (const item of DEMO_ITEMS) {
-                                    await firestoreService.addClothingItem(uid, item);
-                                }
-                            })(),
-                            'Stale demo migration'
-                        );
-                        prodDiag.loadUserDataStaleDemo(uid, true);
-                        const userItems = items.filter(i => !i.id.startsWith('demo-'));
-                        finalItems = [...userItems, ...DEMO_ITEMS];
-                    } catch (demoErr) {
-                        prodDiag.loadUserDataStaleDemo(uid, false, demoErr);
-                        throw demoErr;
-                    }
-                }
-
-                const normalizedItems = finalItems.map(normalizeWardrobeMoodSignals);
+                const normalizedItems = items.map(normalizeWardrobeMoodSignals);
                 setClothes(normalizedItems);
                 setOutfits(outfitRecords);
                 setBookmarkedItems(settings.bookmarkedItems || []);
@@ -526,35 +498,8 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
     const setMood = (mood: FashionMood) => setCurrentMood(mood);
 
     // --- Demo Data Population ---
-    const populateDemoData = useCallback(async () => {
-        if (!uid) return;
-        setIsLoading(true);
-
-        try {
-            // 1. Delete all existing demo items before repopulating
-            await withTimeout(firestoreService.deleteAllDemoItems(uid), 'Delete demo items');
-
-            // 2. Add fresh DEMO_ITEMS (wearFrequency: 0, lastWorn: null for clean play-around)
-            for (const item of DEMO_ITEMS) {
-                await withTimeout(firestoreService.addClothingItem(uid, item), 'Add demo item');
-            }
-            // Keep any user-uploaded items alongside fresh demo items
-            setClothes(prev => [...prev.filter(i => !i.id.startsWith('demo-')), ...DEMO_ITEMS]);
-
-            // 3. Clear outfit history so user starts with clean slate
-            await withTimeout(firestoreService.deleteAllOutfits(uid), 'Delete outfits');
-            setOutfits([]);
-        } catch (err) {
-            const msg = (err as Error)?.message || String(err);
-            console.error('[Wardrobe] Failed to populate demo data:', err);
-            const hint = (msg.includes('permission') || msg.includes('Permission') || msg.includes('insufficient'))
-                ? ' Check Firestore rules (see PRODUCTION_FIREBASE_SETUP.md).'
-                : '';
-            setError(`Failed to populate demo: ${msg}${hint}`);
-        } finally {
-            setIsLoading(false);
-        }
-    }, [uid]);
+    // Demo-closet feature removed 2026-07-18: the starter picker (zero-effort, real items) replaced
+    // its purpose. Legacy `demo-` prefixed items in existing accounts remain deletable like any item.
 
     /**
      * Batch-add starter-picker accepts as REAL items (normal UUIDs — not demo items). Images are
@@ -592,16 +537,6 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
     }, [uid]);
 
     // --- Demo cleanup (one-tap, after the demo tour) ---
-    const clearDemoItems = useCallback(async () => {
-        if (!uid) return;
-        try {
-            await firestoreService.deleteAllDemoItems(uid);
-            setClothes(prev => prev.filter(item => !item.id.startsWith('demo-')));
-        } catch (err) {
-            console.error('[Wardrobe] Failed to clear demo items:', err);
-            setError('Failed to clear demo items');
-        }
-    }, [uid]);
 
     // --- Insights ---
     // Analytics (counts, least/most worn, weekly pattern) are deterministic and recomputed in code.
@@ -695,8 +630,6 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
             setMood,
             refreshWeather,
             fetchInsights,
-            populateDemoData,
-            clearDemoItems,
             addCatalogItems,
             suggestionEvents,
             logSuggestionEvent,
