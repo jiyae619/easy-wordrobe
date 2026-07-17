@@ -97,6 +97,16 @@ export const firestoreService = {
         await setDoc(docRef, serializeItem(item));
     },
 
+    /** Add many items in one atomic batch (starter-picker accepts) — all or nothing. */
+    async addClothingItems(uid: string, items: ClothingItem[]): Promise<void> {
+        if (items.length === 0) return;
+        const batch = writeBatch(db);
+        for (const item of items) {
+            batch.set(doc(db, 'users', uid, 'wardrobe', item.id), serializeItem(item));
+        }
+        await batch.commit();
+    },
+
     async updateClothingItem(uid: string, itemId: string, updates: Partial<ClothingItem>): Promise<void> {
         const docRef = doc(db, 'users', uid, 'wardrobe', itemId);
         // Serialize date fields if present

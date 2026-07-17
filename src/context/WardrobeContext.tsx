@@ -556,6 +556,21 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
         }
     }, [uid]);
 
+    /**
+     * Batch-add starter-picker accepts as REAL items (normal UUIDs — not demo items). Images are
+     * public /catalog-images/ paths, so no Storage upload is involved; one atomic Firestore batch.
+     */
+    const addCatalogItems = useCallback(async (payloads: Array<Omit<ClothingItem, 'id' | 'dateAdded'>>) => {
+        if (!uid || payloads.length === 0) return;
+        const items: ClothingItem[] = payloads.map((p) => ({
+            ...p,
+            id: crypto.randomUUID(),
+            dateAdded: new Date(),
+        }));
+        await withTimeout(firestoreService.addClothingItems(uid, items), 'Add starter items');
+        setClothes(prev => [...items, ...prev]);
+    }, [uid]);
+
     // --- Suggestion rejection logging (feeds Stylist personalization) ---
     const logSuggestionEvent = useCallback(async (
         action: SuggestionEvent['action'],
@@ -682,6 +697,7 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
             fetchInsights,
             populateDemoData,
             clearDemoItems,
+            addCatalogItems,
             suggestionEvents,
             logSuggestionEvent,
         bookmarkedItems,

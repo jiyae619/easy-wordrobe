@@ -313,6 +313,9 @@ export interface WardrobeContextType {
     /** Remove all demo items (those with a `demo-` id prefix) — one-tap cleanup after the demo tour */
     clearDemoItems: () => Promise<void>;
 
+    /** Batch-add starter-picker accepts as real items (one atomic Firestore batch, no Storage upload) */
+    addCatalogItems: (payloads: Array<Omit<ClothingItem, 'id' | 'dateAdded'>>) => Promise<void>;
+
     /** Recent rejected-suggestion events (skipped / regenerated) — feeds Stylist personalization */
     suggestionEvents: SuggestionEvent[];
 

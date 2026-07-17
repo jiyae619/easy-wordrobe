@@ -244,10 +244,16 @@ const Home: React.FC = () => {
                         </p>
                         <div className="flex flex-col gap-2 sm:flex-row">
                             <button
-                                onClick={() => window.dispatchEvent(new CustomEvent('open-scanner'))}
+                                onClick={() => window.dispatchEvent(new CustomEvent('open-starter-picker'))}
                                 className="flex-1 inline-flex items-center justify-center px-4 py-2.5 bg-primary text-white rounded-xl font-semibold hover:bg-olive-700 transition-colors active:scale-[0.97]"
                             >
-                                Scan a staple now
+                                Pick your staples
+                            </button>
+                            <button
+                                onClick={() => window.dispatchEvent(new CustomEvent('open-scanner'))}
+                                className="flex-1 inline-flex items-center justify-center px-4 py-2.5 bg-olive-100 text-secondary rounded-xl font-semibold hover:bg-olive-200 transition-colors active:scale-[0.97]"
+                            >
+                                Scan a staple
                             </button>
                             <button
                                 onClick={() => window.dispatchEvent(new CustomEvent('open-bulk-upload'))}

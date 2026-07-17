@@ -1,7 +1,12 @@
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { ClothingCategory, Season, type ClothingItem, type FashionMood, type OutfitSuggestion, type SuggestionEvent, type WearRecord } from "../../../types";
+import { COLOR_PALETTE } from "../../../data/colorPalette";
+import { STARTER_CATALOG, buildCatalogItem, catalogImageUrl } from "../../../data/starterCatalog";
 import { extractJsonFromText } from "../../bedrockClient";
 import {
+    VALID_MOODS,
     computeDeprioritizedItemIds,
     computeLeastWornItems,
     computeWearStreak,
@@ -391,5 +396,70 @@ describe("wear streak", () => {
     it("breaks after a gap", () => {
         const result = computeWearStreak([wearOn(3), wearOn(4)]);
         expect(result.current).toBe(0);
+    });
+});
+
+// The starter catalog is the intake-BYPASS path: its items skip the vision model entirely, so this
+// suite holds it to the same vocabulary the intake guards enforce — plus asset existence, since a
+// catalog card with a broken image is a broken onboarding.
+describe("starter catalog integrity", () => {
+    const paletteNames = new Set(COLOR_PALETTE.map((c) => c.name));
+    const validSeasons = new Set(Object.values(Season));
+    const validCategories = new Set(Object.values(ClothingCategory));
+
+    it("every entry stays inside the app's enums and palette vocabulary", () => {
+        for (const entry of STARTER_CATALOG) {
+            expect(validCategories.has(entry.category), `${entry.slug} category`).toBe(true);
+            expect(entry.season.length, `${entry.slug} seasons`).toBeGreaterThan(0);
+            entry.season.forEach((s) => expect(validSeasons.has(s), `${entry.slug} season ${s}`).toBe(true));
+            expect(entry.moods.length, `${entry.slug} moods`).toBeGreaterThan(0);
+            entry.moods.forEach((m) =>
+                expect(VALID_MOODS.includes(m as typeof VALID_MOODS[number]), `${entry.slug} mood ${m}`).toBe(true));
+            entry.colors.forEach((c) => expect(paletteNames.has(c), `${entry.slug} color ${c}`).toBe(true));
+        }
+    });
+
+    it("ships a real image asset for every card color variant", () => {
+        for (const entry of STARTER_CATALOG) {
+            for (const color of entry.colors) {
+                const assetPath = join(process.cwd(), "public", catalogImageUrl(entry, color));
+                expect(existsSync(assetPath), `missing asset: ${assetPath}`).toBe(true);
+            }
+        }
+    });
+
+    it("keeps categories contiguous in deck order — the segmented progress bar depends on it", () => {
+        const seen = new Set<string>();
+        let prev: string | null = null;
+        for (const entry of STARTER_CATALOG) {
+            if (entry.category !== prev) {
+                expect(seen.has(entry.category), `category ${entry.category} appears in two separate groups`).toBe(false);
+                seen.add(entry.category);
+                prev = entry.category;
+            }
+        }
+    });
+
+    it("guarantees a stylable outfit from the first card of the Tops and Bottoms groups", () => {
+        const firstTop = STARTER_CATALOG.find((e) => e.category === ClothingCategory.Tops);
+        const firstBottom = STARTER_CATALOG.find((e) => e.category === ClothingCategory.Bottoms);
+        expect(firstTop && firstBottom).toBeTruthy();
+        const picks = [firstTop!, firstBottom!].map((entry, i) => ({
+            ...buildCatalogItem(entry),
+            id: `pick-${i}`,
+            dateAdded: new Date(),
+        })) as ClothingItem[];
+        expect(getWardrobeReadiness(picks).canMakeOutfit).toBe(true);
+    });
+
+    it("materializes palette-exact color name/hex pairs (3.12 contract)", () => {
+        const pairs = new Set(COLOR_PALETTE.map((c) => `${c.name}:${c.hex}`));
+        for (const entry of STARTER_CATALOG) {
+            for (const color of entry.colors) {
+                const built = buildCatalogItem(entry, color);
+                expect(pairs.has(`${built.color}:${built.colorHex}`), `${entry.slug} ${color}`).toBe(true);
+                expect(built.aiColor, `${entry.slug} must not fake an AI detection`).toBeUndefined();
+            }
+        }
     });
 });
