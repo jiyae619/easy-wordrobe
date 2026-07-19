@@ -4,6 +4,7 @@ import { X, CheckCircle2, Loader2 } from 'lucide-react';
 import { useWardrobe } from '../../context/WardrobeContext';
 import { buildCatalogItem, buildStarterDeck, catalogImageUrl, type StarterDeckCard } from '../../data/starterCatalog';
 import { COLOR_PALETTE } from '../../data/colorPalette';
+import { recordPickerEvent } from '../../services/agents/agentTelemetry';
 import { ClothingCategory, type ClothingItem } from '../../types';
 
 /**
@@ -46,6 +47,7 @@ export const StarterPickerOverlay: React.FC = () => {
     const acceptedRef = useRef<Array<Omit<ClothingItem, 'id' | 'dateAdded'>>>([]);
     const [acceptedCount, setAcceptedCount] = useState(0);
     const hintTimer = useRef<number | null>(null);
+    const outfitReadyFired = useRef(false);
 
     // Selection defaults are set imperatively at each advance point (open / next card) rather than
     // in an effect, so a card's default color never causes a cascading render.
@@ -62,6 +64,7 @@ export const StarterPickerOverlay: React.FC = () => {
         const open = (event: Event) => {
             const detail = (event as CustomEvent<{ categories?: ClothingCategory[] }>).detail;
             acceptedRef.current = [];
+            outfitReadyFired.current = false;
             setAcceptedCount(0);
             setSaveError(null);
             setIdx(0);
@@ -69,6 +72,7 @@ export const StarterPickerOverlay: React.FC = () => {
             setDeck(built);
             selectDefaultFor(built[0]);
             setPhase('deck');
+            recordPickerEvent('opened');
         };
         window.addEventListener('open-starter-picker', open);
         return () => window.removeEventListener('open-starter-picker', open);
@@ -117,6 +121,8 @@ export const StarterPickerOverlay: React.FC = () => {
         setSaveError(null);
         try {
             await addCatalogItems(acceptedRef.current);
+            recordPickerEvent('completed');
+            if (acceptedRef.current.length > 0) recordPickerEvent('itemsAdded', acceptedRef.current.length);
             setPhase('done');
         } catch (err) {
             console.error('[StarterPicker] Failed to save picks:', err);
@@ -131,6 +137,17 @@ export const StarterPickerOverlay: React.FC = () => {
             const picks = [...selected].map((color) => buildCatalogItem(card.entry, color));
             acceptedRef.current = [...acceptedRef.current, ...picks];
             setAcceptedCount(acceptedRef.current.length);
+
+            // Funnel signal: fire once when the in-deck accepts first satisfy the outfit rules.
+            if (!outfitReadyFired.current) {
+                const cats = new Set(acceptedRef.current.map((p) => p.category));
+                const ready = cats.has(ClothingCategory.Dresses) ||
+                    ((cats.has(ClothingCategory.Tops) || cats.has(ClothingCategory.Outerwear)) && cats.has(ClothingCategory.Bottoms));
+                if (ready) {
+                    outfitReadyFired.current = true;
+                    recordPickerEvent('outfitReady');
+                }
+            }
         }
         setShowDotHint(false);
         setLeaving(yes ? 'yes' : 'no');
@@ -297,7 +314,7 @@ export const StarterPickerOverlay: React.FC = () => {
                             {acceptedCount > 0 ? `Added ${acceptedCount} item${acceptedCount === 1 ? '' : 's'} to your closet` : 'No items added'}
                         </h3>
                         <p className="text-sm text-olive-500 mb-5">
-                            {acceptedCount > 0 ? 'Your staples are in — let’s put them to work.' : 'No problem — you can scan your own pieces anytime.'}
+                            {acceptedCount > 0 ? 'Your basics are in — let’s put them to work.' : 'No problem — you can scan your own pieces anytime.'}
                         </p>
                         {acceptedCount > 0 ? (
                             <button

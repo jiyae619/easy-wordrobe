@@ -11,6 +11,7 @@ import {
 } from "../../types";
 import { AgentError, type AgentName } from "./agentErrors";
 import { nearestPaletteColor } from "../../data/colorPalette";
+import { isStockPhoto } from "../../data/starterCatalog";
 
 export const VALID_MOODS = [
     "professional",
@@ -183,6 +184,8 @@ export interface WardrobeCompleteness {
     stage: string;
     /** The single most valuable next addition, or null once the starter closet is complete. */
     nextUnlock: string | null;
+    /** Structured id of the next milestone, so UIs can act on it (e.g. deep-link a shoes-only picker deck). */
+    nextUnlockKey: "outfit" | "variety" | "shoes" | "stock" | null;
 }
 
 /**
@@ -193,16 +196,26 @@ export interface WardrobeCompleteness {
  */
 export function getWardrobeCompleteness(clothes: ClothingItem[]): WardrobeCompleteness {
     const readiness = getWardrobeReadiness(clothes);
-    const milestones: Array<{ met: boolean; unlock: string }> = [
+    // Provenance-by-URL: starter-picker items keep their catalog stock photo until replaced.
+    const stockCount = clothes.filter(isStockPhoto).length;
+    const milestones: Array<{ key: WardrobeCompleteness["nextUnlockKey"] & string; met: boolean; unlock: string }> = [
         {
+            key: "outfit",
             met: readiness.canMakeOutfit,
             unlock: readiness.missingForOutfit.length > 0
                 ? `Add ${readiness.missingForOutfit.join(" and ")} to make your first outfit`
                 : "Add a top and a bottom to make your first outfit",
         },
-        { met: clothes.length >= 5, unlock: "Add a few more pieces for outfit variety" },
-        { met: clothes.length >= 8, unlock: "A few more pieces unlock richer combinations" },
-        { met: readiness.hasShoes, unlock: "Add shoes to finish your looks" },
+        { key: "variety", met: clothes.length >= 5, unlock: "Add a few more pieces for outfit variety" },
+        { key: "variety", met: clothes.length >= 8, unlock: "A few more pieces unlock richer combinations" },
+        { key: "shoes", met: readiness.hasShoes, unlock: "Add shoes to finish your looks" },
+        {
+            key: "stock",
+            // Met only for a non-empty closet: an empty wardrobe trivially has no stock photos but
+            // hasn't earned this milestone.
+            met: clothes.length > 0 && stockCount === 0,
+            unlock: `Make it yours — replace ${stockCount || "your"} stock photo${stockCount === 1 ? "" : "s"} with your own shots`,
+        },
     ];
     const metCount = milestones.filter((m) => m.met).length;
     const next = milestones.find((m) => !m.met) ?? null;
@@ -211,7 +224,7 @@ export function getWardrobeCompleteness(clothes: ClothingItem[]): WardrobeComple
         : metCount === 0
             ? "Just getting started"
             : "Building your closet";
-    return { ratio: metCount / milestones.length, stage, nextUnlock: next?.unlock ?? null };
+    return { ratio: metCount / milestones.length, stage, nextUnlock: next?.unlock ?? null, nextUnlockKey: next?.key ?? null };
 }
 
 export function normalizeIntakeResponse(raw: unknown): IntakeNormalization {

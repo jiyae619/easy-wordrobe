@@ -29,6 +29,7 @@
 //   --width/-w <px>   default 1024
 //   --height/-h <px>  default 1024
 //   --noisy-frac <f>  fraction [0..1] of images with a cluttered background (default 0)
+//   --category <cat>  generate only this category (e.g. shoes) — filters the sampled matrix
 //   --limit <n>       stop after n images (smoke test)
 //   --until <epoch>   stop before starting any image past this UNIX time (seconds) —
 //                     time-bounded run; pair with a large --count so the clock is the limit
@@ -57,6 +58,7 @@ function parseArgs(argv) {
         width: 1024,
         height: 1024,
         noisyFrac: 0,
+        category: null, // generate only this category (e.g. "shoes") — filters the matrix
         limit: Infinity,
         until: Infinity, // epoch ms; stop before starting any image past this wall-clock time
         maxConsecFails: 5, // abort after this many failures in a row (engine/system breakage)
@@ -75,6 +77,7 @@ function parseArgs(argv) {
             case "--width": case "-w": a.width = Number(next()); break;
             case "--height": case "-h": a.height = Number(next()); break;
             case "--noisy-frac": a.noisyFrac = Number(next()); break;
+            case "--category": a.category = next(); break;
             case "--limit": a.limit = Number(next()); break;
             case "--until": a.until = Number(next()) * 1000; break; // epoch SECONDS
             case "--max-consec-fails": a.maxConsecFails = Number(next()); break;
@@ -102,11 +105,14 @@ function isNoisy(index, frac) {
 
 async function main() {
     const args = parseArgs(process.argv.slice(2));
-    const combos = args.bakeoff
+    const allCombos = args.bakeoff
         ? bakeoffMatrix()
         : args.perCategory
             ? perCategoryMatrix({ total: args.count })
             : sampleMatrix({ count: args.count });
+    const combos = args.category
+        ? allCombos.filter((c) => c.category === args.category)
+        : allCombos;
     const engine = getEngine(args.engine);
 
     // Resolve output dir: <out> for --flat, else <out>/<engine-id>.

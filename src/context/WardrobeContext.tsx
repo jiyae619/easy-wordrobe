@@ -328,6 +328,33 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
         }
     }, [uid, clothes]);
 
+    /**
+     * Replace an item's photo with the user's own shot (e.g. swapping out a catalog stock photo).
+     * Uploads to Storage under the item's id and updates the item in place; returns the new URL.
+     */
+    const replaceItemPhoto = useCallback(async (id: string, imageDataUrl: string): Promise<string | undefined> => {
+        if (!uid) return undefined;
+        try {
+            const downloadUrl = await withTimeout(
+                storageService.uploadClothingImage(uid, id, imageDataUrl),
+                'Storage upload'
+            );
+            const updates: Partial<ClothingItem> = {
+                imageUrl: downloadUrl,
+                sourceImageUrl: downloadUrl,
+                thumbnailUrl: downloadUrl,
+                thumbnailVersion: THUMBNAIL_VERSION,
+            };
+            await firestoreService.updateClothingItem(uid, id, updates);
+            setClothes(prev => prev.map(item => item.id === id ? { ...item, ...updates } : item));
+            return downloadUrl;
+        } catch (err) {
+            console.error('[Wardrobe] Failed to replace item photo:', err);
+            setError('Failed to replace the photo');
+            throw err;
+        }
+    }, [uid]);
+
     const deleteClothingItem = useCallback(async (id: string) => {
         if (!uid) return;
         try {
@@ -622,6 +649,7 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
             addClothingItem,
             updateClothingItem,
             correctItemColor,
+            replaceItemPhoto,
             deleteClothingItem,
             incrementWearCount,
             decrementWearCount,

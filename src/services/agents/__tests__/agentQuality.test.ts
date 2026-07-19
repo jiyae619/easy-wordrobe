@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { ClothingCategory, Season, type ClothingItem, type FashionMood, type OutfitSuggestion, type SuggestionEvent, type WearRecord } from "../../../types";
 import { COLOR_PALETTE } from "../../../data/colorPalette";
 import { STARTER_CATALOG, buildCatalogItem, buildStarterDeck, catalogImageUrl } from "../../../data/starterCatalog";
+import { drainAgentMetricTally, recordPickerEvent } from "../agentTelemetry";
 import { extractJsonFromText } from "../../bedrockClient";
 import {
     VALID_MOODS,
@@ -289,6 +290,50 @@ describe("wardrobe completeness meter", () => {
         const c = getWardrobeCompleteness(clothes);
         expect(c.ratio).toBe(1);
         expect(c.nextUnlock).toBeNull();
+    });
+
+    it("identifies shoes as the next unlock with a structured key for the deep-link", () => {
+        const clothes = [
+            ...Array.from({ length: 7 }, (_, i) => item(`t${i}`, ClothingCategory.Tops)),
+            item("b1", ClothingCategory.Bottoms),
+        ];
+        const c = getWardrobeCompleteness(clothes);
+        expect(c.nextUnlockKey).toBe("shoes");
+        // ...and the shoes-only deck the deep-link opens has real cards behind it.
+        const shoesDeck = buildStarterDeck([], [ClothingCategory.Shoes]);
+        expect(shoesDeck.length).toBeGreaterThanOrEqual(3);
+        shoesDeck.forEach((card) => expect(card.entry.category).toBe(ClothingCategory.Shoes));
+    });
+
+    it("nudges to replace stock photos as the final milestone", () => {
+        const clothes = [
+            ...Array.from({ length: 6 }, (_, i) => item(`t${i}`, ClothingCategory.Tops)),
+            item("b1", ClothingCategory.Bottoms),
+            item("s1", ClothingCategory.Shoes),
+            // Two starter-picker items still wearing their catalog stock photos
+            { ...item("p1", ClothingCategory.Tops), imageUrl: "/catalog-images/tops-crew-tee-white.webp" },
+            { ...item("p2", ClothingCategory.Bottoms), imageUrl: "/catalog-images/bottoms-slim-jeans-blue.webp" },
+        ];
+        const c = getWardrobeCompleteness(clothes);
+        expect(c.ratio).toBeLessThan(1);
+        expect(c.nextUnlock).toMatch(/replace 2 stock photos/i);
+    });
+});
+
+describe("picker funnel telemetry", () => {
+    it("accumulates picker counters under the agent-health tally keys", () => {
+        drainAgentMetricTally(); // isolate from other tests
+        recordPickerEvent("opened");
+        recordPickerEvent("outfitReady");
+        recordPickerEvent("completed");
+        recordPickerEvent("itemsAdded", 7);
+        const drained = drainAgentMetricTally();
+        expect(drained.pickerOpened).toBe(1);
+        expect(drained.pickerOutfitReady).toBe(1);
+        expect(drained.pickerCompleted).toBe(1);
+        expect(drained.pickerItemsAdded).toBe(7);
+        // Drained means drained: a second drain is empty.
+        expect(Object.keys(drainAgentMetricTally())).toHaveLength(0);
     });
 });
 

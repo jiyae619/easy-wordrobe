@@ -33,7 +33,7 @@ export const WardrobeGrid: React.FC<WardrobeGridProps> = ({ items, isLoading }) 
                 </div>
                 <h3 className="text-lg font-semibold text-primary mb-1">Your wardrobe is empty</h3>
                 <p className="text-gray-500 mb-6 max-w-md text-sm">
-                    Start building your digital closet by picking common staples or scanning your own pieces.
+                    Start building your digital closet by picking common basics or scanning your own pieces.
                 </p>
                 <div className="flex flex-col w-full gap-3 px-4">
                     <button
@@ -41,7 +41,7 @@ export const WardrobeGrid: React.FC<WardrobeGridProps> = ({ items, isLoading }) 
                         className="inline-flex items-center justify-center px-5 py-3 bg-primary text-white rounded-xl font-medium hover:bg-olive-700 transition-all active:scale-[0.97]"
                     >
                         <Plus className="w-4 h-4 mr-2" />
-                        Pick my staples
+                        Pick my basics
                     </button>
                     <button
                         onClick={() => window.dispatchEvent(new CustomEvent('open-scanner'))}

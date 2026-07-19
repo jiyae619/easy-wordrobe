@@ -65,11 +65,23 @@ export const STARTER_CATALOG: StarterCatalogEntry[] = [
     // --- Dresses ---
     { slug: 'dresses-wrap-dress', label: 'Wrap Dress', category: ClothingCategory.Dresses, subcategory: 'Wrap Dress', colors: ['Black', 'Navy', 'Olive', 'Pink'], season: [Spring, Summer, Fall], moods: ['romantic', 'professional'] },
     { slug: 'dresses-sundress', label: 'Sundress', category: ClothingCategory.Dresses, subcategory: 'Sundress', colors: ['White', 'Blue', 'Pink', 'Cream'], season: [Spring, Summer], moods: ['romantic', 'casual'] },
+    // --- Shoes ---
+    { slug: 'shoes-sneakers', label: 'Sneakers', category: ClothingCategory.Shoes, subcategory: 'Low-Top Sneakers', colors: ['White', 'Black', 'Grey', 'Navy'], season: [Spring, Summer, Fall], moods: ['casual', 'sporty'] },
+    { slug: 'shoes-ankle-boots', label: 'Ankle Boots', category: ClothingCategory.Shoes, subcategory: 'Ankle Boots', colors: ['Black', 'Brown', 'Beige'], season: [Fall, Winter], moods: ['casual', 'professional'] },
+    { slug: 'shoes-loafers', label: 'Loafers', category: ClothingCategory.Shoes, subcategory: 'Penny Loafers', colors: ['Brown', 'Black', 'Beige'], season: [Spring, Fall], moods: ['professional', 'casual'] },
 ];
 
 /** Public URL of a catalog card's image for a given palette color name. */
 export function catalogImageUrl(entry: StarterCatalogEntry, colorName: string): string {
     return `/catalog-images/${entry.slug}-${colorName.toLowerCase()}.webp`;
+}
+
+/**
+ * True when an item still wears its catalog stock photo (provenance is the URL prefix by design —
+ * no schema field). Replacing the photo with the user's own shot clears this automatically.
+ */
+export function isStockPhoto(item: Pick<ClothingItem, 'imageUrl'>): boolean {
+    return item.imageUrl.startsWith('/catalog-images/');
 }
 
 export interface StarterDeckCard {

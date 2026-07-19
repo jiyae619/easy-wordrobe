@@ -278,6 +278,8 @@ export interface WardrobeContextType {
 
     /** Correct an item's color from the palette — updates the item and logs the {AI → user} pair as eval data */
     correctItemColor: (id: string, userColor: { name: string; hex: string }) => Promise<void>;
+    /** Replace an item's photo with the user's own shot; returns the uploaded image URL */
+    replaceItemPhoto: (id: string, imageDataUrl: string) => Promise<string | undefined>;
 
     /** Delete a clothing item by ID */
     deleteClothingItem: (id: string) => Promise<void>;

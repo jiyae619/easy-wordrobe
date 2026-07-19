@@ -200,7 +200,7 @@ const Home: React.FC = () => {
                                 }}
                                 className="flex-1 inline-flex items-center justify-center px-4 py-2.5 bg-primary text-white rounded-xl font-semibold hover:bg-olive-700 transition-colors active:scale-[0.97]"
                             >
-                                Pick staples
+                                Pick basics
                             </button>
                             <button
                                 onClick={() => window.dispatchEvent(new CustomEvent('open-scanner'))}
@@ -229,14 +229,14 @@ const Home: React.FC = () => {
                             />
                         </div>
                         <p className="text-sm text-olive-600 mb-4">
-                            Start with your most-worn staples. One shelf photo can detect multiple items and unlock better suggestions faster.
+                            Start with your most-worn basics. One shelf photo can detect multiple items and unlock better suggestions faster.
                         </p>
                         <div className="flex flex-col gap-2 sm:flex-row">
                             <button
                                 onClick={() => window.dispatchEvent(new CustomEvent('open-starter-picker'))}
                                 className="flex-1 inline-flex items-center justify-center px-4 py-2.5 bg-primary text-white rounded-xl font-semibold hover:bg-olive-700 transition-colors active:scale-[0.97]"
                             >
-                                Pick my staples
+                                Pick my basics
                             </button>
                             <button
                                 onClick={() => window.dispatchEvent(new CustomEvent('open-scanner'))}
@@ -265,10 +265,13 @@ const Home: React.FC = () => {
                         <p className="text-sm text-olive-600 mb-4">{completeness.nextUnlock}.</p>
                         <div className="flex flex-col gap-2 sm:flex-row">
                             <button
-                                onClick={() => window.dispatchEvent(new CustomEvent('open-starter-picker'))}
+                                onClick={() => window.dispatchEvent(new CustomEvent('open-starter-picker', {
+                                    // "Add shoes" advice deep-links straight to the shoes cards.
+                                    detail: completeness.nextUnlockKey === 'shoes' ? { categories: [ClothingCategory.Shoes] } : undefined,
+                                }))}
                                 className="flex-1 inline-flex items-center justify-center px-4 py-2.5 bg-primary text-white rounded-xl font-semibold hover:bg-olive-700 transition-colors active:scale-[0.97]"
                             >
-                                Pick staples
+                                Pick basics
                             </button>
                             <button
                                 onClick={() => window.dispatchEvent(new CustomEvent('open-scanner'))}
@@ -424,7 +427,7 @@ const Home: React.FC = () => {
                         <div className="p-3 bg-olive-100 rounded-full w-fit mx-auto mb-3">
                             <Sparkles className="w-6 h-6 text-secondary" />
                         </div>
-                        <h3 className="font-semibold text-primary mb-1">Start with 5 staples</h3>
+                        <h3 className="font-semibold text-primary mb-1">Start with 5 basics</h3>
                         <p className="text-sm text-olive-500 mb-6">
                             Photograph your most-worn items first. A single shelf photo can capture multiple pieces.
                         </p>
@@ -433,7 +436,7 @@ const Home: React.FC = () => {
                                 onClick={() => window.dispatchEvent(new CustomEvent('open-starter-picker'))}
                                 className="w-full inline-flex items-center justify-center px-6 py-3 bg-primary text-white rounded-xl font-medium hover:bg-olive-700 transition-all active:scale-[0.97]"
                             >
-                                Pick my staples
+                                Pick my basics
                             </button>
                             <button
                                 onClick={() => window.dispatchEvent(new CustomEvent('open-scanner'))}

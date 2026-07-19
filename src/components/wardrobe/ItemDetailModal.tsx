@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
-import { X, Trash2, Calendar, Hash, Sparkles, Check } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import { X, Trash2, Calendar, Hash, Sparkles, Check, Camera, Loader2 } from 'lucide-react';
 import { type ClothingItem, ClothingCategory } from '../../types';
 import { useWardrobe } from '../../context/WardrobeContext';
 import { format, differenceInDays } from 'date-fns';
 import { awsNovaService } from '../../services/awsNova';
 import { COLOR_PALETTE } from '../../data/colorPalette';
+import { isStockPhoto } from '../../data/starterCatalog';
+import { compressImage } from '../../utils/imageUtils';
 
 interface ItemDetailModalProps {
     item: ClothingItem;
@@ -12,10 +14,14 @@ interface ItemDetailModalProps {
 }
 
 export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({ item, onClose }) => {
-    const { deleteClothingItem, updateClothingItem, correctItemColor } = useWardrobe();
+    const { deleteClothingItem, updateClothingItem, correctItemColor, replaceItemPhoto } = useWardrobe();
     const [isReanalyzing, setIsReanalyzing] = useState(false);
     const [displayColor, setDisplayColor] = useState<{ name: string; hex: string }>({ name: item.color, hex: item.colorHex });
     const [colorSheetOpen, setColorSheetOpen] = useState(false);
+    const [displayImage, setDisplayImage] = useState(item.imageUrl);
+    const [showStockBadge, setShowStockBadge] = useState(isStockPhoto(item));
+    const [isReplacingPhoto, setIsReplacingPhoto] = useState(false);
+    const photoInputRef = useRef<HTMLInputElement>(null);
 
     const [displayName, setDisplayName] = useState(item.subcategory);
     const [displayCategory, setDisplayCategory] = useState<ClothingCategory>(item.category);
@@ -42,6 +48,32 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({ item, onClose 
         if (window.confirm('Are you sure you want to delete this item?')) {
             await deleteClothingItem(item.id);
             onClose();
+        }
+    };
+
+    const handleReplacePhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        e.target.value = ''; // allow re-selecting the same file
+        if (!file) return;
+        setIsReplacingPhoto(true);
+        try {
+            const dataUrl = await new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result as string);
+                reader.onerror = () => reject(new Error('Could not read the photo'));
+                reader.readAsDataURL(file);
+            });
+            const compressed = await compressImage(dataUrl, 510, 0.85);
+            const newUrl = await replaceItemPhoto(item.id, compressed);
+            if (newUrl) {
+                setDisplayImage(newUrl);
+                setShowStockBadge(false);
+            }
+        } catch (error) {
+            console.error('[ItemDetailModal] Photo replacement failed:', error);
+            alert('Could not replace the photo right now.');
+        } finally {
+            setIsReplacingPhoto(false);
         }
     };
 
@@ -108,11 +140,38 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({ item, onClose 
                 {/* Image Header — fixed height, clipped */}
                 <div className="relative flex-shrink-0 overflow-hidden bg-gray-100 flex items-center justify-center" style={{ height: '220px' }}>
                     <img
-                        src={item.imageUrl}
+                        src={displayImage}
                         alt={item.subcategory}
                         style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', padding: '8px' }}
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
+
+                    {/* Stock-photo provenance + one-tap replacement with the user's own shot */}
+                    <input
+                        ref={photoInputRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleReplacePhoto}
+                    />
+                    {showStockBadge && (
+                        <>
+                            <span className="absolute top-3 left-3 px-2.5 py-1 bg-black/50 backdrop-blur-md text-white text-[10px] font-semibold rounded-full">
+                                Stock photo
+                            </span>
+                            <button
+                                onClick={() => photoInputRef.current?.click()}
+                                disabled={isReplacingPhoto}
+                                className="absolute bottom-3 left-3 inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/90 backdrop-blur-md text-primary text-xs font-semibold rounded-full hover:bg-white transition-colors active:scale-[0.97] disabled:opacity-60"
+                            >
+                                {isReplacingPhoto ? (
+                                    <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Uploading…</>
+                                ) : (
+                                    <><Camera className="w-3.5 h-3.5" /> Use my photo</>
+                                )}
+                            </button>
+                        </>
+                    )}
 
                     <button
                         onClick={onClose}
