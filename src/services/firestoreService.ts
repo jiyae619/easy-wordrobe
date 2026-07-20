@@ -97,6 +97,16 @@ export const firestoreService = {
         await setDoc(docRef, serializeItem(item));
     },
 
+    /** Add many items in one atomic batch (starter-picker accepts) — all or nothing. */
+    async addClothingItems(uid: string, items: ClothingItem[]): Promise<void> {
+        if (items.length === 0) return;
+        const batch = writeBatch(db);
+        for (const item of items) {
+            batch.set(doc(db, 'users', uid, 'wardrobe', item.id), serializeItem(item));
+        }
+        await batch.commit();
+    },
+
     async updateClothingItem(uid: string, itemId: string, updates: Partial<ClothingItem>): Promise<void> {
         const docRef = doc(db, 'users', uid, 'wardrobe', itemId);
         // Serialize date fields if present
@@ -121,15 +131,6 @@ export const firestoreService = {
     async logColorCorrection(uid: string, correction: ColorCorrection): Promise<void> {
         const docRef = doc(db, 'users', uid, 'colorCorrections', correction.id);
         await setDoc(docRef, { ...correction, createdAt: correction.createdAt.toISOString() });
-    },
-
-    async deleteAllDemoItems(uid: string): Promise<void> {
-        const snapshot = await getDocs(collection(db, 'users', uid, 'wardrobe'));
-        const batch = writeBatch(db);
-        snapshot.docs
-            .filter(d => d.id.startsWith('demo-'))
-            .forEach(d => batch.delete(d.ref));
-        await batch.commit();
     },
 
     // ------ Outfits (WearRecord) ------

@@ -12,6 +12,7 @@ import Login from './pages/Login';
 import DevModelTest from './pages/DevModelTest';
 import { CameraScannerOverlay } from './components/upload/CameraScannerOverlay';
 import { BulkUploadOverlay } from './components/upload/BulkUploadOverlay';
+import { StarterPickerOverlay } from './components/onboarding/StarterPickerOverlay';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import UserMenu from './components/common/UserMenu';
 import { useWardrobe } from './context/WardrobeContext';
@@ -143,6 +144,9 @@ const Layout = () => {
 
         {/* Bulk gallery intake (listens for the `open-bulk-upload` event) */}
         <BulkUploadOverlay />
+
+        {/* Starter closet picker (listens for the `open-starter-picker` event) */}
+        <StarterPickerOverlay />
 
       </div>
     </div>

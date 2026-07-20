@@ -14,7 +14,6 @@ import { weatherService } from '../services/weatherService';
 import { firestoreService } from '../services/firestoreService';
 import { storageService } from '../services/storageService';
 import { useAuth } from './AuthContext';
-import { DEMO_ITEMS } from '../data/demoItems';
 
 import { awsNovaService } from "../services/awsNova";
 import { prodDiag } from '../utils/productionDiagnostics';
@@ -176,34 +175,7 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
                     throw fsErr;
                 }
 
-                // Auto-migrate stale demo items: delete all demo-* items and repopulate
-                // if any demo item has an imageUrl that isn't a stable /demo-images/ path.
-                const hasStaleDemoItems = items.some(item =>
-                    item.id.startsWith('demo-') &&
-                    !item.imageUrl?.startsWith('/demo-images/')
-                );
-                let finalItems = items;
-                if (hasStaleDemoItems) {
-                    try {
-                        await withTimeout(
-                            (async () => {
-                                await firestoreService.deleteAllDemoItems(uid);
-                                for (const item of DEMO_ITEMS) {
-                                    await firestoreService.addClothingItem(uid, item);
-                                }
-                            })(),
-                            'Stale demo migration'
-                        );
-                        prodDiag.loadUserDataStaleDemo(uid, true);
-                        const userItems = items.filter(i => !i.id.startsWith('demo-'));
-                        finalItems = [...userItems, ...DEMO_ITEMS];
-                    } catch (demoErr) {
-                        prodDiag.loadUserDataStaleDemo(uid, false, demoErr);
-                        throw demoErr;
-                    }
-                }
-
-                const normalizedItems = finalItems.map(normalizeWardrobeMoodSignals);
+                const normalizedItems = items.map(normalizeWardrobeMoodSignals);
                 setClothes(normalizedItems);
                 setOutfits(outfitRecords);
                 setBookmarkedItems(settings.bookmarkedItems || []);
@@ -355,6 +327,33 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
             setError('Failed to update color');
         }
     }, [uid, clothes]);
+
+    /**
+     * Replace an item's photo with the user's own shot (e.g. swapping out a catalog stock photo).
+     * Uploads to Storage under the item's id and updates the item in place; returns the new URL.
+     */
+    const replaceItemPhoto = useCallback(async (id: string, imageDataUrl: string): Promise<string | undefined> => {
+        if (!uid) return undefined;
+        try {
+            const downloadUrl = await withTimeout(
+                storageService.uploadClothingImage(uid, id, imageDataUrl),
+                'Storage upload'
+            );
+            const updates: Partial<ClothingItem> = {
+                imageUrl: downloadUrl,
+                sourceImageUrl: downloadUrl,
+                thumbnailUrl: downloadUrl,
+                thumbnailVersion: THUMBNAIL_VERSION,
+            };
+            await firestoreService.updateClothingItem(uid, id, updates);
+            setClothes(prev => prev.map(item => item.id === id ? { ...item, ...updates } : item));
+            return downloadUrl;
+        } catch (err) {
+            console.error('[Wardrobe] Failed to replace item photo:', err);
+            setError('Failed to replace the photo');
+            throw err;
+        }
+    }, [uid]);
 
     const deleteClothingItem = useCallback(async (id: string) => {
         if (!uid) return;
@@ -526,34 +525,22 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
     const setMood = (mood: FashionMood) => setCurrentMood(mood);
 
     // --- Demo Data Population ---
-    const populateDemoData = useCallback(async () => {
-        if (!uid) return;
-        setIsLoading(true);
+    // Demo-closet feature removed 2026-07-18: the starter picker (zero-effort, real items) replaced
+    // its purpose. Legacy `demo-` prefixed items in existing accounts remain deletable like any item.
 
-        try {
-            // 1. Delete all existing demo items before repopulating
-            await withTimeout(firestoreService.deleteAllDemoItems(uid), 'Delete demo items');
-
-            // 2. Add fresh DEMO_ITEMS (wearFrequency: 0, lastWorn: null for clean play-around)
-            for (const item of DEMO_ITEMS) {
-                await withTimeout(firestoreService.addClothingItem(uid, item), 'Add demo item');
-            }
-            // Keep any user-uploaded items alongside fresh demo items
-            setClothes(prev => [...prev.filter(i => !i.id.startsWith('demo-')), ...DEMO_ITEMS]);
-
-            // 3. Clear outfit history so user starts with clean slate
-            await withTimeout(firestoreService.deleteAllOutfits(uid), 'Delete outfits');
-            setOutfits([]);
-        } catch (err) {
-            const msg = (err as Error)?.message || String(err);
-            console.error('[Wardrobe] Failed to populate demo data:', err);
-            const hint = (msg.includes('permission') || msg.includes('Permission') || msg.includes('insufficient'))
-                ? ' Check Firestore rules (see PRODUCTION_FIREBASE_SETUP.md).'
-                : '';
-            setError(`Failed to populate demo: ${msg}${hint}`);
-        } finally {
-            setIsLoading(false);
-        }
+    /**
+     * Batch-add starter-picker accepts as REAL items (normal UUIDs — not demo items). Images are
+     * public /catalog-images/ paths, so no Storage upload is involved; one atomic Firestore batch.
+     */
+    const addCatalogItems = useCallback(async (payloads: Array<Omit<ClothingItem, 'id' | 'dateAdded'>>) => {
+        if (!uid || payloads.length === 0) return;
+        const items: ClothingItem[] = payloads.map((p) => ({
+            ...p,
+            id: crypto.randomUUID(),
+            dateAdded: new Date(),
+        }));
+        await withTimeout(firestoreService.addClothingItems(uid, items), 'Add starter items');
+        setClothes(prev => [...items, ...prev]);
     }, [uid]);
 
     // --- Suggestion rejection logging (feeds Stylist personalization) ---
@@ -577,16 +564,6 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
     }, [uid]);
 
     // --- Demo cleanup (one-tap, after the demo tour) ---
-    const clearDemoItems = useCallback(async () => {
-        if (!uid) return;
-        try {
-            await firestoreService.deleteAllDemoItems(uid);
-            setClothes(prev => prev.filter(item => !item.id.startsWith('demo-')));
-        } catch (err) {
-            console.error('[Wardrobe] Failed to clear demo items:', err);
-            setError('Failed to clear demo items');
-        }
-    }, [uid]);
 
     // --- Insights ---
     // Analytics (counts, least/most worn, weekly pattern) are deterministic and recomputed in code.
@@ -672,6 +649,7 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
             addClothingItem,
             updateClothingItem,
             correctItemColor,
+            replaceItemPhoto,
             deleteClothingItem,
             incrementWearCount,
             decrementWearCount,
@@ -680,8 +658,7 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
             setMood,
             refreshWeather,
             fetchInsights,
-            populateDemoData,
-            clearDemoItems,
+            addCatalogItems,
             suggestionEvents,
             logSuggestionEvent,
         bookmarkedItems,

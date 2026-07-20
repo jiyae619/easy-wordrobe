@@ -34,8 +34,19 @@ const metrics: AgentMetric[] = [];
  */
 const metricTally: Record<string, number> = {};
 
-function bumpTally(key: string): void {
-    metricTally[key] = (metricTally[key] ?? 0) + 1;
+function bumpTally(key: string, count = 1): void {
+    metricTally[key] = (metricTally[key] ?? 0) + count;
+}
+
+export type PickerEvent = "opened" | "completed" | "itemsAdded" | "outfitReady";
+
+/**
+ * Starter-picker funnel counters (pickerOpened / pickerCompleted / pickerItemsAdded /
+ * pickerOutfitReady). Ride the same tally + drain + agentHealth flush as the agent KPIs, so
+ * picker completion rate is observable next to fallback rate with zero extra plumbing.
+ */
+export function recordPickerEvent(event: PickerEvent, count = 1): void {
+    bumpTally(`picker${event.charAt(0).toUpperCase()}${event.slice(1)}`, count);
 }
 
 /** Return the accumulated counters since the last drain and reset them. */

@@ -7,11 +7,11 @@
 // update this file too.
 //
 // Every value below is chosen so generated labels land IN-VOCABULARY for:
-//   - IntakeAgent.ts        (the 4 categories, 4 seasons, 5 moods)
+//   - IntakeAgent.ts        (the 5 categories, 4 seasons, 5 moods)
 //   - scripts/eval/score.mjs (expectedCategory / expectedColorHex / expectedMoods / expectedSeasons)
 
-/** The only categories the app supports. No shoes, no accessories. */
-export const CATEGORIES = ["tops", "bottoms", "outerwear", "dresses"];
+/** The categories the app supports (shoes shipped in the Phase-2 maturity pass). No accessories. */
+export const CATEGORIES = ["tops", "bottoms", "outerwear", "dresses", "shoes"];
 
 export const VALID_SEASONS = ["spring", "summer", "fall", "winter"];
 export const VALID_MOODS = ["professional", "casual", "sporty", "creative", "romantic"];
@@ -49,6 +49,7 @@ export const SEASON_BY_CATEGORY = {
     bottoms: ["spring", "fall", "winter"],
     outerwear: ["fall", "winter"],
     dresses: ["spring", "summer"],
+    shoes: ["spring", "summer", "fall", "winter"],
 };
 
 // Mirror of src/data/demoItems.ts userMoodsMap — per-category moods, used as the
@@ -58,6 +59,7 @@ export const MOODS_BY_CATEGORY = {
     bottoms: ["casual", "sporty"],
     outerwear: ["professional", "casual"],
     dresses: ["romantic", "creative"],
+    shoes: ["casual", "sporty"],
 };
 
 // Subcategories per category. Each carries:
@@ -95,6 +97,12 @@ export const SUBCATEGORIES = {
         { slug: "slip-dress", phrase: "slip dress", keywords: ["slip dress", "slip", "dress"], moods: ["romantic", "creative"], seasons: ["summer"] },
         { slug: "shirt-dress", phrase: "shirt dress", keywords: ["shirt dress", "shirtdress", "dress"], moods: ["casual", "professional"], seasons: ["spring", "summer", "fall"] },
         { slug: "sundress", phrase: "summer sundress", keywords: ["sundress", "dress", "summer"], moods: ["romantic", "casual"], seasons: ["summer"] },
+    ],
+    // Presentation note: shoes render as a floor-standing pair, not on a hanger — see prompt.mjs.
+    shoes: [
+        { slug: "sneakers", phrase: "low-top leather sneakers", keywords: ["sneaker", "sneakers", "trainer", "shoe"], moods: ["casual", "sporty"], seasons: ["spring", "summer", "fall"] },
+        { slug: "ankle-boots", phrase: "leather ankle boots", keywords: ["boot", "boots", "ankle"], moods: ["casual", "professional"], seasons: ["fall", "winter"] },
+        { slug: "loafers", phrase: "leather penny loafers", keywords: ["loafer", "loafers", "shoe"], moods: ["professional", "casual"], seasons: ["spring", "fall"] },
     ],
 };
 

@@ -278,6 +278,8 @@ export interface WardrobeContextType {
 
     /** Correct an item's color from the palette — updates the item and logs the {AI → user} pair as eval data */
     correctItemColor: (id: string, userColor: { name: string; hex: string }) => Promise<void>;
+    /** Replace an item's photo with the user's own shot; returns the uploaded image URL */
+    replaceItemPhoto: (id: string, imageDataUrl: string) => Promise<string | undefined>;
 
     /** Delete a clothing item by ID */
     deleteClothingItem: (id: string) => Promise<void>;
@@ -307,11 +309,8 @@ export interface WardrobeContextType {
     /** Calculate and return user insights based on current wardrobe state */
     fetchInsights: () => Promise<void>;
 
-    /** Populate wardrobe with diverse demo data */
-    populateDemoData: () => Promise<void>;
-
-    /** Remove all demo items (those with a `demo-` id prefix) — one-tap cleanup after the demo tour */
-    clearDemoItems: () => Promise<void>;
+    /** Batch-add starter-picker accepts as real items (one atomic Firestore batch, no Storage upload) */
+    addCatalogItems: (payloads: Array<Omit<ClothingItem, 'id' | 'dateAdded'>>) => Promise<void>;
 
     /** Recent rejected-suggestion events (skipped / regenerated) — feeds Stylist personalization */
     suggestionEvents: SuggestionEvent[];

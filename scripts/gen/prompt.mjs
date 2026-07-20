@@ -18,6 +18,13 @@ function backdropFor(color) {
  * @param {object} [opts] { noisy } — noisy swaps the clean studio for a cluttered
  *                        room to exercise IntakeAgent's hasNoisyBackground path.
  */
+/** Category-aware presentation: garments hang; shoes stand as a pair on the floor. */
+function presentationFor(category) {
+    return category === "shoes"
+        ? "pair of shoes, three-quarter side view, standing on the floor"
+        : "front view, on a wooden hanger";
+}
+
 export function buildPrompt(combo, { noisy = false } = {}) {
     const scene = noisy
         ? "laid on an unmade bed in a cluttered bedroom, natural window light"
@@ -25,7 +32,7 @@ export function buildPrompt(combo, { noisy = false } = {}) {
     return [
         // No indefinite article — avoids "a jeans" / "a olive" and reads like a caption.
         `${combo.color} ${combo.phrase}`,
-        "front view, on a wooden hanger",
+        presentationFor(combo.category),
         scene,
         "fashion e-commerce catalog photography",
         "no model, no mannequin, no person, no hands",
@@ -49,7 +56,7 @@ export function buildLabel(combo, { noisy = false } = {}) {
         expectedSeasons: combo.seasons ?? SEASON_BY_CATEGORY[combo.category],
         notes:
             `${combo.color} ${combo.phrase}` +
-            (noisy ? ", cluttered background" : ", front view on hanger, studio bg") +
+            (noisy ? ", cluttered background" : `, ${presentationFor(combo.category)}, studio bg`) +
             `, seed ${combo.seed}` +
             (combo.variant ? ` (v${combo.variant})` : ""),
     };

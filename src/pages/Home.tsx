@@ -4,7 +4,7 @@ import { Cloud, Sun, CloudRain, Wind, Sparkles, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { awsNovaService } from '../services/awsNova';
 import { weatherService } from '../services/weatherService';
-import { type OutfitSuggestion, type WeatherData, type WeatherOutlookPeriod } from '../types';
+import { ClothingCategory, type OutfitSuggestion, type WeatherData, type WeatherOutlookPeriod } from '../types';
 import { MOODS } from '../data/moods';
 import { getWardrobeReadiness, getWardrobeCompleteness } from '../services/agents/agentOutputGuards';
 import { StreakCard } from '../components/home/StreakCard';
@@ -13,7 +13,7 @@ import { ExpandableText } from '../components/common/ExpandableText';
 const WEATHER_CACHE_KEY = 'home-weather-cache-v1';
 
 const Home: React.FC = () => {
-    const { clothes, populateDemoData, clearDemoItems, isLoading, logOutfitWear, userSettings } = useWardrobe();
+    const { clothes, logOutfitWear, userSettings } = useWardrobe();
     const [weather, setWeather] = useState<WeatherData | null>(null);
     const [weatherOutlook, setWeatherOutlook] = useState<WeatherOutlookPeriod[]>([]);
     const [weatherCheer, setWeatherCheer] = useState('');
@@ -167,7 +167,6 @@ const Home: React.FC = () => {
     const readiness = getWardrobeReadiness(clothes);
     const completeness = getWardrobeCompleteness(clothes);
     const completenessPct = Math.round(completeness.ratio * 100);
-    const hasDemoItems = clothes.some((c) => c.id.startsWith('demo-'));
 
     return (
         <div className="space-y-8 pb-20">
@@ -181,32 +180,6 @@ const Home: React.FC = () => {
             {/* Styling streak (gamified engagement) */}
             <StreakCard />
 
-            {hasDemoItems && (
-                <section>
-                    <div className="rounded-2xl border border-secondary/30 bg-secondary/5 p-4">
-                        <p className="text-sm font-bold text-primary">You're exploring a demo closet</p>
-                        <p className="text-xs text-olive-600 mt-0.5">
-                            Get a feel for outfit suggestions, then swap in your own wardrobe.
-                        </p>
-                        <div className="mt-3 flex flex-wrap gap-2">
-                            <button
-                                onClick={() => window.dispatchEvent(new CustomEvent('open-scanner'))}
-                                className="inline-flex items-center px-3 py-2 bg-primary text-white rounded-lg text-xs font-semibold hover:bg-olive-700 transition-colors active:scale-[0.97]"
-                            >
-                                Scan my items
-                            </button>
-                            <button
-                                onClick={clearDemoItems}
-                                disabled={isLoading}
-                                className="inline-flex items-center px-3 py-2 bg-white border border-olive-200 text-secondary rounded-lg text-xs font-semibold hover:bg-olive-50 transition-colors active:scale-[0.97] disabled:opacity-50"
-                            >
-                                Clear demo closet
-                            </button>
-                        </div>
-                    </div>
-                </section>
-            )}
-
             {clothes.length > 0 && !readiness.canMakeOutfit && (
                 <section>
                     <div className="rounded-2xl border border-amber-300/70 bg-amber-50 p-5">
@@ -214,12 +187,28 @@ const Home: React.FC = () => {
                         <p className="text-sm text-amber-800 mt-1 mb-4">
                             Add {readiness.missingForOutfit.join(' and ')} so we can build complete outfits from your closet.
                         </p>
-                        <button
-                            onClick={() => window.dispatchEvent(new CustomEvent('open-scanner'))}
-                            className="inline-flex items-center justify-center px-4 py-2.5 bg-primary text-white rounded-xl font-semibold hover:bg-olive-700 transition-colors active:scale-[0.97]"
-                        >
-                            Scan {readiness.missingForOutfit[0] ?? 'an item'}
-                        </button>
+                        <div className="flex flex-col gap-2 sm:flex-row">
+                            <button
+                                onClick={() => {
+                                    // Deep-link the picker to exactly the missing categories.
+                                    const categories: ClothingCategory[] = [];
+                                    if (!readiness.hasTopLayer) categories.push(ClothingCategory.Tops, ClothingCategory.Outerwear);
+                                    if (!readiness.hasBottom) categories.push(ClothingCategory.Bottoms);
+                                    window.dispatchEvent(new CustomEvent('open-starter-picker', {
+                                        detail: categories.length > 0 ? { categories } : undefined,
+                                    }));
+                                }}
+                                className="flex-1 inline-flex items-center justify-center px-4 py-2.5 bg-primary text-white rounded-xl font-semibold hover:bg-olive-700 transition-colors active:scale-[0.97]"
+                            >
+                                Pick basics
+                            </button>
+                            <button
+                                onClick={() => window.dispatchEvent(new CustomEvent('open-scanner'))}
+                                className="flex-1 inline-flex items-center justify-center px-4 py-2.5 bg-white border border-olive-200 text-secondary rounded-xl font-semibold hover:bg-olive-50 transition-colors active:scale-[0.97]"
+                            >
+                                Scan {readiness.missingForOutfit[0] ?? 'an item'}
+                            </button>
+                        </div>
                     </div>
                 </section>
             )}
@@ -240,30 +229,21 @@ const Home: React.FC = () => {
                             />
                         </div>
                         <p className="text-sm text-olive-600 mb-4">
-                            Start with your most-worn staples. One shelf photo can detect multiple items and unlock better suggestions faster.
+                            Start with your most-worn basics. One shelf photo can detect multiple items and unlock better suggestions faster.
                         </p>
                         <div className="flex flex-col gap-2 sm:flex-row">
                             <button
-                                onClick={() => window.dispatchEvent(new CustomEvent('open-scanner'))}
+                                onClick={() => window.dispatchEvent(new CustomEvent('open-starter-picker'))}
                                 className="flex-1 inline-flex items-center justify-center px-4 py-2.5 bg-primary text-white rounded-xl font-semibold hover:bg-olive-700 transition-colors active:scale-[0.97]"
                             >
-                                Scan a staple now
+                                Pick my basics
                             </button>
                             <button
-                                onClick={() => window.dispatchEvent(new CustomEvent('open-bulk-upload'))}
-                                className="flex-1 inline-flex items-center justify-center px-4 py-2.5 bg-olive-100 text-secondary rounded-xl font-semibold hover:bg-olive-200 transition-colors active:scale-[0.97]"
+                                onClick={() => window.dispatchEvent(new CustomEvent('open-scanner'))}
+                                className="flex-1 inline-flex items-center justify-center px-4 py-2.5 bg-white border border-olive-200 text-secondary rounded-xl font-semibold hover:bg-olive-50 transition-colors active:scale-[0.97]"
                             >
-                                Add 10 photos
+                                Scan my items
                             </button>
-                            {clothes.length === 0 && (
-                                <button
-                                    onClick={populateDemoData}
-                                    disabled={isLoading}
-                                    className="flex-1 inline-flex items-center justify-center px-4 py-2.5 bg-olive-100 text-secondary rounded-xl font-semibold hover:bg-olive-200 transition-colors active:scale-[0.97] disabled:opacity-50"
-                                >
-                                    {isLoading ? 'Populating...' : 'Use demo wardrobe'}
-                                </button>
-                            )}
                         </div>
                     </div>
                 </section>
@@ -285,16 +265,19 @@ const Home: React.FC = () => {
                         <p className="text-sm text-olive-600 mb-4">{completeness.nextUnlock}.</p>
                         <div className="flex flex-col gap-2 sm:flex-row">
                             <button
-                                onClick={() => window.dispatchEvent(new CustomEvent('open-scanner'))}
+                                onClick={() => window.dispatchEvent(new CustomEvent('open-starter-picker', {
+                                    // "Add shoes" advice deep-links straight to the shoes cards.
+                                    detail: completeness.nextUnlockKey === 'shoes' ? { categories: [ClothingCategory.Shoes] } : undefined,
+                                }))}
                                 className="flex-1 inline-flex items-center justify-center px-4 py-2.5 bg-primary text-white rounded-xl font-semibold hover:bg-olive-700 transition-colors active:scale-[0.97]"
                             >
-                                Scan an item
+                                Pick basics
                             </button>
                             <button
-                                onClick={() => window.dispatchEvent(new CustomEvent('open-bulk-upload'))}
-                                className="flex-1 inline-flex items-center justify-center px-4 py-2.5 bg-olive-100 text-secondary rounded-xl font-semibold hover:bg-olive-200 transition-colors active:scale-[0.97]"
+                                onClick={() => window.dispatchEvent(new CustomEvent('open-scanner'))}
+                                className="flex-1 inline-flex items-center justify-center px-4 py-2.5 bg-white border border-olive-200 text-secondary rounded-xl font-semibold hover:bg-olive-50 transition-colors active:scale-[0.97]"
                             >
-                                Add photos
+                                Scan an item
                             </button>
                         </div>
                     </div>
@@ -444,33 +427,28 @@ const Home: React.FC = () => {
                         <div className="p-3 bg-olive-100 rounded-full w-fit mx-auto mb-3">
                             <Sparkles className="w-6 h-6 text-secondary" />
                         </div>
-                        <h3 className="font-semibold text-primary mb-1">Start with 5 staples</h3>
+                        <h3 className="font-semibold text-primary mb-1">Start with 5 basics</h3>
                         <p className="text-sm text-olive-500 mb-6">
                             Photograph your most-worn items first. A single shelf photo can capture multiple pieces.
                         </p>
                         <div className="flex flex-col gap-3">
                             <button
-                                onClick={() => window.dispatchEvent(new CustomEvent('open-scanner'))}
+                                onClick={() => window.dispatchEvent(new CustomEvent('open-starter-picker'))}
                                 className="w-full inline-flex items-center justify-center px-6 py-3 bg-primary text-white rounded-xl font-medium hover:bg-olive-700 transition-all active:scale-[0.97]"
                             >
-                                Scan Starter Items
+                                Pick my basics
+                            </button>
+                            <button
+                                onClick={() => window.dispatchEvent(new CustomEvent('open-scanner'))}
+                                className="w-full inline-flex items-center justify-center px-6 py-3 bg-white border border-olive-200 text-secondary rounded-xl font-medium hover:bg-olive-50 transition-all active:scale-[0.97]"
+                            >
+                                Scan my items
                             </button>
                             <button
                                 onClick={() => window.dispatchEvent(new CustomEvent('open-bulk-upload'))}
                                 className="w-full inline-flex items-center justify-center px-6 py-3 bg-olive-100 text-secondary rounded-xl font-medium hover:bg-olive-200 transition-all active:scale-[0.97]"
                             >
                                 Add up to 10 photos
-                            </button>
-                            <button
-                                onClick={populateDemoData}
-                                disabled={isLoading}
-                                className="w-full inline-flex items-center justify-center px-6 py-3 bg-olive-100 text-secondary rounded-xl font-medium hover:bg-olive-200 transition-all active:scale-[0.97] disabled:opacity-50"
-                            >
-                                {isLoading ? (
-                                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Populating...</>
-                                ) : (
-                                    'Use Demo Wardrobe'
-                                )}
                             </button>
                         </div>
                     </div>

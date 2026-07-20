@@ -763,7 +763,7 @@ export const CameraScannerOverlay: React.FC<CameraScannerOverlayProps> = ({ isOp
                             </button>
                         </div>
                         <div className="p-6 space-y-4 text-sm text-olive-600 leading-relaxed">
-                            <p><strong className="text-primary">1. Start with your 5 staples</strong> Pick your most-worn pieces first to unlock better suggestions quickly.</p>
+                            <p><strong className="text-primary">1. Start with your 5 basics</strong> Pick your most-worn pieces first to unlock better suggestions quickly.</p>
                             <p><strong className="text-primary">2. Batch capture</strong> Lay multiple items on your bed or shelf and take one clear photo. AI can detect up to 3 items per shot.</p>
                             <p><strong className="text-primary">3. Review and save</strong> Confirm names, seasons, and moods, then add each detected item.</p>
                         </div>
