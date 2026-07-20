@@ -7,9 +7,23 @@ import {
     updateDoc,
     deleteDoc,
     writeBatch,
+    query,
+    where,
+    orderBy,
+    increment,
 } from 'firebase/firestore';
 import { db } from './firebaseConfig';
-import type { ClothingItem, WearRecord } from '../types';
+import type { ClothingItem, WearRecord, ColorCorrection, SuggestionEvent } from '../types';
+
+/** Cached Insights nudge copy — only the LLM output is stored; analytics are recomputed in code. */
+export interface InsightsCache {
+    /** The 3 behavioral nudge strings from BehavioralAgent. */
+    nudges: string[];
+    /** Fingerprint of the inputs the nudges were generated from (season + wear state). */
+    signature: string;
+    /** ISO timestamp the nudges were generated. */
+    computedAt: string;
+}
 
 // ==========================================
 // Helper: Serialize/deserialize dates
@@ -57,6 +71,8 @@ export interface UserSettings {
     height?: string;
     weight?: string;
     preferredVibe?: string;
+    /** Manual weather city (from SUPPORTED_CITIES); used when geolocation is unavailable. */
+    city?: string;
 }
 
 const DEFAULT_SETTINGS: UserSettings = {
@@ -99,6 +115,14 @@ export const firestoreService = {
         await deleteDoc(docRef);
     },
 
+    // ------ Color corrections (eval / fine-tune dataset) ------
+
+    /** Append one {AI → user} color correction. Per-user collection (multi-tenant isolation). */
+    async logColorCorrection(uid: string, correction: ColorCorrection): Promise<void> {
+        const docRef = doc(db, 'users', uid, 'colorCorrections', correction.id);
+        await setDoc(docRef, { ...correction, createdAt: correction.createdAt.toISOString() });
+    },
+
     async deleteAllDemoItems(uid: string): Promise<void> {
         const snapshot = await getDocs(collection(db, 'users', uid, 'wardrobe'));
         const batch = writeBatch(db);
@@ -115,9 +139,32 @@ export const firestoreService = {
         return snapshot.docs.map((doc) => deserializeOutfit(doc.data()));
     },
 
+    /**
+     * Wear records from the last `days` days only (dates are stored as ISO strings, which sort
+     * lexicographically = chronologically). Bounds the read so a heavy user's full history isn't
+     * pulled every login — every current consumer (insights = 21d, timeline = 7d) fits this window.
+     */
+    async getRecentOutfits(uid: string, days: number): Promise<WearRecord[]> {
+        const since = new Date();
+        since.setDate(since.getDate() - days);
+        const q = query(
+            collection(db, 'users', uid, 'outfits'),
+            where('date', '>=', since.toISOString()),
+            orderBy('date', 'desc'),
+        );
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map((doc) => deserializeOutfit(doc.data()));
+    },
+
     async addOutfit(uid: string, record: WearRecord): Promise<void> {
         const docRef = doc(db, 'users', uid, 'outfits', record.id);
         await setDoc(docRef, serializeOutfit(record));
+    },
+
+    /** Mark or unmark a worn outfit as a favorite (single-field update on the existing doc). */
+    async setOutfitFavorite(uid: string, outfitId: string, favorite: boolean): Promise<void> {
+        const docRef = doc(db, 'users', uid, 'outfits', outfitId);
+        await updateDoc(docRef, { favorite });
     },
 
     async deleteAllOutfits(uid: string): Promise<void> {
@@ -162,6 +209,61 @@ export const firestoreService = {
         const updated = (settings.tryItItemIds ?? []).filter(id => id !== itemId);
         await this.updateUserSettings(uid, { tryItItemIds: updated });
         return updated;
+    },
+
+    // ------ Suggestion events (rejection signal) ------
+
+    async logSuggestionEvent(uid: string, event: SuggestionEvent): Promise<void> {
+        const docRef = doc(db, 'users', uid, 'suggestionEvents', event.id);
+        await setDoc(docRef, { ...event, date: event.date.toISOString() });
+    },
+
+    async getRecentSuggestionEvents(uid: string, days: number): Promise<SuggestionEvent[]> {
+        const since = new Date();
+        since.setDate(since.getDate() - days);
+        const q = query(
+            collection(db, 'users', uid, 'suggestionEvents'),
+            where('date', '>=', since.toISOString()),
+            orderBy('date', 'desc'),
+        );
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map((d) => {
+            const data = d.data();
+            return { ...data, date: new Date(data.date) } as SuggestionEvent;
+        });
+    },
+
+    // ------ Insights cache (LLM nudge copy) ------
+
+    /** Read the cached Insights nudges, or null if none stored yet. */
+    async getInsightsCache(uid: string): Promise<InsightsCache | null> {
+        const snapshot = await getDoc(doc(db, 'users', uid, 'insights', 'latest'));
+        return snapshot.exists() ? (snapshot.data() as InsightsCache) : null;
+    },
+
+    /** Persist freshly generated Insights nudges so the next visit skips the Bedrock call. */
+    async saveInsightsCache(uid: string, nudges: string[], signature: string): Promise<void> {
+        await setDoc(doc(db, 'users', uid, 'insights', 'latest'), {
+            nudges,
+            signature,
+            computedAt: new Date().toISOString(),
+        } satisfies InsightsCache);
+    },
+
+    // ------ Agent health telemetry (daily aggregate) ------
+
+    /**
+     * Increment per-agent daily counters (total / fallback / parse errors) so agent health —
+     * chiefly the fallback rate — is observable in production. One small doc per user per day,
+     * updated with atomic increments; best-effort (never blocks UX).
+     */
+    async recordAgentHealth(uid: string, dateKey: string, counts: Record<string, number>): Promise<void> {
+        const fields: Record<string, unknown> = {};
+        for (const [key, value] of Object.entries(counts)) {
+            if (value > 0) fields[key] = increment(value);
+        }
+        if (Object.keys(fields).length === 0) return;
+        await setDoc(doc(db, 'users', uid, 'agentHealth', dateKey), fields, { merge: true });
     },
 
     // ------ Migration: localStorage → Firestore ------

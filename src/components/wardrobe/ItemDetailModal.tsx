@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { X, Trash2, Calendar, Hash, Sparkles } from 'lucide-react';
-import { type ClothingItem } from '../../types';
+import { X, Trash2, Calendar, Hash, Sparkles, Check } from 'lucide-react';
+import { type ClothingItem, ClothingCategory } from '../../types';
 import { useWardrobe } from '../../context/WardrobeContext';
 import { format, differenceInDays } from 'date-fns';
 import { awsNovaService } from '../../services/awsNova';
+import { COLOR_PALETTE } from '../../data/colorPalette';
 
 interface ItemDetailModalProps {
     item: ClothingItem;
@@ -11,8 +12,31 @@ interface ItemDetailModalProps {
 }
 
 export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({ item, onClose }) => {
-    const { deleteClothingItem, updateClothingItem } = useWardrobe();
+    const { deleteClothingItem, updateClothingItem, correctItemColor } = useWardrobe();
     const [isReanalyzing, setIsReanalyzing] = useState(false);
+    const [displayColor, setDisplayColor] = useState<{ name: string; hex: string }>({ name: item.color, hex: item.colorHex });
+    const [colorSheetOpen, setColorSheetOpen] = useState(false);
+
+    const [displayName, setDisplayName] = useState(item.subcategory);
+    const [displayCategory, setDisplayCategory] = useState<ClothingCategory>(item.category);
+
+    const handlePickColor = async (c: { name: string; hex: string }) => {
+        setDisplayColor(c);
+        setColorSheetOpen(false);
+        await correctItemColor(item.id, c);
+    };
+
+    const handleRename = async () => {
+        const trimmed = displayName.trim();
+        if (!trimmed || trimmed === item.subcategory) return;
+        await updateClothingItem(item.id, { subcategory: trimmed });
+    };
+
+    const handleCategory = async (cat: ClothingCategory) => {
+        if (cat === displayCategory) return;
+        setDisplayCategory(cat);
+        await updateClothingItem(item.id, { category: cat });
+    };
 
     const handleDelete = async () => {
         if (window.confirm('Are you sure you want to delete this item?')) {
@@ -100,11 +124,11 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({ item, onClose 
                     <div className="absolute bottom-4 left-5 right-5 text-white">
                         <div className="flex items-center gap-2 mb-1">
                             <span className="px-2 py-0.5 bg-secondary/80 backdrop-blur-sm rounded-md text-[10px] font-bold uppercase tracking-wider">
-                                {item.category}
+                                {displayCategory}
                             </span>
                             <span className="text-xs opacity-80">Added {format(new Date(item.dateAdded), 'MMM d, yyyy')}</span>
                         </div>
-                        <h2 className="text-xl font-bold tracking-tight">{item.subcategory}</h2>
+                        <h2 className="text-xl font-bold tracking-tight">{displayName}</h2>
                     </div>
                 </div>
 
@@ -140,6 +164,72 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({ item, onClose 
                             </div>
                         </div>
 
+                        {/* Name (subcategory) — editable in case scan got it wrong */}
+                        <div>
+                            <p className="text-[10px] font-bold text-olive-400 uppercase tracking-wider mb-2">Name</p>
+                            <input
+                                type="text"
+                                value={displayName}
+                                onChange={(e) => setDisplayName(e.target.value)}
+                                onBlur={handleRename}
+                                className="w-full rounded-xl border border-olive-100 bg-olive-50 p-3 text-sm font-bold text-primary focus:ring-2 focus:ring-secondary/30 focus:border-secondary outline-none"
+                            />
+                        </div>
+
+                        {/* Category — editable */}
+                        <div>
+                            <p className="text-[10px] font-bold text-olive-400 uppercase tracking-wider mb-2">Category</p>
+                            <div className="grid grid-cols-4 gap-2">
+                                {Object.values(ClothingCategory).map((cat) => {
+                                    const selected = displayCategory === cat;
+                                    return (
+                                        <button
+                                            key={cat}
+                                            onClick={() => handleCategory(cat)}
+                                            className={`py-2 rounded-lg text-xs font-bold capitalize border transition-colors ${selected ? 'border-secondary bg-olive-50 text-primary' : 'border-olive-100 bg-white text-secondary hover:bg-olive-50'}`}
+                                        >
+                                            {cat}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        {/* Color — user calibration: shows the snapped palette name (no hex), logs each correction as eval data */}
+                        <div>
+                            <p className="text-[10px] font-bold text-olive-400 uppercase tracking-wider mb-2">Color</p>
+                            <div className="flex items-center gap-3 p-3 bg-olive-50 rounded-xl border border-olive-100">
+                                <span className="w-8 h-8 rounded-lg border border-black/10 flex-shrink-0" style={{ backgroundColor: displayColor.hex }} />
+                                <span className="text-sm font-bold text-primary flex-1">{displayColor.name}</span>
+                                <button
+                                    onClick={() => setColorSheetOpen((o) => !o)}
+                                    className="text-xs font-bold text-secondary bg-white border border-olive-100 rounded-lg px-3 py-1.5 hover:bg-olive-100 transition-colors"
+                                >
+                                    {colorSheetOpen ? 'Close' : 'Edit'}
+                                </button>
+                            </div>
+                            {colorSheetOpen && (
+                                <div className="mt-3">
+                                    <p className="text-xs text-olive-400 mb-2">Pick the correct color:</p>
+                                    <div className="grid grid-cols-4 gap-2">
+                                        {COLOR_PALETTE.map((c) => {
+                                            const selected = displayColor.name === c.name;
+                                            return (
+                                                <button
+                                                    key={c.name}
+                                                    onClick={() => handlePickColor(c)}
+                                                    className={`flex flex-col items-center gap-1 p-1.5 rounded-lg border transition-colors ${selected ? 'border-secondary bg-olive-50' : 'border-transparent hover:bg-olive-50'}`}
+                                                >
+                                                    <span className="w-7 h-7 rounded-lg border border-black/10" style={{ backgroundColor: c.hex }} />
+                                                    <span className="text-[10px] font-semibold text-primary">{c.name}</span>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
                         {item.subcategory.toLowerCase() === 'unknown' && (
                             <div className="rounded-xl border border-amber-300 bg-amber-50 p-3">
                                 <p className="text-xs font-bold uppercase tracking-wide text-amber-800 mb-2">
@@ -173,9 +263,10 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({ item, onClose 
                     </button>
                     <button
                         onClick={onClose}
-                        className="flex-1 px-4 py-3 bg-primary text-white rounded-xl font-bold text-sm hover:bg-olive-800 transition-colors active:scale-[0.98]"
+                        className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 bg-primary text-white rounded-xl font-bold text-sm hover:bg-olive-800 transition-colors active:scale-[0.98]"
                     >
-                        Got it
+                        <Check className="w-4 h-4" />
+                        Confirm
                     </button>
                 </div>
             </div>

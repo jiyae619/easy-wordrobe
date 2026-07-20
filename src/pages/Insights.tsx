@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useWardrobe } from '../context/WardrobeContext';
 import { Lightbulb, Sparkles, Loader2 } from 'lucide-react';
 import { WeeklyOutfitTimeline } from '../components/insights/WeeklyOutfitTimeline';
+import { OutfitHistory } from '../components/insights/OutfitHistory';
 import { ExpandableText } from '../components/common/ExpandableText';
 
 const Insights: React.FC = () => {
@@ -222,6 +223,8 @@ const Insights: React.FC = () => {
                 </div>
             </section>
 
+            {/* Outfit History + one-tap re-wear */}
+            <OutfitHistory />
 
         </div>
     );

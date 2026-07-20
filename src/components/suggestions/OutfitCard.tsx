@@ -8,9 +8,11 @@ interface OutfitCardProps {
     onWear: () => void;
     onSkip?: () => void;
     onSkipLabel?: string;
+    /** Short "because" line explaining why this outfit surfaced */
+    reason?: string | null;
 }
 
-export const OutfitCard: React.FC<OutfitCardProps> = ({ suggestion, onWear, onSkip, onSkipLabel = 'Maybe Next Time' }) => {
+export const OutfitCard: React.FC<OutfitCardProps> = ({ suggestion, onWear, onSkip, onSkipLabel = 'Maybe Next Time', reason }) => {
     return (
         <div className="bg-white rounded-2xl border border-muted shadow-sm overflow-hidden animate-scale-in">
             {/* Header */}
@@ -26,6 +28,17 @@ export const OutfitCard: React.FC<OutfitCardProps> = ({ suggestion, onWear, onSk
                         Rotation {Math.round(suggestion.wearScore)}%
                     </span>
                 </div>
+                {suggestion.isFallback && (
+                    <p className="mt-2 text-[11px] font-medium text-amber-700">
+                        Quick picks — our AI stylist is unavailable right now.
+                    </p>
+                )}
+                {reason && (
+                    <p className="mt-2 text-[11px] font-medium text-secondary flex items-center gap-1">
+                        <Shirt className="w-3 h-3 flex-shrink-0" />
+                        <span>{reason}</span>
+                    </p>
+                )}
             </div>
 
             {/* Items Grid */}

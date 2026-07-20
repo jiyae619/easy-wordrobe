@@ -7,6 +7,7 @@ import { useWardrobe } from '../../context/WardrobeContext';
 import { compressImage, cropImageByRect, cropImageToBoundingBox, cropImageWithFocus } from '../../utils/imageUtils';
 import { prodDiag } from '../../utils/productionDiagnostics';
 import { MOODS } from '../../data/moods';
+import { COLOR_PALETTE } from '../../data/colorPalette';
 import type { ItemBoundingBox } from '../../types';
 import { normalizeMoodIds } from '../../services/agents/agentOutputGuards';
 
@@ -71,6 +72,7 @@ export const CameraScannerOverlay: React.FC<CameraScannerOverlayProps> = ({ isOp
     const [itemName, setItemName] = useState('');
     const [selectedSeasons, setSelectedSeasons] = useState<string[]>([]);
     const [selectedMoods, setSelectedMoods] = useState<string[]>([]);
+    const [colorSheetOpen, setColorSheetOpen] = useState(false);
     const [focusCalibrations, setFocusCalibrations] = useState<Record<number, FocusCalibration>>({});
     const [isDraggingFocus, setIsDraggingFocus] = useState(false);
     const [isCropEditorOpen, setIsCropEditorOpen] = useState(false);
@@ -586,6 +588,8 @@ export const CameraScannerOverlay: React.FC<CameraScannerOverlayProps> = ({ isOp
                 subcategory: itemName || currentItem.subcategory || "Unknown",
                 color: currentItem.color || "Unknown",
                 colorHex: currentItem.colorHex || "#000000",
+                aiColor: currentItem.aiColor,
+                colorSource: currentItem.colorSource,
                 // Default to Spring when no seasons are selected — matches the
                 // fallback in agentOutputGuards.ts:164. Empty arrays silently fail
                 // the season.includes(currentSeason) filters in BehavioralAgent and
@@ -855,11 +859,41 @@ export const CameraScannerOverlay: React.FC<CameraScannerOverlayProps> = ({ isOp
                                         </select>
                                         <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/70 pointer-events-none" />
                                     </div>
-                                    <div className="w-full flex items-center justify-center gap-2 bg-white/10 backdrop-blur-md text-white px-3 py-1.5 rounded-lg border border-secondary/40 h-[30px]">
+                                    <button
+                                        type="button"
+                                        onClick={() => setColorSheetOpen((o) => !o)}
+                                        className="w-full flex items-center justify-center gap-2 bg-white/10 backdrop-blur-md text-white px-3 py-1.5 rounded-lg border border-secondary/40 h-[30px] hover:bg-white/20 transition-colors"
+                                    >
                                         <div className="w-4 h-4 rounded-full border border-white/20" style={{ backgroundColor: currentItem.colorHex || '#000' }} />
                                         <span className="text-xs font-semibold uppercase tracking-wide capitalize">{currentItem.color}</span>
-                                    </div>
+                                        <ChevronDown className="w-3 h-3 text-white/60" />
+                                    </button>
                                 </div>
+
+                                {/* Color palette — editable (snap-to-name, no hex shown); logs correction on save */}
+                                {colorSheetOpen && (
+                                    <div className="grid grid-cols-4 gap-2">
+                                        {COLOR_PALETTE.map((c) => {
+                                            const selected = currentItem.color === c.name;
+                                            return (
+                                                <button
+                                                    key={c.name}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const updated = [...detectedItems];
+                                                        updated[currentItemIndex] = { ...currentItem, color: c.name, colorHex: c.hex, colorSource: 'user' };
+                                                        setDetectedItems(updated);
+                                                        setColorSheetOpen(false);
+                                                    }}
+                                                    className={`flex flex-col items-center gap-1 p-1.5 rounded-lg border transition-colors ${selected ? 'border-secondary bg-white/15' : 'border-white/15 hover:bg-white/10'}`}
+                                                >
+                                                    <span className="w-6 h-6 rounded-md border border-white/20" style={{ backgroundColor: c.hex }} />
+                                                    <span className="text-[10px] font-semibold text-white/80">{c.name}</span>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                )}
 
                                 {/* Season Tags — selectable */}
                                 <div>

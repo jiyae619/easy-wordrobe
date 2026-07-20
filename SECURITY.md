@@ -1,8 +1,23 @@
 # Security
 
-## API Keys & Secrets
+## Model API keys are server-side only
 
-All sensitive credentials (Firebase, AWS Bedrock, etc.) must be stored in environment variables, never in source code.
+The Bedrock (and optional Gemini) API keys are **never shipped to the browser**. Any `VITE_*`
+environment variable is inlined into the client bundle at build time, so a model key placed there
+is world-readable — an earlier version of this app did exactly that. All model calls now route
+through the **`aiProxy` Cloud Function** (`functions/`), which:
+
+1. verifies the caller's **Firebase ID token** (no token → 401),
+2. enforces a **per-user rate limit** (Firestore-backed) as an abuse/runaway guardrail,
+3. forwards to Bedrock/Gemini using the real key held in **Secret Manager**.
+
+The browser authenticates each call with the signed-in user's ID token, never an API key. See
+`functions/README.md` for setup/deploy. Set a Google Cloud **billing budget alert** as a backstop.
+
+## Other API keys & secrets
+
+Non-secret client config (Firebase web SDK keys, etc.) lives in `VITE_*` env vars. Genuinely
+secret credentials must live server-side (Functions secrets), never in source code or `VITE_*`.
 
 ### Setup
 

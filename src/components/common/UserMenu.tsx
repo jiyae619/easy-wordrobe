@@ -1,13 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useWardrobe } from '../../context/WardrobeContext';
-import { LogOut, User, Settings, X, Lock, Camera, Sparkles, Loader2, Info, Cloud, Activity, Heart } from 'lucide-react';
+import { LogOut, User, Settings, X, Lock, Camera, Info, Cloud, Activity, Heart } from 'lucide-react';
 import { MOODS } from '../../data/moods';
+import { SUPPORTED_CITIES } from '../../services/weatherService';
 import { ExpandableText } from './ExpandableText';
 
 const UserMenu: React.FC = () => {
     const { user, logout } = useAuth();
-    const { userSettings, updateUserSettings, populateDemoData, isLoading } = useWardrobe();
+    const { userSettings, updateUserSettings } = useWardrobe();
     const [isOpen, setIsOpen] = useState(false);
     const [showProfileModal, setShowProfileModal] = useState(false);
     const [showCurateModal, setShowCurateModal] = useState(false);
@@ -17,6 +18,7 @@ const UserMenu: React.FC = () => {
     const [weight, setWeight] = useState(userSettings?.weight || '');
     const [gender, setGender] = useState(userSettings?.gender || '');
     const [preferredVibe, setPreferredVibe] = useState(userSettings?.preferredVibe || '');
+    const [city, setCity] = useState(userSettings?.city || '');
 
     const menuRef = useRef<HTMLDivElement>(null);
 
@@ -27,13 +29,24 @@ const UserMenu: React.FC = () => {
             setWeight(userSettings.weight || '');
             setGender(userSettings.gender || '');
             setPreferredVibe(userSettings.preferredVibe || '');
+            setCity(userSettings.city || '');
         }
     }, [userSettings]);
 
     const handleSaveProfile = async () => {
-        await updateUserSettings({ height, weight, gender, preferredVibe });
+        await updateUserSettings({ height, weight, gender, preferredVibe, city });
         setShowProfileModal(false);
     };
+
+    // Allow other views (e.g. the Home "set your city" hint) to open this modal.
+    useEffect(() => {
+        const openSettings = () => {
+            setIsOpen(false);
+            setShowProfileModal(true);
+        };
+        window.addEventListener('open-settings', openSettings);
+        return () => window.removeEventListener('open-settings', openSettings);
+    }, []);
 
     // Close dropdown when clicking outside
     useEffect(() => {
@@ -51,8 +64,6 @@ const UserMenu: React.FC = () => {
     const initials = user.displayName
         ? user.displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
         : user.email?.[0]?.toUpperCase() || '?';
-    const isLocalhost = typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname);
-    const showDeveloperActions = import.meta.env.DEV || isLocalhost;
 
     return (
         <>
@@ -269,32 +280,23 @@ const UserMenu: React.FC = () => {
                                             ))}
                                         </select>
                                     </div>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-primary mb-1">Weather City</label>
+                                        <select
+                                            value={city}
+                                            onChange={(e) => setCity(e.target.value)}
+                                            className="w-full px-4 py-3 bg-olive-50 border border-olive-200 rounded-xl text-primary font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none transition-all"
+                                        >
+                                            <option value="">Use my location</option>
+                                            {SUPPORTED_CITIES.map(c => (
+                                                <option key={c} value={c}>{c}</option>
+                                            ))}
+                                        </select>
+                                        <p className="mt-1 text-[11px] text-olive-400">Used when location access is off. US cities only.</p>
+                                    </div>
                                 </div>
                             </section>
 
-                            {/* Divider */}
-                            <div className="h-px bg-olive-100" />
-
-                            {/* === Developer Section (local/dev only) === */}
-                            {showDeveloperActions && (
-                                <section>
-                                    <h4 className="text-xs font-bold text-red-400 uppercase tracking-wider mb-4">Developer Actions</h4>
-                                    <button
-                                        onClick={() => {
-                                            populateDemoData();
-                                            setShowProfileModal(false);
-                                        }}
-                                        disabled={isLoading}
-                                        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-50 text-red-600 border border-red-100 rounded-xl text-sm font-semibold hover:bg-red-100 transition-colors disabled:opacity-50"
-                                    >
-                                        {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                                        Populate Demo Data
-                                    </button>
-                                    <p className="mt-2 text-[10px] text-gray-400 text-center">
-                                        This will add sample items and history to your account.
-                                    </p>
-                                </section>
-                            )}
                         </div>
 
                         {/* Save Button — Fixed at bottom */}

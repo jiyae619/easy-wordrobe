@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useWardrobe } from '../context/WardrobeContext';
 import { awsNovaService } from '../services/awsNova';
 import { weatherService } from '../services/weatherService';
+import { computeDeprioritizedItemIds, computeSeasonalLeastWornIds, describeOutfitReason } from '../services/agents/agentOutputGuards';
 import { OutfitCard } from '../components/suggestions/OutfitCard';
 
 import { type OutfitSuggestion, type WeatherData } from '../types';
@@ -25,9 +26,13 @@ function getMoodIcon(id: string): string {
 
 const Suggest: React.FC = () => {
     const [searchParams, setSearchParams] = useSearchParams();
-    const { clothes, logOutfitWear, userSettings, insights, tryItItemIds } = useWardrobe();
+    const { clothes, outfits, logOutfitWear, userSettings, tryItItemIds, suggestionEvents, logSuggestionEvent } = useWardrobe();
     const moodId = searchParams.get('mood') || userSettings?.preferredVibe || 'casual';
     const mood = MOODS.find(m => m.id === moodId) || MOODS[1];
+
+    // Stable key that changes only when the SET of items changes (add/remove) — not when a wear is
+    // logged (which only bumps wearFrequency/lastWorn). Prevents "Wear it" from regenerating outfits.
+    const wardrobeItemsKey = clothes.map(c => c.id).sort().join(',');
 
     const [suggestions, setSuggestions] = useState<OutfitSuggestion[]>([]);
     const [weather, setWeather] = useState<WeatherData | null>(null);
@@ -42,6 +47,12 @@ const Suggest: React.FC = () => {
     const touchStartX = useRef(0);
     const touchEndX = useRef(0);
 
+    // Keep the latest logOutfitWear + any pending wear in refs so we can flush on unmount
+    // (navigating away must never silently drop a wear the user already confirmed).
+    const logWearRef = useRef(logOutfitWear);
+    logWearRef.current = logOutfitWear;
+    const pendingWearRef = useRef<{ itemIds: string[]; moodId: string; weather: WeatherData; timerId: number } | null>(null);
+
     const resolveWeather = async (): Promise<WeatherData> => {
         try {
             const position = await new Promise<GeolocationPosition>((resolve, reject) => {
@@ -52,7 +63,7 @@ const Suggest: React.FC = () => {
                 position.coords.longitude
             );
         } catch {
-            return weatherService.getWeatherByCity('San Francisco');
+            return weatherService.getWeatherByCity(userSettings?.city || 'San Francisco');
         }
     };
 
@@ -80,12 +91,15 @@ const Suggest: React.FC = () => {
                 } : undefined;
 
                 const behavioralContext = {
-                    leastWornItemIds: insights?.leastWornItems.map(i => i.id) ?? [],
+                    // Computed deterministically from wear history — always available, no dependency
+                    // on the Insights page (BehavioralAgent) having run this session.
+                    leastWornItemIds: computeSeasonalLeastWornIds(clothes, outfits),
                     tryItItemIds,
+                    deprioritizeItemIds: computeDeprioritizedItemIds(suggestionEvents, clothes),
                 };
 
-                const outfits = await awsNovaService.suggestOutfits(clothes, mood, weatherData, userProfile, behavioralContext);
-                setSuggestions(outfits);
+                const result = await awsNovaService.suggestOutfits(clothes, mood, weatherData, userProfile, behavioralContext);
+                setSuggestions(result);
             } catch (err) {
                 console.error("Suggestion error:", err);
                 setError('Failed to generate suggestions. Please try again.');
@@ -95,10 +109,17 @@ const Suggest: React.FC = () => {
         };
 
         fetchSuggestions();
-    }, [clothes, moodId]);
+        // Refetch only when the item set or mood changes — NOT when a wear bumps wearFrequency.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [wardrobeItemsKey, moodId]);
 
     const handleRegenerate = async () => {
         if (!weather) return;
+        // "Show Different Looks" rejects the outfit currently on screen.
+        const current = suggestions[currentIndex];
+        if (current) {
+            void logSuggestionEvent('regenerated', current.items.map(item => item.id), moodId);
+        }
         setIsRegenerating(true);
         try {
             // Prepare user profile data if available
@@ -109,8 +130,9 @@ const Suggest: React.FC = () => {
             } : undefined;
 
             const behavioralContext = {
-                leastWornItemIds: insights?.leastWornItems.map(i => i.id) ?? [],
+                leastWornItemIds: computeSeasonalLeastWornIds(clothes, outfits),
                 tryItItemIds,
+                deprioritizeItemIds: computeDeprioritizedItemIds(suggestionEvents, clothes),
             };
 
             const newOutfits = await awsNovaService.suggestOutfits(clothes, mood, weather, userProfile, behavioralContext);
@@ -125,18 +147,21 @@ const Suggest: React.FC = () => {
 
     const handleWear = (suggestion: OutfitSuggestion) => {
         if (!weather) return;
-        if (pendingWear?.timerId) {
-            window.clearTimeout(pendingWear.timerId);
+        if (pendingWearRef.current) {
+            window.clearTimeout(pendingWearRef.current.timerId);
         }
 
         const itemIds = suggestion.items.map(item => item.id);
+        const capturedWeather = weather;
         const timerId = window.setTimeout(async () => {
-            await logOutfitWear(itemIds, moodId, weather);
+            pendingWearRef.current = null;
+            await logOutfitWear(itemIds, moodId, capturedWeather);
             setPendingWear(null);
             setLogged(true);
             window.setTimeout(() => setLogged(false), 2000);
         }, 4000);
 
+        pendingWearRef.current = { itemIds, moodId, weather: capturedWeather, timerId };
         setPendingWear({ suggestionId: suggestion.id, timerId });
     };
 
@@ -152,9 +177,20 @@ const Suggest: React.FC = () => {
         setCurrentIndex(prev => Math.max(prev - 1, 0));
     }, []);
 
+    // "Next Look" (the skip button) is an explicit pass on this outfit — log it, then advance.
+    const handleSkip = () => {
+        const current = suggestions[currentIndex];
+        if (current) {
+            void logSuggestionEvent('skipped', current.items.map(item => item.id), moodId);
+        }
+        goToNext();
+    };
+
     const handleUndoWear = () => {
-        if (!pendingWear) return;
-        window.clearTimeout(pendingWear.timerId);
+        if (pendingWearRef.current) {
+            window.clearTimeout(pendingWearRef.current.timerId);
+            pendingWearRef.current = null;
+        }
         setPendingWear(null);
     };
 
@@ -190,13 +226,17 @@ const Suggest: React.FC = () => {
         return () => window.removeEventListener('keydown', onKeyDown);
     }, [goToNext, goToPrev]);
 
+    // Flush a still-pending wear on unmount so navigating away never silently drops it.
     useEffect(() => {
         return () => {
-            if (pendingWear?.timerId) {
-                window.clearTimeout(pendingWear.timerId);
+            const pending = pendingWearRef.current;
+            if (pending) {
+                window.clearTimeout(pending.timerId);
+                void logWearRef.current(pending.itemIds, pending.moodId, pending.weather);
+                pendingWearRef.current = null;
             }
         };
-    }, [pendingWear]);
+    }, []);
 
     return (
         <div className="space-y-5 md:space-y-8">
@@ -296,8 +336,13 @@ const Suggest: React.FC = () => {
                             key={suggestions[currentIndex].id}
                             suggestion={suggestions[currentIndex]}
                             onWear={() => handleWear(suggestions[currentIndex])}
-                            onSkip={suggestions.length > 1 ? goToNext : undefined}
+                            onSkip={suggestions.length > 1 ? handleSkip : undefined}
                             onSkipLabel="Next Look"
+                            reason={suggestions[currentIndex].isFallback ? null : describeOutfitReason(
+                                suggestions[currentIndex],
+                                { tryItItemIds, leastWornItemIds: computeSeasonalLeastWornIds(clothes, outfits) },
+                                weather ?? undefined,
+                            )}
                         />
                     </div>
 

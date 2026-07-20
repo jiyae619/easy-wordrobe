@@ -20,6 +20,7 @@ export const ClothingCategory = {
     Bottoms: "bottoms",
     Outerwear: "outerwear",
     Dresses: "dresses",
+    Shoes: "shoes",
 } as const;
 
 export type ClothingCategory = typeof ClothingCategory[keyof typeof ClothingCategory];
@@ -74,8 +75,13 @@ export interface ClothingItem {
     subcategory: string;
     /** Primary color name detected by AI or set by user */
     color: string;
-    /** Hex code for the primary color */
+    /** Hex code for the primary color — snapped to the nearest palette color so the swatch matches the
+     * shown name. The raw model detection is preserved in `aiColor` (used for correction scoring). */
     colorHex: string;
+    /** The model's first color detection, before snap-to-palette or any user fix (immutable) */
+    aiColor?: { name: string; hex: string };
+    /** Whether `color` is the AI's snapped guess or a user correction */
+    colorSource?: 'ai' | 'user';
     /** List of seasons this item is suitable for */
     season: Season[];
     /** Number of times this item has been worn */
@@ -108,6 +114,24 @@ export interface ClothingItem {
     focusZoom?: number;
     /** Optional user-calibrated crop region in percentage coordinates */
     focusRoi?: FocusRoi;
+}
+
+/**
+ * A user's correction of an AI-detected color.
+ * One record per correction — accumulates into the offline eval / fine-tune dataset.
+ */
+export interface ColorCorrection {
+    id: string;
+    itemId: string;
+    /** Image the correction refers to (the item's imageUrl). */
+    imageRef: string;
+    /** The model's first guess: raw color name + hex, before snapping. */
+    aiColor: { name: string; hex: string };
+    /** The human-verified color the user chose. */
+    userColor: { name: string; hex: string };
+    /** Vision provider id that produced the AI guess (e.g. "nova-2-lite"). */
+    model: string;
+    createdAt: Date;
 }
 
 /**
@@ -167,6 +191,8 @@ export interface OutfitSuggestion {
     explanation: string;
     /** Priority score based on wear frequency (higher for less worn items if trying to rotate) */
     wearScore: number;
+    /** True when these are code-assembled fallback picks (the AI stylist was unavailable) */
+    isFallback?: boolean;
 }
 
 /**
@@ -182,6 +208,23 @@ export interface WearRecord {
     mood: string;
     /** Weather conditions on that day */
     weather: WeatherData;
+    /** User marked this worn outfit as a favorite to re-wear (optional; absent = not favorited) */
+    favorite?: boolean;
+}
+
+/**
+ * A rejected outfit suggestion — the user skipped past it or regenerated the whole batch.
+ * Accumulates into a conservative "tends to skip these" signal fed back into the Stylist.
+ */
+export interface SuggestionEvent {
+    id: string;
+    /** 'skipped' = tapped Next Look; 'regenerated' = tapped Show Different Looks (whole batch) */
+    action: 'skipped' | 'regenerated';
+    /** Item IDs of the outfit(s) that were passed over */
+    itemIds: string[];
+    /** Mood the suggestion was made under */
+    mood: string;
+    date: Date;
 }
 
 /**
@@ -233,6 +276,9 @@ export interface WardrobeContextType {
     /** Update an existing clothing item */
     updateClothingItem: (id: string, updates: Partial<ClothingItem>) => Promise<void>;
 
+    /** Correct an item's color from the palette — updates the item and logs the {AI → user} pair as eval data */
+    correctItemColor: (id: string, userColor: { name: string; hex: string }) => Promise<void>;
+
     /** Delete a clothing item by ID */
     deleteClothingItem: (id: string) => Promise<void>;
 
@@ -244,6 +290,8 @@ export interface WardrobeContextType {
 
     /** Log an outfit as worn today */
     logOutfitWear: (outfitItems: string[], moodId: string, weather: WeatherData) => Promise<void>;
+    /** Toggle a worn outfit's favorite flag (persisted; optimistic local update). */
+    toggleOutfitFavorite: (id: string) => Promise<void>;
 
     // --- State & Analysis ---
 
@@ -261,6 +309,15 @@ export interface WardrobeContextType {
 
     /** Populate wardrobe with diverse demo data */
     populateDemoData: () => Promise<void>;
+
+    /** Remove all demo items (those with a `demo-` id prefix) — one-tap cleanup after the demo tour */
+    clearDemoItems: () => Promise<void>;
+
+    /** Recent rejected-suggestion events (skipped / regenerated) — feeds Stylist personalization */
+    suggestionEvents: SuggestionEvent[];
+
+    /** Log a rejected suggestion (best-effort; never blocks the UI) */
+    logSuggestionEvent: (action: SuggestionEvent['action'], itemIds: string[], moodId: string) => Promise<void>;
 
     /** IDs of items bookmarked to try next week */
     bookmarkedItems: string[];
