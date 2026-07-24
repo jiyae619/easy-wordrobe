@@ -41,6 +41,18 @@ export function sanitizeUiCopy(text: string): string {
     return text.replace(/[—–-]/g, " ").replace(/\s+/g, " ").trim();
 }
 
+/**
+ * Keep at most `max` sentences of outfit copy. A deterministic length guard so explanations stay
+ * short (design cap of 2 sentences) no matter how verbose the model is — the model writes the copy,
+ * code enforces the length. Text with no terminal punctuation is treated as a single sentence.
+ */
+export function clampSentences(text: string, max: number): string {
+    const trimmed = text.trim();
+    const sentences = trimmed.match(/[^.!?]+[.!?]+(?:\s|$)/g);
+    if (!sentences || sentences.length <= max) return trimmed;
+    return sentences.slice(0, max).join("").trim();
+}
+
 export function isRecord(value: unknown): value is JsonRecord {
     return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -400,7 +412,7 @@ export function mapStylistSuggestions(
             }
 
             const explanation = typeof suggestion.explanation === "string"
-                ? sanitizeUiCopy(suggestion.explanation)
+                ? clampSentences(sanitizeUiCopy(suggestion.explanation), 2)
                 : "";
 
             return {
