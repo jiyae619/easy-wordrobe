@@ -245,17 +245,16 @@ const Suggest: React.FC = () => {
                 <h1 className="text-2xl md:text-3xl font-bold text-primary tracking-tight">
                     Today's Looks
                 </h1>
-                <p className="text-sm text-olive-500 mt-0.5">Pick a vibe, get styled</p>
             </div>
 
-            {/* Mood Picker */}
+            {/* Mood Picker — horizontal scroll, bleeds to screen edges */}
             <section>
-                <div className="flex items-center gap-1.5 flex-wrap">
+                <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4 pb-1">
                     {MOODS.map(m => (
                         <button
                             key={m.id}
                             onClick={() => handleMoodChange(m.id)}
-                            className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold transition-all active:scale-[0.95] ${moodId === m.id
+                            className={`flex-none inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all active:scale-[0.95] ${moodId === m.id
                                 ? 'bg-primary text-white shadow-md'
                                 : 'bg-olive-100 text-secondary hover:bg-olive-200'
                                 }`}

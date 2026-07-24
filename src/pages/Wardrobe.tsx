@@ -65,9 +65,6 @@ const Wardrobe: React.FC = () => {
                 <h1 className="text-2xl md:text-3xl font-bold text-primary tracking-tight">
                     Wardrobe Explorer
                 </h1>
-                <p className="text-sm text-olive-500 mt-0.5">
-                    {clothes.length} items in your collection
-                </p>
             </div>
 
             {/* Search Bar */}

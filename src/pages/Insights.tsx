@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useWardrobe } from '../context/WardrobeContext';
 import { Lightbulb, Sparkles, Loader2 } from 'lucide-react';
 import { WeeklyOutfitTimeline } from '../components/insights/WeeklyOutfitTimeline';
@@ -39,7 +40,7 @@ const Insights: React.FC = () => {
                     <Lightbulb className="w-12 h-12 text-olive-300 mb-4" />
                     <h3 className="text-lg font-semibold text-primary mb-2">No insights yet</h3>
                     <p className="text-sm text-olive-500 max-w-xs mb-4">
-                        Add items to your wardrobe or populate demo data to get personalized style insights.
+                        Add items to your wardrobe to get personalized style insights.
                     </p>
                 </div>
             </div>
@@ -177,8 +178,17 @@ const Insights: React.FC = () => {
 
                 <div className="space-y-3">
                     {topWorn.length === 0 && (
-                        <div className="text-center py-8 text-olive-400 text-sm">
-                            Wear items to see your leaderboard.
+                        <div className="text-center py-8 px-4">
+                            <p className="text-sm text-olive-500 mb-3">
+                                Wear and log a look to start your history — your most-worn pieces will show up here.
+                            </p>
+                            <Link
+                                to="/suggest"
+                                className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary text-white text-xs font-semibold rounded-full hover:bg-olive-700 transition-colors active:scale-[0.97]"
+                            >
+                                <Sparkles className="w-3.5 h-3.5" />
+                                Style a look
+                            </Link>
                         </div>
                     )}
                     {topWorn.map((entry, index) => {

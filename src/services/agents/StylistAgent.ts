@@ -9,7 +9,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { getTextProvider } from "../vision/providerRegistry";
 import { getAgentFailureReason } from "./agentErrors";
 import { createAgentTraceId, recordAgentMetric } from "./agentTelemetry";
-import { computeWearScore, computeWeatherMatch, mapStylistSuggestions, moodIdsForStyling, parseAgentJson, sanitizeUiCopy } from "./agentOutputGuards";
+import { clampSentences, computeWearScore, computeWeatherMatch, mapStylistSuggestions, moodIdsForStyling, parseAgentJson, sanitizeUiCopy } from "./agentOutputGuards";
 
 export type BehavioralContext = {
     /** Items flagged by BehavioralAgent as unworn for 3+ weeks in the current season */
@@ -101,7 +101,7 @@ Output strictly as a JSON array of objects, with NO markdown formatting around i
     "moodName": "${mood.name}",
     "weatherMatch": 95,
     "wearScore": 90,
-                    "explanation": "Write 2-3 sentences of self contained outfit copy with no label prefix. Reference the specific colors and item types actually in this outfit. Vary your tone freely across the 3 outfits: one can be punchy and hype, one poetic or editorial, one warm and encouraging. Do not use hyphen or dash characters. Close every explanation with a single sentence that makes the user genuinely excited to put it on."
+                    "explanation": "Write AT MOST 2 short sentences of self contained outfit copy with no label prefix. Reference the specific colors and item types actually in this outfit. Vary your tone freely across the 3 outfits: one punchy and hype, one poetic or editorial, one warm and encouraging. Do not use hyphen or dash characters. Keep it tight — the final sentence should make the user genuinely excited to put it on."
   }
 ]`;
 
@@ -241,7 +241,7 @@ function getMockOutfitSuggestions(clothes: ClothingItem[], mood: FashionMood, we
             // Even fallback picks get real, computed scores — no fabricated numbers.
             weatherMatch: computeWeatherMatch(outfitItems, weather.temperature),
             wearScore: computeWearScore(outfitItems, clothes),
-            explanation: sanitizeUiCopy(buildFallbackExplanation(outfitItems, mood, shuffledTones[i] ?? 'warm')),
+            explanation: clampSentences(sanitizeUiCopy(buildFallbackExplanation(outfitItems, mood, shuffledTones[i] ?? 'warm')), 2),
             isFallback: true,
         };
     }).filter(outfit =>

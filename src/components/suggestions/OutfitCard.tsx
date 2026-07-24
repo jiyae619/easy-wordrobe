@@ -67,7 +67,7 @@ export const OutfitCard: React.FC<OutfitCardProps> = ({ suggestion, onWear, onSk
                         <ExpandableText
                             text={suggestion.explanation}
                             textClassName="text-sm text-olive-700 leading-relaxed"
-                            collapsedClassName="line-clamp-3"
+                            collapsedClassName="line-clamp-2"
                             minCharsForToggle={140}
                         />
                     </div>

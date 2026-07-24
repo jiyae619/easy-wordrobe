@@ -8,6 +8,7 @@ import { drainAgentMetricTally, recordPickerEvent } from "../agentTelemetry";
 import { extractJsonFromText } from "../../bedrockClient";
 import {
     VALID_MOODS,
+    clampSentences,
     computeDeprioritizedItemIds,
     computeLeastWornItems,
     computeWearStreak,
@@ -522,5 +523,32 @@ describe("starter catalog integrity", () => {
                 expect(built.aiColor, `${entry.slug} must not fake an AI detection`).toBeUndefined();
             }
         }
+    });
+});
+
+describe("outfit explanation length cap (design: max 2 sentences)", () => {
+    it("keeps only the first N sentences when the model over-writes", () => {
+        const verbose = "This navy tee and beige chinos read effortless. The tones balance warm and cool. A cardigan adds polish. You will feel put together all day.";
+        // The cap matters because a long explanation blows past the card's 2-line clamp and buries the CTA.
+        expect(clampSentences(verbose, 2)).toBe("This navy tee and beige chinos read effortless. The tones balance warm and cool.");
+    });
+
+    it("leaves short copy untouched and handles missing terminal punctuation", () => {
+        expect(clampSentences("One clean line.", 2)).toBe("One clean line.");
+        expect(clampSentences("No period here", 2)).toBe("No period here");
+    });
+
+    it("caps the explanation surfaced by mapStylistSuggestions to 2 sentences", () => {
+        const clothes = [item("t1", ClothingCategory.Tops), item("b1", ClothingCategory.Bottoms)];
+        const parsed = [{
+            itemIds: ["t1", "b1"],
+            moodName: "Casual",
+            weatherMatch: 90,
+            wearScore: 80,
+            explanation: "Sentence one is great. Sentence two seals it. Sentence three is one too many.",
+        }];
+        const { suggestions } = mapStylistSuggestions(parsed, clothes, mood, () => "id-1", 20);
+        expect(suggestions).toHaveLength(1);
+        expect(suggestions[0].explanation).toBe("Sentence one is great. Sentence two seals it.");
     });
 });
