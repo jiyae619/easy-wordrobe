@@ -14,7 +14,8 @@ OUT = os.path.join(HERE, 'out', 'frames')
 FONTS = os.path.join(HERE, 'fonts')
 W, H = 1920, 1080
 FPS = 24
-TOTAL = 672
+TOTAL = 720  # 30 s; the montage words hold 2 beats each
+MONTAGE_LEN = 24
 
 CREAM = (244, 245, 240)
 OLIVE900 = (26, 36, 25)
@@ -535,18 +536,18 @@ def shot4(g):
 
 MONTAGE = [
     (480, 'Scan.', '05_scan_result', OLIVE300, OLIVE900),
-    (492, 'Style.', '08_suggest_results_outfit3', CREAM, OLIVE800),
-    (504, 'Wear.', '08c_suggest_outfit_logged', OLIVE800, CREAM),
-    (516, 'Repeat.', '01_home', OLIVE500, CREAM),
+    (504, 'Style.', '08_suggest_results_outfit3', CREAM, OLIVE800),
+    (528, 'Wear.', '08c_suggest_outfit_logged', OLIVE800, CREAM),
+    (552, 'Repeat.', '01_home', OLIVE500, CREAM),
 ]
 
 
-def shot5(g):
-    if g < 528:
-        i = min(3, (g - 480) // 12)
+def shot5(g, payoff=False):
+    if not payoff:
+        i = min(3, (g - 480) // MONTAGE_LEN)
         st, word, scr, bg, fg = MONTAGE[i]
         fr = new_frame(Image.new('RGBA', (W, H), bg + (255,)), g)
-        t = prog(g, st, st + 12)
+        t = prog(g, st, st + MONTAGE_LEN)
         # punchy zoom-in on each cut
         z = 1.0 + 0.05 * ease_out(t)
         phone_flat(fr, device_c(scr), 1330, 548, int(920 * z), angle=(-3 if i % 2 else 3) * (1 - ease_out(t)))
@@ -631,8 +632,10 @@ def frame_at(g):
     if g < 480:
         return shot4(g)
     if g < 576:
-        return shot5(g)
-    return shot6(g)
+        return shot5(g)  # 4 word cuts
+    if g < 624:
+        return shot5(g - 48, payoff=True)  # 18/22 payoff (authored at 528-575)
+    return shot6(g - 48)  # end card (3D frames 576-671)
 
 
 if __name__ == '__main__':

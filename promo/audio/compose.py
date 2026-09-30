@@ -16,7 +16,7 @@ SR = 44100
 BPM = 120
 BEAT = 60 / BPM
 BAR = 4 * BEAT
-DUR = 28.0
+DUR = 30.0
 N = int(SR * DUR)
 rng = np.random.default_rng(7)
 
@@ -277,10 +277,10 @@ def build(sfx_events):
     fx.add(riser(BAR * 1.0), bt(2), 0.45)
 
     # --- groove bars 3..14
-    for b in range(3, 15):
+    for b in range(3, 16):
         ch = PROG[(b - 1) % 4]
         breakdown = b == 9
-        outro = b >= 13
+        outro = b >= 14
         if outro:
             continue
         for q in range(4):
@@ -324,19 +324,19 @@ def build(sfx_events):
     fx.add(riser(BAR * 0.5), bt(9, 2), 0.35)
 
     # --- outro (bars 13-14): big final chord + bell + tail
-    kick_at(bt(13))
-    drums.add(C, bt(13), 0.5)
-    drums.add(HO, bt(13), 0.4)
-    music.add(bass(ROOT['Am'], 1.6), bt(13), 0.6)
+    kick_at(bt(14))
+    drums.add(C, bt(14), 0.5)
+    drums.add(HO, bt(14), 0.4)
+    music.add(bass(ROOT['Am'], 1.6), bt(14), 0.6)
     L, R = pad_chord([n + 12 for n in CH['Am']], BAR * 1.6, cutoff=2600, att=0.02, rel=1.2)
-    music.addst(L, R, bt(13), 0.34)
+    music.addst(L, R, bt(14), 0.34)
     for i, m in enumerate([69, 72, 76, 79, 81]):
-        music.add(bell(m, 2.5), bt(13, i * 0.25), 0.12, pan=-0.4 + i * 0.2)
-    music.add(stab([n + 12 for n in CH['Am'][:4]], 0.6), bt(13), 0.35)
+        music.add(bell(m, 2.5), bt(14, i * 0.25), 0.12, pan=-0.4 + i * 0.2)
+    music.add(stab([n + 12 for n in CH['Am'][:4]], 0.6), bt(14), 0.35)
     # soft final "sign-off" pluck motif on the logo
     for i, (pos, m) in enumerate([(2.0, 76), (2.5, 79), (3.0, 81)]):
-        music.add(pluck(m, 0.8), bt(13, pos), 0.2)
-    music.add(bell(81, 3.0), bt(14, 0), 0.1)
+        music.add(pluck(m, 0.8), bt(14, pos), 0.2)
+    music.add(bell(81, 3.0), bt(15, 0), 0.1)
 
     # --- SFX events from the edit
     for name, at, gain, *rest in sfx_events:

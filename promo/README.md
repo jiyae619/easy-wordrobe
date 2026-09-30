@@ -1,6 +1,6 @@
 # Stylemax promo video
 
-**`stylemax-promo.mp4`**: 28 s, 1920×1080, 24 fps, H.264 + AAC stereo.
+**`stylemax-promo.mp4`**: 30 s, 1920×1080, 24 fps, H.264 + AAC stereo.
 
 ## Concept: "Your closet, finally awake"
 
@@ -13,8 +13,8 @@ The hook comes from the README's own stat: most people wear only about 20% of th
 | 7–11 s | Step 1 · Scan | A phone whips in, the real scanner screen snaps a 3D leather jacket, and IntakeAgent's tags pop out around it (Outerwear · Black · Spring/Fall · Casual/Creative). |
 | 11–16 s | Step 2 · Style | Mood chip tap → loading → the real outfit cards, while the same outfit assembles in 3D beside the phone, with Weather/Rotation scores. |
 | 16–20 s | Step 3 · Notice | Breakdown. The Insights screen, with BehavioralAgent's nudge typed out large: "Your blue denim jacket hasn't seen sunlight in 3 weeks." |
-| 20–24 s | montage | Beat-cut *Scan. Style. Wear. Repeat.*, then the payoff: **18/22 pieces back in rotation**. |
-| 24–28 s | end card | Every garment bursts out and orbits the Stylemax lockup on dark olive. "Your closet, finally awake." |
+| 20–26 s | montage | *Scan. Style. Wear. Repeat.* (one word per 2 beats), then the payoff: **18/22 pieces back in rotation**. |
+| 26–30 s | end card | Every garment bursts out and orbits the Stylemax lockup on dark olive. "Your closet, finally awake." |
 
 ## How it was made
 
