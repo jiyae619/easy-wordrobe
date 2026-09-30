@@ -1,0 +1,9 @@
+# Regenerable build products (see README.md)
+screens/
+renders/
+out/
+fonts/
+capture/node_modules/
+capture/camera_feed.y4m
+capture/camera_frame.png
+__pycache__/
