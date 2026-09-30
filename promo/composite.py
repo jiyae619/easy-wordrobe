@@ -522,7 +522,7 @@ def shot4(g):
         r = rng.uniform(1, 2.6)
         d.ellipse([x - r, y - r, x + r, y + r], fill=(244, 245, 240, int(rng.uniform(40, 110))))
     ph_in = ease_out(prog(g, 384, 398))
-    phone_flat(fr, insights_screen(g), 1420, 540 + 60 * (1 - ph_in), 980, angle=-4 * (1 - ph_in) + 2)
+    phone_flat(fr, insights_screen(g), 1420, 548 + 60 * (1 - ph_in), 920, angle=-4 * (1 - ph_in) + 2)
     eyebrow(fr, 'STEP 3 · NOTICE', 150, 300, OLIVE300, 388, t_out=(470, 479))
     words = ['“Your blue denim jacket', "hasn’t seen sunlight", 'in 3 weeks.”']
     starts = [396 + i * 4 for i in range(11)]
@@ -564,14 +564,14 @@ def shot5(g):
     fr = new_frame(bg_cached(CREAM, (226, 231, 219)), g)
     t_in = ease_out(prog(g, 528, 540))
     s = device_c('01_home')
-    phone_flat(fr, s, 1360, 560 + 40 * (1 - t_in), 980, angle=0)
+    phone_flat(fr, s, 1360, 548 + 40 * (1 - t_in), 940, angle=0)
     eyebrow(fr, 'THIS MONTH', 150, 330, OLIVE500, 530)
     n = int(round(4 + 14 * ease_out(prog(g, 532, 556))))
     f = font(800, 210)
     d = ImageDraw.Draw(fr)
     a = ease_out(prog(g, 530, 538))
     d.text((140, 360), f'{n}', font=f, fill=OLIVE800 + (int(255 * a),))
-    nx = 140 + f.getlength(f'{18}') + 10
+    nx = 140 + f.getlength(f'{n}') + 14
     d.text((nx, 440), '/22', font=font(500, 110), fill=OLIVE500 + (int(255 * a),))
     draw_words(fr, ['pieces back in rotation.'], 150, 610, 54, 600, OLIVE800, [540, 543, 546, 549], dur=8)
     # progress bar
@@ -587,7 +587,7 @@ def shot5(g):
 
 @functools.lru_cache(None)
 def app_icon(size):
-    ic = load('/home/user/easy-wordrobe/public/icons/apple-touch-icon.png')
+    ic = load(os.path.join(HERE, '..', 'public', 'icons', 'apple-touch-icon.png'))
     ic = ic.resize((size, size), Image.LANCZOS)
     m = Image.new('L', (size * 4, size * 4), 0)
     ImageDraw.Draw(m).rounded_rectangle([0, 0, size * 4 - 1, size * 4 - 1], radius=int(size * 4 * 0.225), fill=255)
