@@ -16,7 +16,7 @@ import { useMood } from '../hooks/useMood';
 import { useTodayWeather } from '../hooks/useTodayWeather';
 import { useStylistLooks } from '../hooks/useStylistLooks';
 import { usePendingWear } from '../hooks/usePendingWear';
-import { OutfitReel, type OutfitReelHandle } from '../components/today/OutfitReel';
+import { HangerReel, type HangerReelHandle } from '../components/today/HangerReel';
 import { MoodChips } from '../components/common/MoodChips';
 import { WearToast } from '../components/common/WearToast';
 import { StreakCard } from '../components/home/StreakCard';
@@ -29,6 +29,7 @@ import {
     isValidOutfit,
     itemsFromSlots,
     pickLookForLocks,
+    slotForItem,
     slotsFromItems,
     type OutfitSlots,
     type SlotId,
@@ -38,13 +39,13 @@ import { haptic } from '../utils/motion';
 const REEL: Record<SlotId, { label: string; none: string; size: number }> = {
     layer: { label: 'Layer', none: 'No layer', size: 84 },
     top: { label: 'Top', none: 'No top', size: 84 },
-    bottom: { label: 'Bottom', none: '', size: 96 },
-    shoes: { label: 'Shoes', none: 'No shoes', size: 68 },
+    bottom: { label: 'Bottom', none: '', size: 92 },
+    shoes: { label: 'Shoes', none: 'No shoes', size: 62 },
 };
 
 const EMPTY_SLOTS: OutfitSlots = { layer: null, top: null, bottom: null, shoes: null };
 
-/** Normalized identity of an outfit, so a reel combination can be matched to an AI look. */
+/** Normalized identity of an outfit, so a rail combination can be matched to an AI look. */
 const outfitKey = (ids: string[]) => [...ids].sort().join('|');
 
 const WeatherIcon: React.FC<{ condition?: string }> = ({ condition = '' }) => {
@@ -56,9 +57,10 @@ const WeatherIcon: React.FC<{ condition?: string }> = ({ condition = '' }) => {
 };
 
 /**
- * Today — the outfit builder. Four reels (layer / top / bottom / shoes) you swipe like a slot
- * machine. Lock the pieces you love and tap Spin: the reels land on the AI stylist's looks (fetched
- * once, cached for the session), then on code-assembled combinations once the batch is used up.
+ * Today — the outfit builder. Each slot (layer / top / bottom / shoes) is a clothes rail you swipe;
+ * garments swing on their hooks. Lock the pieces you love and tap Spin: the rails run like a slot
+ * machine and land on the AI stylist's looks (fetched once, cached for the session), then on
+ * code-assembled combinations once the batch is used up.
  */
 const Home: React.FC = () => {
     const { clothes, outfits, tryItItemIds } = useWardrobe();
@@ -80,22 +82,28 @@ const Home: React.FC = () => {
     }, [clothes, outfits]);
     const priorityIds = useMemo(() => new Set([...tryItItemIds, ...leastWornIds]), [tryItItemIds, leastWornIds]);
 
-    const incoming = (location.state as { slots?: OutfitSlots } | null)?.slots ?? null;
+    // Hand-offs via router state: a whole look from Picks ("Tweak"), or one piece from Closet
+    // ("Style it") which arrives locked so Spin builds around it.
+    const routeState = location.state as { slots?: OutfitSlots; lockItemId?: string } | null;
+    const lockItem = routeState?.lockItemId ? clothes.find((c) => c.id === routeState.lockItemId) ?? null : null;
+    const lockSlot = lockItem ? slotForItem(lockItem) : null;
+    const incoming = routeState?.slots
+        ?? (lockItem && lockSlot ? assembleCodeSlots(options, { [lockSlot]: lockItem.id }, priorityIds, weather?.temperature ?? null, 0) : null);
     const touched = useRef(Boolean(incoming));
     const autoLanded = useRef(false);
     const spinState = useRef({ cursor: 0, used: 0, seed: 1 });
-    const reelRefs = useRef<Partial<Record<SlotId, OutfitReelHandle | null>>>({});
+    const reelRefs = useRef<Partial<Record<SlotId, HangerReelHandle | null>>>({});
     const [slots, setSlots] = useState<OutfitSlots>(incoming ?? EMPTY_SLOTS);
-    const [locks, setLocks] = useState<Set<SlotId>>(new Set());
+    const [locks, setLocks] = useState<Set<SlotId>>(() => new Set(lockSlot ? [lockSlot] : []));
     const [spinTurns, setSpinTurns] = useState(0);
     const [showWeather, setShowWeather] = useState(false);
     const [reelVersion, setReelVersion] = useState(0);
     const initialized = useRef(Boolean(incoming));
 
-    // A look handed over from Picks ("Tweak on reels") arrives once via router state.
+    // Router hand-offs are consumed once.
     useEffect(() => {
-        if (incoming) navigate(location.pathname, { replace: true, state: null });
-    }, [incoming, navigate, location.pathname]);
+        if (routeState) navigate(location.pathname, { replace: true, state: null });
+    }, [routeState, navigate, location.pathname]);
 
     const indexFor = (slot: SlotId, s: OutfitSlots = slots) => {
         const i = options[slot].findIndex((o) => (o?.id ?? null) === s[slot]);
@@ -275,12 +283,12 @@ const Home: React.FC = () => {
             {!readiness.canMakeOutfit ? (
                 <section className="rounded-[28px] border-2 border-dashed border-ink/40 p-5">
                     <h2 className="font-display text-xl font-extrabold text-ink">
-                        {clothes.length === 0 ? 'Load up your reels' : 'Almost ready to spin'}
+                        {clothes.length === 0 ? 'Hang up your first pieces' : 'Almost ready to spin'}
                     </h2>
                     <p className="text-sm text-olive-600 mt-1 mb-4">
                         {clothes.length === 0
                             ? 'Pick your basics from our catalog, or snap your closet — one shelf photo can capture several pieces.'
-                            : `Add ${readiness.missingForOutfit.join(' and ')} so the reels can build full outfits.`}
+                            : `Add ${readiness.missingForOutfit.join(' and ')} so the rails can build full outfits.`}
                     </p>
                     <div className="flex flex-col gap-2.5">
                         <button type="button" onClick={() => openPicker(clothes.length > 0 ? missingCategories : undefined)} className="h-12 rounded-full bg-ink text-paper font-bold text-sm active:scale-[0.97]">
@@ -294,12 +302,14 @@ const Home: React.FC = () => {
             ) : (
                 <>
                     {/* Reels, with the lime "fitting column" behind the centre */}
-                    <section className="relative -mx-4 px-4" aria-label="Outfit reels">
-                        <div className="absolute left-1/2 -translate-x-1/2 top-0 bottom-0 w-[116px] rounded-[30px] bg-lime border-2 border-ink" aria-hidden="true" />
+                    <section className="relative -mx-4 px-4" aria-label="Outfit rails">
+                        {/* The "fitting spot": white so garment colours stay true (photos blend onto it) */}
+                        <div className="absolute left-1/2 -translate-x-1/2 top-0 bottom-0 w-[112px] rounded-[30px] bg-white border-2 border-ink shadow-[0_0_0_5px_#D4F06A]" aria-hidden="true" />
                         <div key={`${optionsKey}#${reelVersion}`} className="relative space-y-0.5">
                             {reelSlots.map((slot) => (
-                                <OutfitReel
+                                <HangerReel
                                     key={slot}
+                                    shelf={slot === 'shoes'}
                                     ref={(h) => { reelRefs.current[slot] = h; }}
                                     label={slot === 'bottom' && options.bottom.some(isDress) ? 'Bottom / dress' : REEL[slot].label}
                                     options={options[slot]}
@@ -353,7 +363,7 @@ const Home: React.FC = () => {
                         <button
                             type="button"
                             onClick={spin}
-                            aria-label="Spin — let the AI stylist fill the unlocked reels"
+                            aria-label="Spin — let the AI stylist fill the unlocked rails"
                             className="w-[64px] h-[64px] flex-none rounded-full bg-lime border-2 border-ink text-ink flex flex-col items-center justify-center text-[11px] font-extrabold transition-transform duration-700 ease-out active:scale-95"
                             style={{ transform: `rotate(${spinTurns * 360}deg)` }}
                         >
@@ -373,7 +383,7 @@ const Home: React.FC = () => {
                     <div className="h-1.5 rounded-full bg-olive-200/70 overflow-hidden mt-2">
                         <div className="h-full bg-ink" style={{ width: `${clothes.length < 5 ? (clothes.length / 5) * 100 : completeness.ratio * 100}%` }} />
                     </div>
-                    <p className="text-xs text-olive-600 mt-2">{clothes.length < 5 ? 'More pieces make the reels more fun.' : `${completeness.nextUnlock}.`}</p>
+                    <p className="text-xs text-olive-600 mt-2">{clothes.length < 5 ? 'More pieces make every spin more fun.' : `${completeness.nextUnlock}.`}</p>
                     <div className="flex gap-2 mt-3">
                         <button type="button" onClick={() => openPicker(completeness.nextUnlockKey === 'shoes' ? [ClothingCategory.Shoes] : undefined)} className="flex-1 h-10 rounded-full bg-ink text-paper text-xs font-bold">
                             Pick basics

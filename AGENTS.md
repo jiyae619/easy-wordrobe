@@ -91,7 +91,7 @@ Stylemax uses **three specialized AI agents**, all powered by **Amazon Nova 2 Li
 
 **File:** `src/services/agents/StylistAgent.ts`
 
-**Trigger:** When Today or Picks needs looks for the selected mood and today's weather. One batch is fetched per (wardrobe items, mood, weather) and shared by both pages through a session cache (`useStylistLooks`): Picks shows it as a swipe stack, and Today's **Spin** lands the reels on it (respecting locked pieces), then falls back to code-assembled combinations once the batch is used up.
+**Trigger:** When Today or Picks needs looks for the selected mood and today's weather. One batch is fetched per (wardrobe items, mood, weather) and shared by both pages through a session cache (`useStylistLooks`): Picks shows it as a swipe stack, and Today's **Spin** lands the hanger rails on it (respecting locked pieces), then falls back to code-assembled combinations once the batch is used up.
 
 **What it does:** Receives the user's entire wardrobe inventory (as a condensed JSON array), the current weather conditions, the selected mood, and a `BehavioralContext` from BehavioralAgent. Nova reasons about which combinations work together — considering color coordination, seasonal appropriateness, weather practicality, and wear-history priorities — and returns three distinct outfits with explanations.
 

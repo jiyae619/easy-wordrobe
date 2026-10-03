@@ -313,20 +313,20 @@ body {
   transform-origin: 50% 0;
 }
 
-@keyframes railIn {
-  from { opacity: 0; transform: translateX(24px); }
-  to { opacity: 1; transform: translateX(0); }
+@keyframes dealIn {
+  from { opacity: 0; transform: translateY(380px) rotate(-8deg); }
+  to { opacity: 1; transform: translateY(0) rotate(0); }
 }
 
-.rail-in {
-  animation: railIn 0.45s cubic-bezier(.2, .8, .2, 1) both;
+.deal-in {
+  animation: dealIn 0.5s cubic-bezier(.2, .8, .2, 1) both;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .dust-tag,
   .lock-wobble,
   .piece-swing,
-  .rail-in,
+  .deal-in,
   .animate-fade-in-up,
   .animate-scale-in,
   .animate-float {

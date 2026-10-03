@@ -92,11 +92,12 @@ App.tsx (Layout wrapper with navigation)
 │   │   └── LoginForm
 │   ├── / → Home = "Today" (ProtectedRoute)
 │   │   ├── Weather pill (useTodayWeather) + MoodChips (useMood)
-│   │   ├── OutfitReel ×4 (layer / top / bottom-or-dress / shoes) — lock + Spin
+│   │   ├── HangerReel ×4 (layer / top / bottom-or-dress / shoes-shelf) — lock + Spin
 │   │   └── StreakCard + closet-growth nudge
 │   ├── /wardrobe → Wardrobe = "Closet" (ProtectedRoute)
-│   │   ├── HangerRail (one per category; shoes on a shelf)
-│   │   └── ItemDetailModal (tap the centred piece)
+│   │   ├── CardFan (the selected category dealt as a fanned hand of cards)
+│   │   ├── Deck piles (one per category) — tap to deal
+│   │   └── ItemDetailModal (tap the raised card) · "Style it" → Today with the piece locked
 │   ├── CameraScannerOverlay (global)
 │   │   └── ImageUpload
 │   ├── BulkUploadOverlay (global) — up to 10 photos → analyze → auto-save

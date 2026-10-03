@@ -17,6 +17,16 @@ export const SLOT_ORDER: SlotId[] = ['layer', 'top', 'bottom', 'shoes'];
 /** Item id per slot; null = slot intentionally empty ("no layer", "no top", "no shoes"). */
 export type OutfitSlots = Record<SlotId, string | null>;
 
+/** Which slot a piece belongs to. */
+export function slotForItem(item: ClothingItem): SlotId {
+    switch (item.category) {
+        case ClothingCategory.Outerwear: return 'layer';
+        case ClothingCategory.Tops: return 'top';
+        case ClothingCategory.Shoes: return 'shoes';
+        default: return 'bottom'; // bottoms and dresses share the bottom rail
+    }
+}
+
 /** Reel options per slot. `null` entries are the explicit "none" choice. */
 export type ReelOptions = Record<SlotId, Array<ClothingItem | null>>;
 
