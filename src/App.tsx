@@ -1,8 +1,8 @@
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
-import { Home as HomeIcon, Shirt, Camera, Sparkles, BarChart2 } from 'lucide-react';
+import { Rows3, Shirt, Plus, Heart, BarChart2 } from 'lucide-react';
 import { WardrobeProvider } from './context/WardrobeContext';
 import { AuthProvider } from './context/AuthContext';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type ComponentType } from 'react';
 // Import pages
 import Home from './pages/Home';
 import Wardrobe from './pages/Wardrobe';
@@ -17,6 +17,17 @@ import ProtectedRoute from './components/common/ProtectedRoute';
 import UserMenu from './components/common/UserMenu';
 import { useWardrobe } from './context/WardrobeContext';
 import { AlertCircle, X } from 'lucide-react';
+
+const NavItem = ({ to, icon: Icon, label, active }: { to: string, icon: ComponentType<{ className?: string }>, label: string, active: boolean }) => (
+  <Link
+    to={to}
+    aria-current={active ? 'page' : undefined}
+    className={`flex flex-col items-center justify-center gap-1 w-full py-2 text-[11px] transition-colors ${active ? 'font-extrabold text-ink' : 'font-semibold text-olive-500 hover:text-ink'}`}
+  >
+    <Icon className="w-6 h-6" />
+    {label}
+  </Link>
+);
 
 const Layout = () => {
   const location = useLocation();
@@ -34,42 +45,6 @@ const Layout = () => {
 
   // Add safe-area-inset support for mobile devices
   const safeAreaBottom = 'env(safe-area-inset-bottom, 0px)';
-
-  const NavItem = ({ to, icon: Icon, label, mobile = false }: { to: string, icon: any, label: string, mobile?: boolean }) => {
-    const active = isActive(to);
-
-    if (mobile) {
-      return (
-        <Link to={to} className="relative flex flex-col items-center justify-center w-full py-2 group">
-          <div className={`
-            flex items-center justify-center w-10 h-10 rounded-2xl transition-all duration-300
-            ${active
-              ? 'bg-primary text-white shadow-md'
-              : 'text-gray-400 group-hover:text-secondary group-hover:bg-olive-100'
-            }
-          `}>
-            <Icon className="w-5 h-5" />
-          </div>
-          <span className={`text-[10px] font-medium mt-1 transition-colors ${active ? 'text-primary' : 'text-gray-400'}`}>
-            {label}
-          </span>
-        </Link>
-      );
-    }
-
-    return (
-      <Link
-        to={to}
-        className={`inline-flex items-center px-4 py-2 text-sm font-medium rounded-full transition-all duration-300 ${active
-          ? 'bg-primary text-white shadow-sm'
-          : 'text-gray-500 hover:text-primary hover:bg-olive-100'
-          }`}
-      >
-        <Icon className={`w-4 h-4 mr-2`} />
-        {label}
-      </Link>
-    );
-  };
 
   // Login page has its own full-screen layout
   if (isLoginPage) {
@@ -116,24 +91,23 @@ const Layout = () => {
         {!showScanner && (
           <div className="fixed bottom-0 left-0 right-0 z-50 flex justify-center pointer-events-none">
             {/* Constrain nav width to match container */}
-            <div className="w-full max-w-[480px] bg-white/90 backdrop-blur-lg border-t border-muted pointer-events-auto"
+            <div className="w-full max-w-[480px] bg-paper/95 backdrop-blur-lg border-t-[1.5px] border-ink pointer-events-auto"
               style={{ paddingBottom: safeAreaBottom }}>
               <div className="flex justify-around items-center h-[72px] px-2">
-                <NavItem to="/" icon={HomeIcon} label="Home" mobile />
-                <NavItem to="/wardrobe" icon={Shirt} label="Wardrobe" mobile />
-                {/* Camera Button — same style as other NavItems */}
+                <NavItem to="/" icon={Rows3} label="Today" active={isActive('/')} />
+                <NavItem to="/wardrobe" icon={Shirt} label="Closet" active={isActive('/wardrobe')} />
+                {/* Scan — the one raised action */}
                 <button
                   onClick={() => setShowScanner(true)}
-                  aria-label="Open wardrobe scanner"
-                  className="relative flex flex-col items-center justify-center w-full py-2 group active:scale-[0.96] transition-transform"
+                  aria-label="Scan a new piece"
+                  className="relative flex items-center justify-center w-full py-2"
                 >
-                  <div className="flex items-center justify-center w-10 h-10 rounded-2xl transition-all duration-300 text-gray-400 group-hover:text-secondary group-hover:bg-olive-100">
-                    <Camera className="w-5 h-5" />
-                  </div>
-                  <span className="text-[10px] font-medium mt-1 text-gray-400">Scan</span>
+                  <span className="flex items-center justify-center w-14 h-14 -mt-7 rounded-[18px] border-2 border-ink bg-lime text-ink -rotate-6 shadow-[0_6px_14px_rgba(21,26,20,0.18)] active:scale-95 transition-transform">
+                    <Plus className="w-6 h-6" />
+                  </span>
                 </button>
-                <NavItem to="/suggest" icon={Sparkles} label="Suggest" mobile />
-                <NavItem to="/insights" icon={BarChart2} label="Insights" mobile />
+                <NavItem to="/suggest" icon={Heart} label="Picks" active={isActive('/suggest')} />
+                <NavItem to="/insights" icon={BarChart2} label="Stats" active={isActive('/insights')} />
               </div>
             </div>
           </div>

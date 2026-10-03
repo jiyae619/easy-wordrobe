@@ -90,23 +90,19 @@ App.tsx (Layout wrapper with navigation)
 ├── Router (React Router)
 │   ├── /login → Login page
 │   │   └── LoginForm
-│   ├── / → Home (ProtectedRoute)
-│   │   ├── WeatherCard
-│   │   ├── OutfitCard (preview)
-│   │   └── ActionButtons
-│   ├── /wardrobe → Wardrobe (ProtectedRoute)
-│   │   ├── FilterBar
-│   │   ├── WardrobeGrid
-│   │   │   └── WardrobeCard (item)
-│   │   │       └── ItemDetailModal
-│   │   └── CameraScannerOverlay (global)
-│   │       └── ImageUpload
+│   ├── / → Home = "Today" (ProtectedRoute)
+│   │   ├── Weather pill (useTodayWeather) + MoodChips (useMood)
+│   │   ├── OutfitReel ×4 (layer / top / bottom-or-dress / shoes) — lock + Spin
+│   │   └── StreakCard + closet-growth nudge
+│   ├── /wardrobe → Wardrobe = "Closet" (ProtectedRoute)
+│   │   ├── HangerRail (one per category; shoes on a shelf)
+│   │   └── ItemDetailModal (tap the centred piece)
+│   ├── CameraScannerOverlay (global)
+│   │   └── ImageUpload
 │   ├── BulkUploadOverlay (global) — up to 10 photos → analyze → auto-save
-│   ├── /suggest → Suggest (ProtectedRoute)
-│   │   ├── MoodSelector
-│   │   │   └── MoodCard (multiple)
-│   │   ├── WeatherSummary
-│   │   └── OutfitCard (multiple suggestions)
+│   ├── /suggest → Suggest = "Picks" (ProtectedRoute)
+│   │   ├── MoodChips
+│   │   └── SwipeDeck of MirrorCard (3 looks: right wear · left skip · up tweak)
 │   └── /insights → Insights (ProtectedRoute)
 │       ├── WeeklyTimeline
 │       ├── WearFrequencyChart
@@ -429,10 +425,10 @@ User navigates to /suggest page
 │  • Look up each ID in context.clothes    │
 │  • Validate outfit composition           │
 │  • Compute weatherMatch & wearScore       │
-│  • Prepare OutfitCard data               │
+│  • Cache per (items, mood, weather)       │
 └──────────────────────────────────────────┘
       │
-      │ Display 3 OutfitCard components
+      │ 3 MirrorCards on Picks / Spin targets on Today
       ▼
 ┌──────────────────────────────────────────┐
 │  User reviews suggestions                │

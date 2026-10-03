@@ -6,6 +6,8 @@ Interactive prototypes (9 phone screens, all built with real catalog photos): **
 
 All three keep the current agent contracts unchanged. Only the presentation layer changes.
 
+> **Chosen direction (implemented):** B · Mix Reels as the structure, with A's hanger rails as the Closet and A3's mirror as the card face inside B3's swipe stack. Tabs: **Today** (reels + Spin) · **Closet** (hanger rails) · (+ Scan) · **Picks** (mirror cards: right = wear, left = skip, up = tweak on the reels) · **Stats**.
+
 | | A · The Walk-in | B · Mix Reels | C · Orbit |
 |---|---|---|---|
 | Metaphor | A real closet: rails, hangers, mirror | A slot machine you dress with | Your wardrobe as a planet you spin |

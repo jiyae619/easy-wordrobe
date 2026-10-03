@@ -1,456 +1,393 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { format } from 'date-fns';
+import { Cloud, CloudRain, Sun, Wind, Dices, ChevronDown } from 'lucide-react';
 import { useWardrobe } from '../context/WardrobeContext';
-import { Cloud, Sun, CloudRain, Wind, Sparkles, Loader2 } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import { awsNovaService } from '../services/awsNova';
-import { weatherService } from '../services/weatherService';
-import { ClothingCategory, type OutfitSuggestion, type WeatherData, type WeatherOutlookPeriod } from '../types';
-import { MOODS } from '../data/moods';
-import { getWardrobeReadiness, getWardrobeCompleteness } from '../services/agents/agentOutputGuards';
+import { ClothingCategory, type OutfitSuggestion } from '../types';
+import {
+    computeSeasonalLeastWornIds,
+    computeWearScore,
+    computeWeatherMatch,
+    describeOutfitReason,
+    getWardrobeCompleteness,
+    getWardrobeReadiness,
+} from '../services/agents/agentOutputGuards';
+import { useMood } from '../hooks/useMood';
+import { useTodayWeather } from '../hooks/useTodayWeather';
+import { useStylistLooks } from '../hooks/useStylistLooks';
+import { usePendingWear } from '../hooks/usePendingWear';
+import { OutfitReel, type OutfitReelHandle } from '../components/today/OutfitReel';
+import { MoodChips } from '../components/common/MoodChips';
+import { WearToast } from '../components/common/WearToast';
 import { StreakCard } from '../components/home/StreakCard';
-import { ExpandableText } from '../components/common/ExpandableText';
+import {
+    SLOT_ORDER,
+    assembleCodeSlots,
+    buildReelOptions,
+    daysIdle,
+    isDress,
+    isValidOutfit,
+    itemsFromSlots,
+    pickLookForLocks,
+    slotsFromItems,
+    type OutfitSlots,
+    type SlotId,
+} from '../utils/outfitSlots';
+import { haptic } from '../utils/motion';
 
-const WEATHER_CACHE_KEY = 'home-weather-cache-v1';
+const REEL: Record<SlotId, { label: string; none: string; size: number }> = {
+    layer: { label: 'Layer', none: 'No layer', size: 84 },
+    top: { label: 'Top', none: 'No top', size: 84 },
+    bottom: { label: 'Bottom', none: '', size: 96 },
+    shoes: { label: 'Shoes', none: 'No shoes', size: 68 },
+};
 
+const EMPTY_SLOTS: OutfitSlots = { layer: null, top: null, bottom: null, shoes: null };
+
+/** Normalized identity of an outfit, so a reel combination can be matched to an AI look. */
+const outfitKey = (ids: string[]) => [...ids].sort().join('|');
+
+const WeatherIcon: React.FC<{ condition?: string }> = ({ condition = '' }) => {
+    const c = condition.toLowerCase();
+    if (c.includes('rain') || c.includes('drizzle')) return <CloudRain className="w-4 h-4" />;
+    if (c.includes('cloud')) return <Cloud className="w-4 h-4" />;
+    if (c.includes('wind')) return <Wind className="w-4 h-4" />;
+    return <Sun className="w-4 h-4" />;
+};
+
+/**
+ * Today — the outfit builder. Four reels (layer / top / bottom / shoes) you swipe like a slot
+ * machine. Lock the pieces you love and tap Spin: the reels land on the AI stylist's looks (fetched
+ * once, cached for the session), then on code-assembled combinations once the batch is used up.
+ */
 const Home: React.FC = () => {
-    const { clothes, logOutfitWear, userSettings } = useWardrobe();
-    const [weather, setWeather] = useState<WeatherData | null>(null);
-    const [weatherOutlook, setWeatherOutlook] = useState<WeatherOutlookPeriod[]>([]);
-    const [weatherCheer, setWeatherCheer] = useState('');
-    const [quickOutfit, setQuickOutfit] = useState<OutfitSuggestion | null>(null);
-    const [outfitLoading, setOutfitLoading] = useState(false);
-    const [isWeatherLoading, setIsWeatherLoading] = useState(true);
-    const [isLoggingQuickPick, setIsLoggingQuickPick] = useState(false);
-    const [quickPickLogged, setQuickPickLogged] = useState(false);
-    const [usingDefaultLocation, setUsingDefaultLocation] = useState(false);
-
-    const wardrobeSignature = clothes
-        .map((item) => {
-            const lastWornMs = item.lastWorn ? new Date(item.lastWorn).getTime() : 0;
-            const seasons = [...item.season].sort().join(',');
-            return `${item.id}:${item.wearFrequency}:${lastWornMs}:${seasons}`;
-        })
-        .sort()
-        .join('|');
-
-    const buildQuickPickCacheKey = (wardrobeKey: string, conditionText: string, tempC: number) =>
-        `quick-pick:v2:${wardrobeKey}:${conditionText.toLowerCase()}:${Math.round(tempC)}`;
-
-    const fetchQuickOutfit = async (weatherData: WeatherData, useCache = true) => {
-        if (clothes.length === 0) {
-            setQuickOutfit(null);
-            return;
-        }
-
-        setOutfitLoading(true);
-        try {
-            const cacheKey = buildQuickPickCacheKey(
-                wardrobeSignature,
-                weatherData.condition,
-                weatherData.temperature
-            );
-            const cached = useCache ? sessionStorage.getItem(cacheKey) : null;
-
-            if (cached) {
-                setQuickOutfit(JSON.parse(cached) as OutfitSuggestion);
-                return;
-            }
-
-            const casualMood = MOODS.find(m => m.id === 'casual') || MOODS[1];
-            const outfits = await awsNovaService.suggestOutfits(clothes, casualMood, weatherData);
-            if (outfits.length > 0) {
-                setQuickOutfit(outfits[0]);
-                sessionStorage.setItem(cacheKey, JSON.stringify(outfits[0]));
-            } else {
-                setQuickOutfit(null);
-            }
-        } finally {
-            setOutfitLoading(false);
-        }
-    };
-
-    // Time-based greeting
-    const getGreeting = () => {
-        const hour = new Date().getHours();
-        if (hour < 12) return 'Good morning';
-        if (hour < 17) return 'Good afternoon';
-        return 'Good evening';
-    };
-
-    // Weather icon helper
-    const getWeatherIcon = () => {
-        if (!weather) return <Sun className="w-6 h-6 text-olive-600" />;
-        const condition = weather.condition.toLowerCase();
-        if (condition.includes('rain')) return <CloudRain className="w-6 h-6 text-olive-600" />;
-        if (condition.includes('cloud')) return <Cloud className="w-6 h-6 text-olive-600" />;
-        if (condition.includes('wind')) return <Wind className="w-6 h-6 text-olive-600" />;
-        return <Sun className="w-6 h-6 text-olive-600" />;
-    };
-
-    // Fetch weather + quick outfit on mount
-    useEffect(() => {
-        const cached = sessionStorage.getItem(WEATHER_CACHE_KEY);
-        if (cached) {
-            try {
-                const parsed = JSON.parse(cached) as {
-                    weather: WeatherData;
-                    weatherOutlook: WeatherOutlookPeriod[];
-                    weatherCheer: string;
-                };
-                setWeather(parsed.weather);
-                setWeatherOutlook(parsed.weatherOutlook || []);
-                setWeatherCheer(parsed.weatherCheer || '');
-            } catch {
-                sessionStorage.removeItem(WEATHER_CACHE_KEY);
-            }
-        }
-
-        const loadData = async () => {
-            try {
-                // Request geolocation consent and fetch weather by coords
-                let weatherData: WeatherData;
-                let outlookData: WeatherOutlookPeriod[];
-                try {
-                    const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-                        navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 8000 });
-                    });
-                    const lat = position.coords.latitude;
-                    const lon = position.coords.longitude;
-                    const [current, outlook] = await Promise.all([
-                        weatherService.getCurrentWeather(lat, lon),
-                        weatherService.getWeatherOutlook(lat, lon),
-                    ]);
-                    weatherData = current;
-                    outlookData = outlook;
-                    setUsingDefaultLocation(false);
-                } catch {
-                    // Location denied/unavailable — use the user's chosen city, else the default.
-                    const fallbackCity = userSettings?.city || 'San Francisco';
-                    const [current, outlook] = await Promise.all([
-                        weatherService.getWeatherByCity(fallbackCity),
-                        weatherService.getWeatherOutlookByCity(fallbackCity),
-                    ]);
-                    weatherData = current;
-                    outlookData = outlook;
-                    setUsingDefaultLocation(!userSettings?.city);
-                }
-                setWeather(weatherData);
-                setWeatherOutlook(outlookData);
-
-                const cheer = await awsNovaService.generateWeatherCheer(weatherData, outlookData);
-                const finalCheer = cheer || `The ${weatherData.condition.toLowerCase()} vibes are here. You have this today.`;
-                setWeatherCheer(finalCheer);
-
-                sessionStorage.setItem(WEATHER_CACHE_KEY, JSON.stringify({
-                    weather: weatherData,
-                    weatherOutlook: outlookData,
-                    weatherCheer: finalCheer,
-                }));
-
-                await fetchQuickOutfit(weatherData, true);
-            } catch (err) {
-                console.error("Home data load error:", err);
-                setOutfitLoading(false);
-            } finally {
-                setIsWeatherLoading(false);
-            }
-        };
-        loadData();
-    }, [wardrobeSignature, userSettings?.city]);
-
-    const temp = weather?.temperature;
-    const condition = weather?.condition;
-    const location = weather?.location;
-    const starterTarget = 5;
-    const starterCount = Math.min(clothes.length, starterTarget);
-    const starterProgress = Math.round((starterCount / starterTarget) * 100);
+    const { clothes, outfits, tryItItemIds } = useWardrobe();
+    const location = useLocation();
+    const navigate = useNavigate();
+    const [mood, setMood] = useMood();
+    const { weather, outlook, cheer, isLoading: weatherLoading, usingDefaultLocation } = useTodayWeather();
     const readiness = getWardrobeReadiness(clothes);
-    const completeness = getWardrobeCompleteness(clothes);
-    const completenessPct = Math.round(completeness.ratio * 100);
+    const { looks, isLoading: looksLoading } = useStylistLooks(mood, readiness.canMakeOutfit ? weather : null);
+    const { wear, undo, isPending, logged } = usePendingWear();
 
-    // Categories the picker should deep-link to when the closet can't yet make a full outfit.
+    const options = useMemo(() => buildReelOptions(clothes), [clothes]);
+    const optionsKey = SLOT_ORDER.map((s) => options[s].map((o) => o?.id ?? '-').join(',')).join('|');
+    const leastWornIds = useMemo(() => computeSeasonalLeastWornIds(clothes, outfits), [clothes, outfits]);
+    const dustyDays = useMemo(() => {
+        const ids = computeSeasonalLeastWornIds(clothes, outfits, clothes.length);
+        const byId = new Map(clothes.map((c) => [c.id, c]));
+        return new Map(ids.map((id) => [id, byId.get(id) ? daysIdle(byId.get(id)!) : 0] as const));
+    }, [clothes, outfits]);
+    const priorityIds = useMemo(() => new Set([...tryItItemIds, ...leastWornIds]), [tryItItemIds, leastWornIds]);
+
+    const incoming = (location.state as { slots?: OutfitSlots } | null)?.slots ?? null;
+    const touched = useRef(Boolean(incoming));
+    const autoLanded = useRef(false);
+    const spinState = useRef({ cursor: 0, used: 0, seed: 1 });
+    const reelRefs = useRef<Partial<Record<SlotId, OutfitReelHandle | null>>>({});
+    const [slots, setSlots] = useState<OutfitSlots>(incoming ?? EMPTY_SLOTS);
+    const [locks, setLocks] = useState<Set<SlotId>>(new Set());
+    const [spinTurns, setSpinTurns] = useState(0);
+    const [showWeather, setShowWeather] = useState(false);
+    const [reelVersion, setReelVersion] = useState(0);
+    const initialized = useRef(Boolean(incoming));
+
+    // A look handed over from Picks ("Tweak on reels") arrives once via router state.
+    useEffect(() => {
+        if (incoming) navigate(location.pathname, { replace: true, state: null });
+    }, [incoming, navigate, location.pathname]);
+
+    const indexFor = (slot: SlotId, s: OutfitSlots = slots) => {
+        const i = options[slot].findIndex((o) => (o?.id ?? null) === s[slot]);
+        return i < 0 ? 0 : i;
+    };
+
+    const land = (next: OutfitSlots) => {
+        const nextIsDress = isDress(clothes.find((c) => c.id === next.bottom));
+        let order = 0;
+        SLOT_ORDER.forEach((slot) => {
+            if (locks.has(slot) || options[slot].length === 0) return;
+            if (slot === 'top' && nextIsDress) return; // a dress leaves the top reel where it is
+            const idx = options[slot].findIndex((o) => (o?.id ?? null) === next[slot]);
+            if (idx < 0) return;
+            reelRefs.current[slot]?.spinTo(idx, { delay: order * 110, duration: 950 + order * 230, turns: 2 });
+            order += 1;
+        });
+    };
+
+    // Until the user takes over, the reels show the best available look: a code-assembled one
+    // straight away, then they spin onto the stylist's first pick as soon as it arrives.
+    useEffect(() => {
+        if (touched.current || clothes.length === 0) return;
+        if (looks.length > 0 && !autoLanded.current) {
+            const next = slotsFromItems(looks[0].items);
+            autoLanded.current = true;
+            spinState.current = { cursor: 1, used: 1, seed: spinState.current.seed };
+            if (initialized.current) {
+                land(next);
+            } else {
+                setSlots(next);
+                setReelVersion((v) => v + 1);
+            }
+            initialized.current = true;
+        } else if (!initialized.current) {
+            setSlots(assembleCodeSlots(options, {}, priorityIds, weather?.temperature ?? null, 0));
+            setReelVersion((v) => v + 1);
+            initialized.current = true;
+        }
+        // optionsKey stands in for `options` (same content, stable identity); land/priorityIds are
+        // read at the moment the stylist's look arrives on purpose.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [optionsKey, looks, clothes.length]);
+
+    // A new batch (mood change, regenerate) restarts the walk through the AI looks. Keyed on look
+    // ids: a logged wear refreshes item data but is not a new batch.
+    const looksKey = looks.map((l) => l.id).join(',');
+    useEffect(() => {
+        if (touched.current) spinState.current = { cursor: 0, used: 0, seed: spinState.current.seed };
+    }, [looksKey]);
+
+    // Changing the mood hands the reels back to the stylist: they spin onto the new mood's first look.
+    const changeMood = (id: string) => {
+        if (id === mood.id) return;
+        touched.current = false;
+        autoLanded.current = false;
+        setMood(id);
+    };
+
+    const markTouched = useCallback(() => { touched.current = true; }, []);
+
+    const spin = () => {
+        touched.current = true;
+        haptic(12);
+        setSpinTurns((t) => t + 1);
+        const locked: Partial<OutfitSlots> = {};
+        locks.forEach((s) => { locked[s] = slots[s]; });
+        const st = spinState.current;
+        let next: OutfitSlots;
+        if (looks.length > 0 && st.used < looks.length) {
+            const idx = pickLookForLocks(looks, locked, st.cursor);
+            st.cursor = idx + 1;
+            st.used += 1;
+            next = { ...slotsFromItems(looks[idx].items), ...locked };
+        } else {
+            next = assembleCodeSlots(options, locked, priorityIds, weather?.temperature ?? null, st.seed++);
+        }
+        land(next);
+    };
+
+    const toggleLock = (slot: SlotId) => {
+        touched.current = true;
+        setLocks((prev) => {
+            const next = new Set(prev);
+            if (next.has(slot)) next.delete(slot); else next.add(slot);
+            return next;
+        });
+    };
+
+    const onSettle = (slot: SlotId) => (index: number) => {
+        const id = options[slot][index]?.id ?? null;
+        setSlots((s) => (s[slot] === id ? s : { ...s, [slot]: id }));
+    };
+
+    const items = itemsFromSlots(slots, clothes);
+    const valid = isValidOutfit(items);
+    const bottomIsDress = isDress(items.find((i) => i.id === slots.bottom));
+    const matched = looks.find((l) => outfitKey(l.items.map((i) => i.id)) === outfitKey(items.map((i) => i.id)));
+    const weatherScore = weather && items.length ? computeWeatherMatch(items, weather.temperature) : null;
+    const rotationScore = items.length ? computeWearScore(items, clothes) : null;
+
+    let why: string;
+    if (!valid) {
+        why = !slots.bottom ? 'Pick a bottom or a dress to finish the fit.' : 'Add a top or a layer — or swap in a dress.';
+    } else if (matched) {
+        why = matched.explanation || 'Your stylist put this together for today.';
+    } else if (looksLoading && !touched.current) {
+        why = 'Your stylist is picking today’s looks…';
+    } else {
+        const asSuggestion: OutfitSuggestion = { id: 'mix', items, mood, weatherMatch: weatherScore ?? 0, wearScore: rotationScore ?? 0, explanation: '' };
+        why = describeOutfitReason(asSuggestion, { tryItItemIds, leastWornItemIds: leastWornIds }, weather ?? undefined)
+            ?? 'Your own mix. Lock the pieces you love, then Spin for the rest.';
+    }
+    const badge = matched ? (matched.isFallback ? 'Quick pick' : 'AI pick') : 'Your mix';
+
+    // Cold-start + growth nudges (unchanged rules from the previous Home).
+    const completeness = getWardrobeCompleteness(clothes);
     const missingCategories: ClothingCategory[] = [];
     if (!readiness.hasTopLayer) missingCategories.push(ClothingCategory.Tops, ClothingCategory.Outerwear);
     if (!readiness.hasBottom) missingCategories.push(ClothingCategory.Bottoms);
-
     const openPicker = (categories?: ClothingCategory[]) =>
         window.dispatchEvent(new CustomEvent('open-starter-picker', {
             detail: categories && categories.length > 0 ? { categories } : undefined,
         }));
     const openScanner = () => window.dispatchEvent(new CustomEvent('open-scanner'));
 
-    // Weather outlook tiles (real data, else 3 loading placeholders).
-    const outlookTiles: Array<{ label: string; temperature: number | null; condition: string }> =
-        weatherOutlook.length > 0
-            ? weatherOutlook
-            : [
-                { label: 'morning', temperature: null, condition: 'Loading' },
-                { label: 'daytime', temperature: null, condition: 'Loading' },
-                { label: 'evening', temperature: null, condition: 'Loading' },
-            ];
+    const reelSlots = SLOT_ORDER.filter((s) => options[s].length > 0);
 
     return (
-        <div className="space-y-6 pb-20">
-            {/* Greeting */}
-            <section>
-                <h1 className="text-2xl md:text-3xl font-bold text-primary tracking-tight">
-                    {getGreeting()} 👋
-                </h1>
-            </section>
-
-            {/* TODAY — weather and today's look fused into one surface */}
-            <section>
-                <div className="rounded-2xl overflow-hidden border border-olive-200/60 shadow-sm">
-                    {/* Weather header */}
-                    <div className="bg-gradient-to-br from-olive-100/80 to-olive-50 p-5">
-                        <div className="flex items-center gap-2.5">
-                            {getWeatherIcon()}
-                            <div className="min-w-0">
-                                <p className="text-lg font-medium tracking-tight text-primary leading-tight">
-                                    {temp != null && condition ? `${temp}°C · ${condition}` : 'Loading local weather'}
-                                </p>
-                                <p className="text-[11px] font-semibold uppercase tracking-wider text-secondary truncate">
-                                    {location || 'Locating city'}
-                                </p>
+        <div className="space-y-3.5 pb-6">
+            {/* Header */}
+            <header className="pr-12">
+                <div className="flex items-center gap-2">
+                    <p className="text-xs font-bold text-olive-600">{format(new Date(), 'EEE d MMM')}</p>
+                <button
+                    type="button"
+                    onClick={() => setShowWeather((v) => !v)}
+                    aria-expanded={showWeather}
+                    className="h-7 pl-2.5 pr-2 rounded-full bg-ink text-paper text-[11px] font-bold inline-flex items-center gap-1.5 min-w-0"
+                >
+                    <WeatherIcon condition={weather?.condition} />
+                    {weather ? `${Math.round(weather.temperature)}° ${weather.condition}` : weatherLoading ? 'Checking the sky…' : 'Weather unavailable'}
+                    <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showWeather ? 'rotate-180' : ''}`} />
+                </button>
+                </div>
+                <h1 className="font-display text-[32px] font-extrabold leading-none tracking-tight text-ink mt-1.5">Today’s fit</h1>
+                {showWeather && (
+                    <div className="mt-2 p-3 rounded-2xl bg-white border-[1.5px] border-ink animate-fade-in-up">
+                        {weather?.location && <p className="text-[11px] font-extrabold uppercase tracking-wide text-olive-500 mb-2">{weather.location}</p>}
+                        {outlook.length > 0 && (
+                            <div className="grid grid-cols-3 gap-2">
+                                {outlook.map((slot) => (
+                                    <div key={slot.label} className="rounded-xl bg-paper px-2 py-1.5 text-center">
+                                        <p className="text-[10px] font-extrabold uppercase tracking-wide text-olive-500">{slot.label}</p>
+                                        <p className="text-sm font-bold text-ink">{slot.temperature}°</p>
+                                        <p className="text-[11px] text-olive-600 line-clamp-1">{slot.condition}</p>
+                                    </div>
+                                ))}
                             </div>
-                        </div>
-                        <div className="grid grid-cols-3 gap-2 mt-3">
-                            {outlookTiles.map((slot) => (
-                                <div key={slot.label} className="rounded-xl bg-white/70 border border-olive-200/70 px-2 py-2 text-center">
-                                    <p className="text-[10px] font-bold uppercase tracking-wide text-olive-500">{slot.label}</p>
-                                    <p className="text-sm font-semibold text-primary">{slot.temperature != null ? `${slot.temperature}°C` : '--'}</p>
-                                    <p className="text-[11px] text-olive-600 line-clamp-1">{slot.condition}</p>
-                                </div>
-                            ))}
-                        </div>
+                        )}
+                        {cheer && <p className="text-sm text-olive-700 leading-relaxed mt-2">{cheer}</p>}
                         {usingDefaultLocation && (
                             <button
+                                type="button"
                                 onClick={() => window.dispatchEvent(new CustomEvent('open-settings'))}
-                                className="mt-2 text-[11px] font-semibold text-secondary underline underline-offset-2 hover:text-primary"
+                                className="mt-2 text-[11px] font-semibold text-ink underline underline-offset-2"
                             >
                                 Location off — set your city for local weather
                             </button>
                         )}
-                        {(weatherCheer || isWeatherLoading) && (
-                            <p className="text-sm text-olive-700 leading-relaxed mt-3">
-                                {weatherCheer || 'Getting today\'s weather mood'}
-                            </p>
-                        )}
                     </div>
+                )}
+            </header>
 
-                    {/* Body — today's look, or the cold-start prompt when we can't build an outfit yet */}
-                    <div className="bg-white border-t border-olive-100 p-5">
-                        {!readiness.canMakeOutfit ? (
-                            <div>
-                                <h2 className="text-base font-bold text-primary">
-                                    {clothes.length === 0 ? 'Start your closet' : 'Almost ready to style you'}
-                                </h2>
-                                <p className="text-sm text-olive-600 mt-1 mb-4">
-                                    {clothes.length === 0
-                                        ? 'Pick your basics from our catalog, or snap your closet — one shelf photo can capture several pieces.'
-                                        : `Add ${readiness.missingForOutfit.join(' and ')} so we can build full outfits from your closet.`}
-                                </p>
-                                <div className="flex flex-col gap-2 sm:flex-row">
-                                    <button
-                                        onClick={() => openPicker(clothes.length > 0 ? missingCategories : undefined)}
-                                        className="flex-1 inline-flex items-center justify-center px-4 py-2.5 bg-primary text-white rounded-xl font-semibold hover:bg-olive-700 transition-colors active:scale-[0.97]"
-                                    >
-                                        Pick my basics
-                                    </button>
-                                    <button
-                                        onClick={openScanner}
-                                        className="flex-1 inline-flex items-center justify-center px-4 py-2.5 bg-white border border-olive-200 text-secondary rounded-xl font-semibold hover:bg-olive-50 transition-colors active:scale-[0.97]"
-                                    >
-                                        Scan my items
-                                    </button>
-                                </div>
-                            </div>
-                        ) : (
-                            <>
-                                <div className="flex items-center justify-between mb-3">
-                                    <h2 className="text-base font-bold text-primary">Today's look</h2>
-                                    <Link to="/suggest" className="text-xs font-semibold text-secondary hover:underline">
-                                        See more
-                                    </Link>
-                                </div>
+            <MoodChips value={mood.id} onChange={changeMood} />
 
-                                {outfitLoading && (
-                                    <div className="flex flex-col items-center justify-center py-10 text-center animate-fade-in-up">
-                                        <div className="p-3 bg-olive-100 rounded-full mb-3">
-                                            <Loader2 className="w-6 h-6 text-secondary animate-spin" />
-                                        </div>
-                                        <p className="text-sm text-olive-500">Finding a look for today's weather...</p>
-                                    </div>
-                                )}
-
-                                {!outfitLoading && quickOutfit && (
-                                    <div className="animate-fade-in-up">
-                                        <div className="grid grid-cols-3 gap-1.5">
-                                            {quickOutfit.items.slice(0, 3).map((item, i) => (
-                                                <div key={i} className="relative rounded-xl overflow-hidden bg-olive-50 aspect-square">
-                                                    {item.imageUrl ? (
-                                                        <img
-                                                            src={item.imageUrl}
-                                                            alt={item.subcategory}
-                                                            className="w-full h-full object-cover"
-                                                        />
-                                                    ) : (
-                                                        <div className="flex items-center justify-center h-full">
-                                                            <Sparkles className="w-6 h-6 text-olive-300" />
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            ))}
-                                        </div>
-
-                                        {quickOutfit.explanation && (
-                                            <ExpandableText
-                                                text={quickOutfit.explanation}
-                                                textClassName="text-sm text-olive-600 leading-relaxed mt-3"
-                                                collapsedClassName="line-clamp-2"
-                                            />
-                                        )}
-
-                                        <div className="mt-4 flex items-center gap-3">
-                                            <button
-                                                onClick={async () => {
-                                                    if (!weather || !quickOutfit || isLoggingQuickPick) return;
-                                                    setIsLoggingQuickPick(true);
-                                                    await logOutfitWear(
-                                                        quickOutfit.items.map(item => item.id),
-                                                        'casual',
-                                                        weather
-                                                    );
-                                                    setIsLoggingQuickPick(false);
-                                                    setQuickPickLogged(true);
-                                                    window.setTimeout(() => setQuickPickLogged(false), 2000);
-                                                }}
-                                                disabled={!weather || isLoggingQuickPick}
-                                                className="flex-1 bg-primary hover:bg-olive-700 text-white font-bold py-3 rounded-xl transition-colors active:scale-[0.97] disabled:opacity-60 disabled:cursor-not-allowed"
-                                            >
-                                                {isLoggingQuickPick ? 'Logging...' : 'Wear it'}
-                                            </button>
-                                            <Link
-                                                to="/suggest"
-                                                className="flex-1 bg-olive-100 hover:bg-olive-200 text-secondary font-bold py-3 rounded-xl transition-colors flex items-center justify-center gap-2 active:scale-[0.97]"
-                                            >
-                                                <Sparkles className="w-4 h-4" />
-                                                See More
-                                            </Link>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {!outfitLoading && !quickOutfit && (
-                                    <div className="text-center py-6 animate-fade-in-up">
-                                        <p className="text-sm text-olive-500">Couldn't generate a suggestion right now.</p>
-                                        <div className="mt-3 flex items-center justify-center gap-3">
-                                            <button
-                                                onClick={() => {
-                                                    if (weather) {
-                                                        void fetchQuickOutfit(weather, false);
-                                                    }
-                                                }}
-                                                className="inline-flex items-center px-5 py-2.5 bg-olive-100 text-secondary rounded-full font-medium hover:bg-olive-200 transition-colors active:scale-[0.97]"
-                                            >
-                                                Try Again
-                                            </button>
-                                            <Link
-                                                to="/suggest"
-                                                className="inline-flex items-center px-5 py-2.5 bg-primary text-white rounded-full font-medium hover:bg-olive-700 transition-colors active:scale-[0.97]"
-                                            >
-                                                <Sparkles className="w-4 h-4 mr-2" />
-                                                Open Suggest
-                                            </Link>
-                                        </div>
-                                    </div>
-                                )}
-                            </>
-                        )}
+            {!readiness.canMakeOutfit ? (
+                <section className="rounded-[28px] border-2 border-dashed border-ink/40 p-5">
+                    <h2 className="font-display text-xl font-extrabold text-ink">
+                        {clothes.length === 0 ? 'Load up your reels' : 'Almost ready to spin'}
+                    </h2>
+                    <p className="text-sm text-olive-600 mt-1 mb-4">
+                        {clothes.length === 0
+                            ? 'Pick your basics from our catalog, or snap your closet — one shelf photo can capture several pieces.'
+                            : `Add ${readiness.missingForOutfit.join(' and ')} so the reels can build full outfits.`}
+                    </p>
+                    <div className="flex flex-col gap-2.5">
+                        <button type="button" onClick={() => openPicker(clothes.length > 0 ? missingCategories : undefined)} className="h-12 rounded-full bg-ink text-paper font-bold text-sm active:scale-[0.97]">
+                            Pick my basics
+                        </button>
+                        <button type="button" onClick={openScanner} className="h-12 rounded-full border-[1.5px] border-ink text-ink font-bold text-sm active:scale-[0.97]">
+                            Scan my items
+                        </button>
                     </div>
-                </div>
-            </section>
+                </section>
+            ) : (
+                <>
+                    {/* Reels, with the lime "fitting column" behind the centre */}
+                    <section className="relative -mx-4 px-4" aria-label="Outfit reels">
+                        <div className="absolute left-1/2 -translate-x-1/2 top-0 bottom-0 w-[116px] rounded-[30px] bg-lime border-2 border-ink" aria-hidden="true" />
+                        <div key={`${optionsKey}#${reelVersion}`} className="relative space-y-0.5">
+                            {reelSlots.map((slot) => (
+                                <OutfitReel
+                                    key={slot}
+                                    ref={(h) => { reelRefs.current[slot] = h; }}
+                                    label={slot === 'bottom' && options.bottom.some(isDress) ? 'Bottom / dress' : REEL[slot].label}
+                                    options={options[slot]}
+                                    initialIndex={indexFor(slot)}
+                                    onSettle={onSettle(slot)}
+                                    onInteract={markTouched}
+                                    locked={locks.has(slot)}
+                                    onToggleLock={() => toggleLock(slot)}
+                                    dimmed={slot === 'top' && bottomIsDress}
+                                    noneLabel={REEL[slot].none}
+                                    dustyDays={dustyDays}
+                                    size={REEL[slot].size}
+                                />
+                            ))}
+                        </div>
+                    </section>
 
-            {/* Secondary tier — streak + keep-building progress (only once the closet can style you) */}
+                    {/* Scores + why */}
+                    <section className="flex gap-3 items-start">
+                        <div className="flex-none w-[112px] space-y-1">
+                            {[
+                                { label: 'Weather', value: weatherScore },
+                                { label: 'Rotation', value: rotationScore },
+                            ].map((m) => (
+                                <div key={m.label}>
+                                    <div className="flex justify-between text-[10px] font-extrabold uppercase">
+                                        <span>{m.label}</span><span>{m.value ?? '–'}</span>
+                                    </div>
+                                    <div className="h-1.5 rounded-full bg-olive-200/70 overflow-hidden">
+                                        <div className="h-full rounded-full bg-ink transition-[width] duration-500" style={{ width: `${m.value ?? 0}%` }} />
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                        <div className="min-w-0">
+                            <span className={`inline-block text-[10px] font-extrabold uppercase tracking-wide px-2 py-0.5 rounded-full ${matched ? 'bg-ink text-lime' : 'bg-olive-200/70 text-ink'}`}>{badge}</span>
+                            <p className="text-[13px] leading-snug font-semibold text-ink mt-1">{why}</p>
+                        </div>
+                    </section>
+
+                    {/* Actions — bottom third, thumb zone */}
+                    <section className="flex items-center gap-3">
+                        <button
+                            type="button"
+                            onClick={() => { if (weather && valid) { touched.current = true; wear(items.map((i) => i.id), mood.id, weather); } }}
+                            disabled={!weather || !valid || isPending}
+                            className="flex-1 h-[56px] rounded-full bg-ink text-paper font-extrabold text-[15px] active:scale-[0.98] disabled:opacity-50"
+                        >
+                            {isPending ? 'Logging…' : logged ? 'Logged ✓' : 'Wear this fit'}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={spin}
+                            aria-label="Spin — let the AI stylist fill the unlocked reels"
+                            className="w-[64px] h-[64px] flex-none rounded-full bg-lime border-2 border-ink text-ink flex flex-col items-center justify-center text-[11px] font-extrabold transition-transform duration-700 ease-out active:scale-95"
+                            style={{ transform: `rotate(${spinTurns * 360}deg)` }}
+                        >
+                            <Dices className="w-[22px] h-[22px]" />
+                            SPIN
+                        </button>
+                    </section>
+                </>
+            )}
+
+            {readiness.canMakeOutfit && completeness.nextUnlock && (
+                <section className="rounded-[22px] bg-white border-[1.5px] border-ink p-4">
+                    <div className="flex items-center justify-between gap-3">
+                        <h2 className="text-sm font-extrabold text-ink">{clothes.length < 5 ? 'Build your 5-piece starter closet' : completeness.stage}</h2>
+                        <span className="text-xs font-bold text-olive-600">{clothes.length < 5 ? `${clothes.length}/5` : `${Math.round(completeness.ratio * 100)}%`}</span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-olive-200/70 overflow-hidden mt-2">
+                        <div className="h-full bg-ink" style={{ width: `${clothes.length < 5 ? (clothes.length / 5) * 100 : completeness.ratio * 100}%` }} />
+                    </div>
+                    <p className="text-xs text-olive-600 mt-2">{clothes.length < 5 ? 'More pieces make the reels more fun.' : `${completeness.nextUnlock}.`}</p>
+                    <div className="flex gap-2 mt-3">
+                        <button type="button" onClick={() => openPicker(completeness.nextUnlockKey === 'shoes' ? [ClothingCategory.Shoes] : undefined)} className="flex-1 h-10 rounded-full bg-ink text-paper text-xs font-bold">
+                            Pick basics
+                        </button>
+                        <button type="button" onClick={openScanner} className="flex-1 h-10 rounded-full border-[1.5px] border-ink text-ink text-xs font-bold">
+                            Scan an item
+                        </button>
+                    </div>
+                </section>
+            )}
+
             <StreakCard />
 
-            {readiness.canMakeOutfit && clothes.length < starterTarget && (
-                <section>
-                    <div className="rounded-2xl border border-olive-200/70 bg-white p-5">
-                        <div className="flex items-center justify-between gap-3 mb-3">
-                            <h2 className="text-base font-bold text-primary">Build your 5-item starter closet</h2>
-                            <span className="text-xs font-semibold text-secondary">
-                                {starterCount}/{starterTarget}
-                            </span>
-                        </div>
-                        <div className="h-2 rounded-full bg-olive-100 overflow-hidden mb-3">
-                            <div
-                                className="h-full bg-primary transition-all duration-300"
-                                style={{ width: `${starterProgress}%` }}
-                            />
-                        </div>
-                        <p className="text-sm text-olive-600 mb-4">
-                            Add a few more basics to unlock sharper suggestions.
-                        </p>
-                        <div className="flex flex-col gap-2 sm:flex-row">
-                            <button
-                                onClick={() => openPicker()}
-                                className="flex-1 inline-flex items-center justify-center px-4 py-2.5 bg-primary text-white rounded-xl font-semibold hover:bg-olive-700 transition-colors active:scale-[0.97]"
-                            >
-                                Pick my basics
-                            </button>
-                            <button
-                                onClick={openScanner}
-                                className="flex-1 inline-flex items-center justify-center px-4 py-2.5 bg-white border border-olive-200 text-secondary rounded-xl font-semibold hover:bg-olive-50 transition-colors active:scale-[0.97]"
-                            >
-                                Scan my items
-                            </button>
-                        </div>
-                    </div>
-                </section>
-            )}
-
-            {readiness.canMakeOutfit && clothes.length >= starterTarget && completeness.nextUnlock && (
-                <section>
-                    <div className="rounded-2xl border border-olive-200/70 bg-white p-5">
-                        <div className="flex items-center justify-between gap-3 mb-3">
-                            <h2 className="text-base font-bold text-primary">{completeness.stage}</h2>
-                            <span className="text-xs font-semibold text-secondary">{completenessPct}%</span>
-                        </div>
-                        <div className="h-2 rounded-full bg-olive-100 overflow-hidden mb-3">
-                            <div
-                                className="h-full bg-primary transition-all duration-300"
-                                style={{ width: `${completenessPct}%` }}
-                            />
-                        </div>
-                        <p className="text-sm text-olive-600 mb-4">{completeness.nextUnlock}.</p>
-                        <div className="flex flex-col gap-2 sm:flex-row">
-                            <button
-                                onClick={() => openPicker(completeness.nextUnlockKey === 'shoes' ? [ClothingCategory.Shoes] : undefined)}
-                                className="flex-1 inline-flex items-center justify-center px-4 py-2.5 bg-primary text-white rounded-xl font-semibold hover:bg-olive-700 transition-colors active:scale-[0.97]"
-                            >
-                                Pick basics
-                            </button>
-                            <button
-                                onClick={openScanner}
-                                className="flex-1 inline-flex items-center justify-center px-4 py-2.5 bg-white border border-olive-200 text-secondary rounded-xl font-semibold hover:bg-olive-50 transition-colors active:scale-[0.97]"
-                            >
-                                Scan an item
-                            </button>
-                        </div>
-                    </div>
-                </section>
-            )}
-
-            {quickPickLogged && (
-                <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 animate-fade-in-up">
-                    <div className="flex items-center gap-2 px-5 py-3 bg-primary text-white rounded-full shadow-lg text-sm font-medium">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                        Outfit logged!
-                    </div>
-                </div>
-            )}
-
+            <WearToast isPending={isPending} logged={logged} onUndo={undo} />
         </div>
     );
 };
