@@ -118,31 +118,31 @@ export const BulkUploadOverlay: React.FC = () => {
 
             {phase !== 'idle' && (
                 <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                    <div className="w-full max-w-sm bg-white rounded-3xl shadow-xl overflow-hidden animate-scale-in">
+                    <div className="w-full max-w-sm bg-paper rounded-[28px] border-[1.5px] border-ink shadow-xl overflow-hidden animate-scale-in">
                         {phase === 'processing' && (
                             <div className="p-8 text-center">
-                                <Loader2 className="w-8 h-8 text-secondary animate-spin mx-auto mb-4" />
-                                <h3 className="text-lg font-bold text-primary mb-1">Hanging up your pieces</h3>
-                                <p className="text-sm text-olive-500">
+                                <Loader2 className="w-8 h-8 text-ink animate-spin mx-auto mb-4" />
+                                <h3 className="font-display text-xl font-extrabold text-ink mb-1">Hanging up your pieces</h3>
+                                <p className="text-sm text-ink/50">
                                     Reading photo {Math.min(done + 1, total)} of {total}…
                                 </p>
-                                <div className="h-2 rounded-full bg-olive-100 overflow-hidden mt-4">
+                                <div className="h-2 rounded-full bg-ink/5 overflow-hidden mt-4">
                                     <div
-                                        className="h-full bg-primary transition-all duration-300"
+                                        className="h-full bg-ink transition-all duration-300"
                                         style={{ width: `${total ? Math.round((done / total) * 100) : 0}%` }}
                                     />
                                 </div>
-                                <p className="text-[11px] text-olive-400 mt-3">Hang tight. Each photo takes a moment.</p>
+                                <p className="text-[11px] text-ink/50 mt-3">Hang tight. Each photo takes a moment.</p>
                             </div>
                         )}
 
                         {phase === 'done' && summary && (
                             <div className="p-6 text-center">
-                                <CheckCircle2 className="w-10 h-10 text-secondary mx-auto mb-3" />
-                                <h3 className="text-lg font-bold text-primary mb-1">
+                                <CheckCircle2 className="w-10 h-10 text-ink mx-auto mb-3" />
+                                <h3 className="font-display text-xl font-extrabold text-ink mb-1">
                                     {summary.added === 0 ? 'Nothing new this time' : `${summary.added} new piece${summary.added === 1 ? '' : 's'}!`}
                                 </h3>
-                                <p className="text-sm text-olive-500 mb-2">
+                                <p className="text-sm text-ink/50 mb-2">
                                     From {summary.photos} photo{summary.photos === 1 ? '' : 's'}. Your closet just grew.
                                 </p>
                                 {summary.flagged > 0 && (
@@ -151,16 +151,16 @@ export const BulkUploadOverlay: React.FC = () => {
                                     </p>
                                 )}
                                 {summary.restricted > 0 && (
-                                    <p className="text-xs text-olive-400 mb-1 inline-flex items-center gap-1">
+                                    <p className="text-xs text-ink/50 mb-1 inline-flex items-center gap-1">
                                         <ImageOff className="w-3 h-3" /> {summary.restricted} photo{summary.restricted === 1 ? '' : 's'} skipped (we only read clothes).
                                     </p>
                                 )}
                                 {summary.truncated && (
-                                    <p className="text-xs text-olive-400 mb-1">We read the first {MAX_PHOTOS} photos. Add the rest next round.</p>
+                                    <p className="text-xs text-ink/50 mb-1">We read the first {MAX_PHOTOS} photos. Add the rest next round.</p>
                                 )}
                                 <button
                                     onClick={close}
-                                    className="mt-4 w-full py-3 bg-primary text-white font-bold rounded-xl hover:bg-olive-700 transition-colors active:scale-[0.98]"
+                                    className="mt-4 w-full py-3 bg-ink text-white font-bold rounded-full hover:bg-ink/90 transition-colors active:scale-[0.98]"
                                 >
                                     Done
                                 </button>

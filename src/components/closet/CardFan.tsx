@@ -183,7 +183,7 @@ export const CardFan: React.FC<CardFanProps> = memo(function CardFan({ label, it
     return (
         <div
             ref={viewRef}
-            className="relative h-full overflow-hidden select-none cursor-grab active:cursor-grabbing"
+            className="relative isolate h-full overflow-hidden select-none cursor-grab active:cursor-grabbing"
             style={{ touchAction: 'pan-y' }}
             onPointerDown={onPointerDown}
             onPointerMove={onPointerMove}

@@ -713,12 +713,12 @@ export const CameraScannerOverlay: React.FC<CameraScannerOverlayProps> = ({ isOp
                         {cameraError && (
                             <div className="absolute inset-0 flex flex-col items-center justify-center p-6 bg-black/80 text-center">
                                 <p className="text-white font-medium mb-2">{cameraError}</p>
-                                <p className="text-white/70 text-sm mb-4">Use the gallery button below to add a photo instead.</p>
+                                <p className="text-white/70 text-sm mb-4">Or give the camera another go.</p>
                                 <button
                                     onClick={() => { setCameraError(null); startCamera(); }}
-                                    className="px-4 py-2 bg-white/20 text-white rounded-xl text-sm font-medium hover:bg-white/30"
+                                    className="px-5 py-2.5 bg-lime text-ink rounded-full text-sm font-bold"
                                 >
-                                    Try Again
+                                    Try again
                                 </button>
                             </div>
                         )}
@@ -728,19 +728,19 @@ export const CameraScannerOverlay: React.FC<CameraScannerOverlayProps> = ({ isOp
 
             {/* Top Bar */}
             <div
-                className="relative z-50 flex items-center justify-between bg-white/90 backdrop-blur-md px-4 pb-3 border-b border-olive-100 shadow-sm"
+                className="relative z-50 flex items-center justify-between bg-paper/95 backdrop-blur-md px-4 pb-3 border-b-[1.5px] border-ink"
                 style={{ paddingTop: `calc(${safeAreaTop} + 8px)` }}
             >
                 <button
                     onClick={handleClose}
-                    className="flex items-center justify-center w-10 h-10 text-primary hover:bg-olive-50 rounded-full transition-colors"
+                    className="flex items-center justify-center w-10 h-10 text-ink hover:bg-ink/5 rounded-full transition-colors"
                 >
                     <ArrowLeft className="w-6 h-6" />
                 </button>
-                <h2 className="text-primary text-lg font-bold tracking-tight text-center px-2 truncate">Scan your closet</h2>
+                <h2 className="font-display text-ink text-xl font-extrabold tracking-tight text-center px-2">Scan your closet</h2>
                 <button
                     onClick={() => setShowInfo(true)}
-                    className="flex items-center justify-center w-10 h-10 text-primary hover:bg-olive-50 rounded-full transition-colors"
+                    className="flex items-center justify-center w-10 h-10 text-ink hover:bg-ink/5 rounded-full transition-colors"
                 >
                     <Info className="w-5 h-5" />
                 </button>
@@ -749,23 +749,23 @@ export const CameraScannerOverlay: React.FC<CameraScannerOverlayProps> = ({ isOp
             {/* Info Modal */}
             {showInfo && (
                 <div className="absolute inset-0 z-[110] flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm animate-fade-in">
-                    <div className="w-full max-w-sm bg-white rounded-3xl shadow-xl overflow-hidden animate-scale-in">
-                        <div className="flex items-center justify-between p-5 border-b border-olive-100">
+                    <div className="w-full max-w-sm bg-paper rounded-[28px] border-[1.5px] border-ink shadow-xl overflow-hidden animate-scale-in">
+                        <div className="flex items-center justify-between p-5 border-b border-ink/10">
                             <div className="flex items-center gap-2">
-                                <Info className="w-5 h-5 text-primary" />
-                                <h3 className="text-lg font-bold text-primary">How it works</h3>
+                                <Info className="w-5 h-5 text-ink" />
+                                <h3 className="font-display text-xl font-extrabold text-ink">How it works</h3>
                             </div>
                             <button
                                 onClick={() => setShowInfo(false)}
-                                className="p-2 text-olive-400 hover:text-primary hover:bg-olive-50 rounded-full transition-colors"
+                                className="p-2 text-ink/50 hover:text-ink hover:bg-ink/5 rounded-full transition-colors"
                             >
                                 <X className="w-5 h-5" />
                             </button>
                         </div>
-                        <div className="p-6 space-y-4 text-sm text-olive-600 leading-relaxed">
-                            <p><strong className="text-primary">1. Start with your five basics.</strong> Your most worn pieces first. Better outfits, faster.</p>
-                            <p><strong className="text-primary">2. Snap a few at once.</strong> Lay up to 3 pieces on your bed and take one clear photo.</p>
-                            <p><strong className="text-primary">3. Check and save.</strong> Tweak names, seasons and moods, then add each piece.</p>
+                        <div className="p-6 space-y-4 text-sm text-ink/60 leading-relaxed">
+                            <p><strong className="text-ink">1. Start with your five basics.</strong> Your most worn pieces first. Better outfits, faster.</p>
+                            <p><strong className="text-ink">2. Snap a few at once.</strong> Lay up to 3 pieces on your bed and take one clear photo.</p>
+                            <p><strong className="text-ink">3. Check and save.</strong> Tweak names, seasons and moods, then add each piece.</p>
                         </div>
                     </div>
                 </div>
@@ -776,7 +776,7 @@ export const CameraScannerOverlay: React.FC<CameraScannerOverlayProps> = ({ isOp
                 <div className="relative z-50 flex-1 flex items-center justify-center px-6">
                     {isAnalyzing ? (
                         <div className="bg-black/70 backdrop-blur-xl rounded-2xl p-6 w-full max-w-md text-center border border-white/10 shadow-xl">
-                            <Loader2 className="w-10 h-10 text-secondary animate-spin mx-auto mb-3" />
+                            <Loader2 className="w-10 h-10 text-lime animate-spin mx-auto mb-3" />
                             <p className="text-white font-medium">Taking a good look…</p>
                             <p className="text-white/50 text-sm mt-1">Spotting pieces, colors and styles.</p>
                         </div>
@@ -786,12 +786,12 @@ export const CameraScannerOverlay: React.FC<CameraScannerOverlayProps> = ({ isOp
                             <div className="flex items-center justify-between p-5 pb-3">
                                 <div className="flex items-center gap-3 text-white">
                                     <div className="flex items-center gap-2">
-                                        <CheckCircle className="w-5 h-5 text-secondary" />
+                                        <CheckCircle className="w-5 h-5 text-lime" />
                                         <span className="font-medium">Found it!</span>
                                     </div>
                                 </div>
                                 {totalItems > 1 && (
-                                    <span className="text-xs font-bold px-2.5 py-1 bg-secondary/80 text-white rounded-full">
+                                    <span className="text-xs font-bold px-2.5 py-1 bg-lime text-ink rounded-full">
                                         Item {currentItemIndex + 1} of {totalItems}
                                     </span>
                                 )}
@@ -836,7 +836,7 @@ export const CameraScannerOverlay: React.FC<CameraScannerOverlayProps> = ({ isOp
                                         value={itemName}
                                         onChange={e => setItemName(e.target.value)}
                                         placeholder="e.g. Navy crew neck tee"
-                                        className="w-full rounded-xl bg-black/50 border border-white/20 text-white placeholder-white/30 p-3 text-sm focus:ring-2 focus:ring-secondary/50 focus:border-secondary outline-none"
+                                        className="w-full rounded-xl bg-black/50 border border-white/20 text-white placeholder-white/30 p-3 text-sm focus:ring-2 focus:ring-lime/60 focus:border-lime outline-none"
                                     />
                                 </div>
 
@@ -851,7 +851,7 @@ export const CameraScannerOverlay: React.FC<CameraScannerOverlayProps> = ({ isOp
                                                 updated[currentItemIndex] = { ...currentItem, category: e.target.value as ClothingCategory };
                                                 setDetectedItems(updated);
                                             }}
-                                            className="w-full h-[30px] rounded-lg bg-black/50 border border-white/20 text-white pl-2.5 pr-8 text-[11px] appearance-none focus:ring-2 focus:ring-secondary/50 focus:border-secondary outline-none"
+                                            className="w-full h-[30px] rounded-lg bg-black/50 border border-white/20 text-white pl-2.5 pr-8 text-[11px] appearance-none focus:ring-2 focus:ring-lime/60 focus:border-lime outline-none"
                                         >
                                             {Object.values(ClothingCategory).map(cat => (
                                                 <option key={cat} value={cat} className="text-black">{cat.charAt(0).toUpperCase() + cat.slice(1)}</option>
@@ -862,7 +862,7 @@ export const CameraScannerOverlay: React.FC<CameraScannerOverlayProps> = ({ isOp
                                     <button
                                         type="button"
                                         onClick={() => setColorSheetOpen((o) => !o)}
-                                        className="w-full flex items-center justify-center gap-2 bg-white/10 backdrop-blur-md text-white px-3 py-1.5 rounded-lg border border-secondary/40 h-[30px] hover:bg-white/20 transition-colors"
+                                        className="w-full flex items-center justify-center gap-2 bg-white/10 backdrop-blur-md text-white px-3 py-1.5 rounded-lg border border-lime/50 h-[30px] hover:bg-white/20 transition-colors"
                                     >
                                         <div className="w-4 h-4 rounded-full border border-white/20" style={{ backgroundColor: currentItem.colorHex || '#000' }} />
                                         <span className="text-xs font-semibold uppercase tracking-wide capitalize">{currentItem.color}</span>
@@ -885,7 +885,7 @@ export const CameraScannerOverlay: React.FC<CameraScannerOverlayProps> = ({ isOp
                                                         setDetectedItems(updated);
                                                         setColorSheetOpen(false);
                                                     }}
-                                                    className={`flex flex-col items-center gap-1 p-1.5 rounded-lg border transition-colors ${selected ? 'border-secondary bg-white/15' : 'border-white/15 hover:bg-white/10'}`}
+                                                    className={`flex flex-col items-center gap-1 p-1.5 rounded-lg border transition-colors ${selected ? 'border-lime bg-white/15' : 'border-white/15 hover:bg-white/10'}`}
                                                 >
                                                     <span className="w-6 h-6 rounded-md border border-white/20" style={{ backgroundColor: c.hex }} />
                                                     <span className="text-[10px] font-semibold text-white/80">{c.name}</span>
@@ -904,7 +904,7 @@ export const CameraScannerOverlay: React.FC<CameraScannerOverlayProps> = ({ isOp
                                                 key={s}
                                                 onClick={() => toggleSeason(s)}
                                                 className={`text-xs px-3 py-1.5 rounded-full capitalize font-semibold transition-all active:scale-95 ${selectedSeasons.includes(s)
-                                                    ? 'bg-secondary text-white border border-secondary shadow-md'
+                                                    ? 'bg-lime text-ink border border-lime shadow-md'
                                                     : 'bg-white/10 text-white/60 border border-white/20 hover:border-white/40'
                                                     }`}
                                             >
@@ -923,7 +923,7 @@ export const CameraScannerOverlay: React.FC<CameraScannerOverlayProps> = ({ isOp
                                                 key={m.id}
                                                 onClick={() => toggleMood(m.id)}
                                                 className={`text-xs px-3 py-1.5 rounded-full font-semibold transition-all active:scale-95 ${selectedMoods.includes(m.id)
-                                                    ? 'bg-secondary text-white border border-secondary shadow-md'
+                                                    ? 'bg-lime text-ink border border-lime shadow-md'
                                                     : 'bg-white/10 text-white/60 border border-white/20 hover:border-white/40'
                                                     }`}
                                             >
@@ -951,7 +951,7 @@ export const CameraScannerOverlay: React.FC<CameraScannerOverlayProps> = ({ isOp
                                     )}
                                     <button
                                         onClick={handleSaveAndContinue}
-                                        className="flex-1 py-3 bg-primary text-white rounded-xl font-semibold hover:bg-olive-700 transition-all active:scale-[0.97] shadow-lg flex items-center justify-center gap-2 border border-primary-light/20 text-sm"
+                                        className="flex-1 py-3 bg-lime text-ink rounded-full font-bold hover:bg-lime/90 transition-all active:scale-[0.97] shadow-lg flex items-center justify-center gap-2 border border-ink/20 text-sm"
                                     >
                                         {isLastItem ? 'Add to closet' : 'Add & next'}
                                     </button>
@@ -981,7 +981,7 @@ export const CameraScannerOverlay: React.FC<CameraScannerOverlayProps> = ({ isOp
                         </div>
                         <button
                             onClick={confirmCropEditor}
-                            className="flex h-11 w-11 items-center justify-center rounded-full bg-secondary text-white shadow-lg transition-transform active:scale-[0.96]"
+                            className="flex h-11 w-11 items-center justify-center rounded-full bg-lime text-ink shadow-lg transition-transform active:scale-[0.96]"
                             aria-label="Confirm crop"
                         >
                             <Check className="h-5 w-5" />

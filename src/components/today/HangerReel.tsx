@@ -252,7 +252,7 @@ export const HangerReel = forwardRef<HangerReelHandle, HangerReelProps>(function
     const tileTop = shelf ? 4 : 8 + HOOK;
 
     return (
-        <div className="relative" style={{ height: rowHeight }}>
+        <div className="relative isolate" style={{ height: rowHeight }}>
             <div
                 ref={viewRef}
                 role="group"

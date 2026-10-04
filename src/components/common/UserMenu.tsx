@@ -70,13 +70,13 @@ const UserMenu: React.FC = () => {
                 {/* Avatar Button */}
                 <button
                     onClick={() => setIsOpen(!isOpen)}
-                    className="flex items-center justify-center w-9 h-9 rounded-full transition-all duration-200 hover:ring-2 hover:ring-secondary/30 focus:outline-none focus:ring-2 focus:ring-secondary/50"
+                    className="flex items-center justify-center w-9 h-9 rounded-full transition-all duration-200 hover:ring-2 hover:ring-lime focus:outline-none focus:ring-2 focus:ring-lime"
                 >
                     {user.photoURL ? (
                         <img
                             src={user.photoURL}
                             alt={user.displayName || 'User'}
-                            className="w-9 h-9 rounded-full object-cover border-2 border-olive-200"
+                            className="w-9 h-9 rounded-full object-cover border-2 border-ink/15"
                             referrerPolicy="no-referrer"
                         />
                     ) : (
@@ -88,9 +88,9 @@ const UserMenu: React.FC = () => {
 
                 {/* Dropdown Menu */}
                 {isOpen && (
-                    <div className="absolute right-0 top-12 w-56 bg-white rounded-2xl shadow-xl border border-olive-100 overflow-hidden animate-scale-in z-50">
+                    <div className="absolute right-0 top-12 w-56 bg-paper rounded-2xl shadow-xl border-[1.5px] border-ink overflow-hidden animate-scale-in z-50">
                         {/* User Info */}
-                        <div className="px-4 py-3 border-b border-olive-100">
+                        <div className="px-4 py-3 border-b border-ink/10">
                             <div className="flex items-center gap-3">
                                 {user.photoURL ? (
                                     <img
@@ -100,15 +100,15 @@ const UserMenu: React.FC = () => {
                                         referrerPolicy="no-referrer"
                                     />
                                 ) : (
-                                    <div className="w-8 h-8 rounded-full bg-accent/30 flex items-center justify-center">
-                                        <User className="w-4 h-4 text-secondary" />
+                                    <div className="w-8 h-8 rounded-full bg-lime/40 flex items-center justify-center">
+                                        <User className="w-4 h-4 text-ink" />
                                     </div>
                                 )}
                                 <div className="min-w-0">
-                                    <p className="text-sm font-semibold text-primary truncate">
+                                    <p className="text-sm font-semibold text-ink truncate">
                                         {user.displayName || 'User'}
                                     </p>
-                                    <p className="text-xs text-gray-400 truncate">
+                                    <p className="text-xs text-ink/50 truncate">
                                         {user.email}
                                     </p>
                                 </div>
@@ -122,7 +122,7 @@ const UserMenu: React.FC = () => {
                                     setIsOpen(false);
                                     setShowProfileModal(true);
                                 }}
-                                className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm text-gray-600 hover:bg-olive-50 rounded-xl transition-colors"
+                                className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm text-ink/70 hover:bg-ink/5 rounded-xl transition-colors"
                             >
                                 <Settings className="w-4 h-4" />
                                 Profile & settings
@@ -132,7 +132,7 @@ const UserMenu: React.FC = () => {
                                     setIsOpen(false);
                                     setShowCurateModal(true);
                                 }}
-                                className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm text-gray-600 hover:bg-olive-50 rounded-xl transition-colors"
+                                className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm text-ink/70 hover:bg-ink/5 rounded-xl transition-colors"
                             >
                                 <Info className="w-4 h-4" />
                                 How your stylist works
@@ -142,7 +142,7 @@ const UserMenu: React.FC = () => {
                                     setIsOpen(false);
                                     logout();
                                 }}
-                                className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm text-gray-600 hover:bg-olive-50 rounded-xl transition-colors"
+                                className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm text-ink/70 hover:bg-ink/5 rounded-xl transition-colors"
                             >
                                 <LogOut className="w-4 h-4" />
                                 Sign out
@@ -155,16 +155,16 @@ const UserMenu: React.FC = () => {
             {/* Profile & Settings Modal */}
             {showProfileModal && (
                 <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-                    <div className="w-full max-w-sm bg-white rounded-3xl shadow-xl overflow-hidden animate-scale-in max-h-[85vh] flex flex-col">
+                    <div className="w-full max-w-sm bg-paper rounded-[28px] border-[1.5px] border-ink shadow-xl overflow-hidden animate-scale-in max-h-[85vh] flex flex-col">
                         {/* Modal Header */}
-                        <div className="flex items-center justify-between p-5 border-b border-olive-100 flex-shrink-0">
+                        <div className="flex items-center justify-between p-5 border-b border-ink/10 flex-shrink-0">
                             <div className="flex items-center gap-2">
-                                <User className="w-5 h-5 text-primary" />
-                                <h3 className="text-lg font-bold text-primary">Profile & settings</h3>
+                                <User className="w-5 h-5 text-ink" />
+                                <h3 className="font-display text-xl font-extrabold text-ink">Profile & settings</h3>
                             </div>
                             <button
                                 onClick={() => setShowProfileModal(false)}
-                                className="p-2 text-olive-400 hover:text-primary hover:bg-olive-50 rounded-full transition-colors"
+                                className="p-2 text-ink/50 hover:text-ink hover:bg-ink/5 rounded-full transition-colors"
                             >
                                 <X className="w-5 h-5" />
                             </button>
@@ -175,7 +175,7 @@ const UserMenu: React.FC = () => {
 
                             {/* === Profile Section === */}
                             <section>
-                                <h4 className="text-xs font-bold text-olive-400 uppercase tracking-wider mb-4">Profile</h4>
+                                <h4 className="text-xs font-bold text-ink/50 uppercase tracking-wider mb-4">Profile</h4>
 
                                 {/* Avatar / Photo */}
                                 <div className="flex items-center gap-4 mb-4">
@@ -184,55 +184,55 @@ const UserMenu: React.FC = () => {
                                             <img
                                                 src={user.photoURL}
                                                 alt={user.displayName || 'User'}
-                                                className="w-16 h-16 rounded-2xl object-cover border-2 border-olive-200"
+                                                className="w-16 h-16 rounded-2xl object-cover border-2 border-ink/15"
                                                 referrerPolicy="no-referrer"
                                             />
                                         ) : (
-                                            <div className="w-16 h-16 rounded-2xl bg-secondary/20 flex items-center justify-center">
-                                                <User className="w-7 h-7 text-secondary" />
+                                            <div className="w-16 h-16 rounded-2xl bg-lime flex items-center justify-center">
+                                                <User className="w-7 h-7 text-ink" />
                                             </div>
                                         )}
-                                        <button className="absolute -bottom-1 -right-1 w-6 h-6 bg-primary text-white rounded-full flex items-center justify-center shadow-md hover:bg-olive-700 transition-colors">
+                                        <button className="absolute -bottom-1 -right-1 w-6 h-6 bg-ink text-white rounded-full flex items-center justify-center shadow-md hover:bg-ink/90 transition-colors">
                                             <Camera className="w-3 h-3" />
                                         </button>
                                     </div>
                                     <div className="min-w-0">
-                                        <p className="font-semibold text-primary truncate">{user.displayName || 'User'}</p>
-                                        <p className="text-xs text-olive-400 truncate">{user.email}</p>
+                                        <p className="font-semibold text-ink truncate">{user.displayName || 'User'}</p>
+                                        <p className="text-xs text-ink/50 truncate">{user.email}</p>
                                     </div>
                                 </div>
 
                                 {/* Display Name */}
                                 <div className="mb-3">
-                                    <label className="block text-sm font-semibold text-primary mb-1">Name</label>
+                                    <label className="block text-sm font-semibold text-ink mb-1">Name</label>
                                     <input
                                         type="text"
                                         defaultValue={user.displayName || ''}
                                         placeholder="Your name"
-                                        className="w-full px-4 py-3 bg-olive-50 border border-olive-200 rounded-xl text-primary font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                                        className="w-full px-4 py-3 bg-paper border border-ink/15 rounded-xl text-ink font-medium focus:outline-none focus:ring-2 focus:ring-lime transition-all"
                                     />
                                 </div>
 
                                 {/* Change Password */}
-                                <button className="flex items-center gap-2 text-sm text-secondary font-semibold hover:text-primary transition-colors">
+                                <button className="flex items-center gap-2 text-sm text-ink font-semibold hover:text-ink transition-colors">
                                     <Lock className="w-3.5 h-3.5" />
                                     Change password
                                 </button>
                             </section>
 
                             {/* Divider */}
-                            <div className="h-px bg-olive-100" />
+                            <div className="h-px bg-ink/5" />
 
                             {/* === Settings Section === */}
                             <section>
-                                <h4 className="text-xs font-bold text-olive-400 uppercase tracking-wider mb-4">Settings</h4>
+                                <h4 className="text-xs font-bold text-ink/50 uppercase tracking-wider mb-4">Settings</h4>
                                 <div className="space-y-4">
                                     <div>
-                                        <label className="block text-sm font-semibold text-primary mb-1">Gender</label>
+                                        <label className="block text-sm font-semibold text-ink mb-1">Gender</label>
                                         <select
                                             value={gender}
                                             onChange={(e) => setGender(e.target.value)}
-                                            className="w-full px-4 py-3 bg-olive-50 border border-olive-200 rounded-xl text-primary font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none transition-all"
+                                            className="w-full px-4 py-3 bg-paper border border-ink/15 rounded-xl text-ink font-medium focus:outline-none focus:ring-2 focus:ring-lime appearance-none transition-all"
                                         >
                                             <option value="">Not specified</option>
                                             <option value="female">Female</option>
@@ -241,37 +241,37 @@ const UserMenu: React.FC = () => {
                                         </select>
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-semibold text-primary mb-1">Height</label>
+                                        <label className="block text-sm font-semibold text-ink mb-1">Height</label>
                                         <div className="relative">
                                             <input
                                                 type="number"
                                                 value={height}
                                                 onChange={(e) => setHeight(e.target.value)}
                                                 placeholder="e.g. 165"
-                                                className="w-full px-4 py-3 bg-olive-50 border border-olive-200 rounded-xl text-primary font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                                                className="w-full px-4 py-3 bg-paper border border-ink/15 rounded-xl text-ink font-medium focus:outline-none focus:ring-2 focus:ring-lime transition-all"
                                             />
-                                            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-olive-400 font-medium text-sm">cm</span>
+                                            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-ink/50 font-medium text-sm">cm</span>
                                         </div>
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-semibold text-primary mb-1">Weight</label>
+                                        <label className="block text-sm font-semibold text-ink mb-1">Weight</label>
                                         <div className="relative">
                                             <input
                                                 type="number"
                                                 value={weight}
                                                 onChange={(e) => setWeight(e.target.value)}
                                                 placeholder="e.g. 55"
-                                                className="w-full px-4 py-3 bg-olive-50 border border-olive-200 rounded-xl text-primary font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                                                className="w-full px-4 py-3 bg-paper border border-ink/15 rounded-xl text-ink font-medium focus:outline-none focus:ring-2 focus:ring-lime transition-all"
                                             />
-                                            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-olive-400 font-medium text-sm">kg</span>
+                                            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-ink/50 font-medium text-sm">kg</span>
                                         </div>
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-semibold text-primary mb-1">Favorite mood</label>
+                                        <label className="block text-sm font-semibold text-ink mb-1">Favorite mood</label>
                                         <select
                                             value={preferredVibe}
                                             onChange={(e) => setPreferredVibe(e.target.value)}
-                                            className="w-full px-4 py-3 bg-olive-50 border border-olive-200 rounded-xl text-primary font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none transition-all"
+                                            className="w-full px-4 py-3 bg-paper border border-ink/15 rounded-xl text-ink font-medium focus:outline-none focus:ring-2 focus:ring-lime appearance-none transition-all"
                                         >
                                             <option value="">Not specified</option>
                                             {MOODS.map(m => (
@@ -280,18 +280,18 @@ const UserMenu: React.FC = () => {
                                         </select>
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-semibold text-primary mb-1">Weather city</label>
+                                        <label className="block text-sm font-semibold text-ink mb-1">Weather city</label>
                                         <select
                                             value={city}
                                             onChange={(e) => setCity(e.target.value)}
-                                            className="w-full px-4 py-3 bg-olive-50 border border-olive-200 rounded-xl text-primary font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none transition-all"
+                                            className="w-full px-4 py-3 bg-paper border border-ink/15 rounded-xl text-ink font-medium focus:outline-none focus:ring-2 focus:ring-lime appearance-none transition-all"
                                         >
                                             <option value="">Use my location</option>
                                             {SUPPORTED_CITIES.map(c => (
                                                 <option key={c} value={c}>{c}</option>
                                             ))}
                                         </select>
-                                        <p className="mt-1 text-[11px] text-olive-400">For when location is off. US cities only.</p>
+                                        <p className="mt-1 text-[11px] text-ink/50">For when location is off. US cities only.</p>
                                     </div>
                                 </div>
                             </section>
@@ -299,10 +299,10 @@ const UserMenu: React.FC = () => {
                         </div>
 
                         {/* Save Button — Fixed at bottom */}
-                        <div className="p-5 border-t border-olive-100 flex-shrink-0">
+                        <div className="p-5 border-t border-ink/10 flex-shrink-0">
                             <button
                                 onClick={handleSaveProfile}
-                                className="w-full py-3.5 bg-primary text-white font-bold rounded-xl active:scale-[0.98] transition-transform hover:bg-olive-900"
+                                className="w-full py-3.5 bg-ink text-white font-bold rounded-full active:scale-[0.98] transition-transform hover:bg-ink/90"
                             >
                                 Save
                             </button>
@@ -314,22 +314,22 @@ const UserMenu: React.FC = () => {
             {/* How We Curate Modal */}
             {showCurateModal && (
                 <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-                    <div className="w-full max-w-sm bg-olive-900 text-white rounded-3xl shadow-xl overflow-hidden animate-scale-in">
-                        <div className="flex items-center justify-between p-5 border-b border-olive-700">
+                    <div className="w-full max-w-sm bg-ink text-paper rounded-[28px] border-[1.5px] border-lime shadow-xl overflow-hidden animate-scale-in">
+                        <div className="flex items-center justify-between p-5 border-b border-paper/15">
                             <div className="flex items-center gap-2">
-                                <Info className="w-5 h-5 text-olive-300" />
+                                <Info className="w-5 h-5 text-lime" />
                                 <h3 className="text-lg font-bold">How your stylist picks</h3>
                             </div>
                             <button
                                 onClick={() => setShowCurateModal(false)}
-                                className="p-2 text-olive-400 hover:text-white hover:bg-olive-700 rounded-full transition-colors"
+                                className="p-2 text-paper/60 hover:text-paper hover:bg-paper/10 rounded-full transition-colors"
                             >
                                 <X className="w-5 h-5" />
                             </button>
                         </div>
                         <div className="p-5 space-y-4">
-                            <p className="text-sm leading-relaxed text-olive-200">Three things guide every look. The weather, so you stay comfy. How often you wear each piece, so nothing gets forgotten. And your mood, so it always feels like you.</p>
-                            <div className="flex items-center gap-4 text-olive-300 text-xs font-medium">
+                            <p className="text-sm leading-relaxed text-paper/80">Three things guide every look. The weather, so you stay comfy. How often you wear each piece, so nothing gets forgotten. And your mood, so it always feels like you.</p>
+                            <div className="flex items-center gap-4 text-lime text-xs font-medium">
                                 <span className="flex items-center gap-1.5"><Cloud className="w-3.5 h-3.5" /> Weather</span>
                                 <span className="flex items-center gap-1.5"><Activity className="w-3.5 h-3.5" /> Rotation</span>
                                 <span className="flex items-center gap-1.5"><Heart className="w-3.5 h-3.5" /> Mood</span>

@@ -135,11 +135,11 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({ item, onClose 
             style={{ animation: 'fadeIn 0.2s ease-out' }}
         >
             <div
-                className="w-full max-w-md bg-white rounded-3xl overflow-hidden shadow-2xl flex flex-col"
+                className="w-full max-w-md bg-paper rounded-[28px] border-[1.5px] border-ink overflow-hidden shadow-2xl flex flex-col"
                 style={{ maxHeight: 'min(85vh, 640px)', animation: 'scaleIn 0.25s ease-out' }}
             >
                 {/* Image Header — fixed height, clipped */}
-                <div className="relative flex-shrink-0 overflow-hidden bg-gray-100 flex items-center justify-center" style={{ height: '220px' }}>
+                <div className="relative flex-shrink-0 overflow-hidden bg-ink/5 flex items-center justify-center" style={{ height: '220px' }}>
                     <img
                         src={displayImage}
                         alt={item.subcategory}
@@ -157,13 +157,13 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({ item, onClose 
                     />
                     {showStockBadge && (
                         <>
-                            <span className="absolute top-3 left-3 px-2.5 py-1 bg-black/50 backdrop-blur-md text-white text-[10px] font-semibold rounded-full">
+                            <span className="absolute top-3 left-3 h-[30px] px-2.5 inline-flex items-center bg-black/50 backdrop-blur-md text-white text-[10px] font-semibold rounded-full">
                                 Stock photo
                             </span>
                             <button
                                 onClick={() => photoInputRef.current?.click()}
                                 disabled={isReplacingPhoto}
-                                className="absolute bottom-3 left-3 inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/90 backdrop-blur-md text-primary text-xs font-semibold rounded-full hover:bg-white transition-colors active:scale-[0.97] disabled:opacity-60"
+                                className="absolute top-3 left-[104px] inline-flex items-center gap-1.5 h-[30px] px-3 bg-lime border-[1.5px] border-ink text-ink text-xs font-bold rounded-full hover:bg-lime/90 transition-colors active:scale-[0.97] disabled:opacity-60"
                             >
                                 {isReplacingPhoto ? (
                                     <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Uploading…</>
@@ -183,36 +183,36 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({ item, onClose 
 
                     <div className="absolute bottom-4 left-5 right-5 text-white">
                         <div className="flex items-center gap-2 mb-1">
-                            <span className="px-2 py-0.5 bg-secondary/80 backdrop-blur-sm rounded-md text-[10px] font-bold uppercase tracking-wider">
+                            <span className="px-2 py-0.5 bg-ink backdrop-blur-sm rounded-md text-[10px] font-bold uppercase tracking-wider">
                                 {displayCategory}
                             </span>
                             <span className="text-xs opacity-80">Added {format(new Date(item.dateAdded), 'MMM d, yyyy')}</span>
                         </div>
-                        <h2 className="text-xl font-bold tracking-tight">{displayName}</h2>
+                        <h2 className="font-display text-2xl font-extrabold tracking-tight">{displayName}</h2>
                     </div>
                 </div>
 
                 {/* Scrollable Content */}
-                <div className="flex-1 overflow-y-auto bg-white">
+                <div className="flex-1 overflow-y-auto bg-paper">
                     <div className="p-5 space-y-5">
                         {/* Key Stats */}
                         <div className="grid grid-cols-2 gap-3">
-                            <div className="p-3 bg-olive-50 rounded-xl border border-olive-100 flex items-center gap-3">
+                            <div className="p-3 bg-paper rounded-xl border border-ink/10 flex items-center gap-3">
                                 <div className="w-9 h-9 bg-white rounded-lg shadow-sm flex items-center justify-center flex-shrink-0">
-                                    <Hash className="w-4 h-4 text-secondary" />
+                                    <Hash className="w-4 h-4 text-ink" />
                                 </div>
                                 <div>
-                                    <p className="text-[10px] font-bold text-olive-400 uppercase tracking-wider">Times worn</p>
-                                    <p className="text-lg font-bold text-primary">{item.wearFrequency}</p>
+                                    <p className="text-[10px] font-bold text-ink/50 uppercase tracking-wider">Times worn</p>
+                                    <p className="font-display text-xl font-extrabold text-ink">{item.wearFrequency}</p>
                                 </div>
                             </div>
-                            <div className="p-3 bg-olive-50 rounded-xl border border-olive-100 flex items-center gap-3">
+                            <div className="p-3 bg-paper rounded-xl border border-ink/10 flex items-center gap-3">
                                 <div className="w-9 h-9 bg-white rounded-lg shadow-sm flex items-center justify-center flex-shrink-0">
-                                    <Calendar className="w-4 h-4 text-secondary" />
+                                    <Calendar className="w-4 h-4 text-ink" />
                                 </div>
                                 <div>
-                                    <p className="text-[10px] font-bold text-olive-400 uppercase tracking-wider">Last worn</p>
-                                    <p className="text-sm font-bold text-primary">
+                                    <p className="text-[10px] font-bold text-ink/50 uppercase tracking-wider">Last worn</p>
+                                    <p className="text-sm font-bold text-ink">
                                         {item.lastWorn
                                             ? (() => {
                                                 const days = differenceInDays(new Date(), new Date(item.lastWorn));
@@ -223,23 +223,23 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({ item, onClose 
                                 </div>
                             </div>
                         </div>
-                        <p className="-mt-2 text-sm font-semibold text-olive-600">{wornLine(item)}</p>
+                        <p className="-mt-2 text-sm font-semibold text-ink/60">{wornLine(item)}</p>
 
                         {/* Name (subcategory) — editable in case scan got it wrong */}
                         <div>
-                            <p className="text-[10px] font-bold text-olive-400 uppercase tracking-wider mb-2">Name</p>
+                            <p className="text-[10px] font-bold text-ink/50 uppercase tracking-wider mb-2">Name</p>
                             <input
                                 type="text"
                                 value={displayName}
                                 onChange={(e) => setDisplayName(e.target.value)}
                                 onBlur={handleRename}
-                                className="w-full rounded-xl border border-olive-100 bg-olive-50 p-3 text-sm font-bold text-primary focus:ring-2 focus:ring-secondary/30 focus:border-secondary outline-none"
+                                className="w-full rounded-xl border border-ink/10 bg-paper p-3 text-sm font-bold text-ink focus:ring-2 focus:ring-lime focus:border-ink outline-none"
                             />
                         </div>
 
                         {/* Category — editable */}
                         <div>
-                            <p className="text-[10px] font-bold text-olive-400 uppercase tracking-wider mb-2">Category</p>
+                            <p className="text-[10px] font-bold text-ink/50 uppercase tracking-wider mb-2">Category</p>
                             <div className="grid grid-cols-4 gap-2">
                                 {Object.values(ClothingCategory).map((cat) => {
                                     const selected = displayCategory === cat;
@@ -247,7 +247,7 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({ item, onClose 
                                         <button
                                             key={cat}
                                             onClick={() => handleCategory(cat)}
-                                            className={`py-2 rounded-lg text-xs font-bold capitalize border transition-colors ${selected ? 'border-secondary bg-olive-50 text-primary' : 'border-olive-100 bg-white text-secondary hover:bg-olive-50'}`}
+                                            className={`py-2 rounded-lg text-xs font-bold capitalize border transition-colors ${selected ? 'border-ink bg-paper text-ink' : 'border-ink/10 bg-white text-ink hover:bg-ink/5'}`}
                                         >
                                             {cat}
                                         </button>
@@ -258,20 +258,20 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({ item, onClose 
 
                         {/* Color — user calibration: shows the snapped palette name (no hex), logs each correction as eval data */}
                         <div>
-                            <p className="text-[10px] font-bold text-olive-400 uppercase tracking-wider mb-2">Color</p>
-                            <div className="flex items-center gap-3 p-3 bg-olive-50 rounded-xl border border-olive-100">
+                            <p className="text-[10px] font-bold text-ink/50 uppercase tracking-wider mb-2">Color</p>
+                            <div className="flex items-center gap-3 p-3 bg-paper rounded-xl border border-ink/10">
                                 <span className="w-8 h-8 rounded-lg border border-black/10 flex-shrink-0" style={{ backgroundColor: displayColor.hex }} />
-                                <span className="text-sm font-bold text-primary flex-1">{displayColor.name}</span>
+                                <span className="text-sm font-bold text-ink flex-1">{displayColor.name}</span>
                                 <button
                                     onClick={() => setColorSheetOpen((o) => !o)}
-                                    className="text-xs font-bold text-secondary bg-white border border-olive-100 rounded-lg px-3 py-1.5 hover:bg-olive-100 transition-colors"
+                                    className="text-xs font-bold text-ink bg-white border border-ink/10 rounded-lg px-3 py-1.5 hover:bg-ink/10 transition-colors"
                                 >
                                     {colorSheetOpen ? 'Close' : 'Edit'}
                                 </button>
                             </div>
                             {colorSheetOpen && (
                                 <div className="mt-3">
-                                    <p className="text-xs text-olive-400 mb-2">Pick the right color:</p>
+                                    <p className="text-xs text-ink/50 mb-2">Pick the right color:</p>
                                     <div className="grid grid-cols-4 gap-2">
                                         {COLOR_PALETTE.map((c) => {
                                             const selected = displayColor.name === c.name;
@@ -279,10 +279,10 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({ item, onClose 
                                                 <button
                                                     key={c.name}
                                                     onClick={() => handlePickColor(c)}
-                                                    className={`flex flex-col items-center gap-1 p-1.5 rounded-lg border transition-colors ${selected ? 'border-secondary bg-olive-50' : 'border-transparent hover:bg-olive-50'}`}
+                                                    className={`flex flex-col items-center gap-1 p-1.5 rounded-lg border transition-colors ${selected ? 'border-ink bg-paper' : 'border-transparent hover:bg-ink/5'}`}
                                                 >
                                                     <span className="w-7 h-7 rounded-lg border border-black/10" style={{ backgroundColor: c.hex }} />
-                                                    <span className="text-[10px] font-semibold text-primary">{c.name}</span>
+                                                    <span className="text-[10px] font-semibold text-ink">{c.name}</span>
                                                 </button>
                                             );
                                         })}
@@ -314,7 +314,7 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({ item, onClose 
                 </div>
 
                 {/* Actions — fixed at bottom */}
-                <div className="flex-shrink-0 bg-white border-t border-olive-100 p-4 flex gap-3">
+                <div className="flex-shrink-0 bg-white border-t border-ink/10 p-4 flex gap-3">
                     <button
                         onClick={handleDelete}
                         className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 bg-red-50 text-red-600 rounded-xl font-bold text-sm hover:bg-red-100 transition-colors active:scale-[0.98]"
@@ -324,7 +324,7 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({ item, onClose 
                     </button>
                     <button
                         onClick={onClose}
-                        className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 bg-primary text-white rounded-xl font-bold text-sm hover:bg-olive-800 transition-colors active:scale-[0.98]"
+                        className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 bg-ink text-white rounded-full font-bold text-sm hover:bg-ink/90 transition-colors active:scale-[0.98]"
                     >
                         <Check className="w-4 h-4" />
                         Confirm

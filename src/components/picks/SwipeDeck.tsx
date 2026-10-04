@@ -111,7 +111,7 @@ export const SwipeDeck = forwardRef<SwipeDeckHandle, SwipeDeckProps>(function Sw
     const visible = cards.slice(0, 3);
 
     return (
-        <div className="relative w-full h-full">
+        <div className="relative isolate w-full h-full">
             {visible.map((card, depth) => {
                 const isTop = depth === 0;
                 return (
