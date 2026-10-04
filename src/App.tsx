@@ -22,7 +22,7 @@ const NavItem = ({ to, icon: Icon, label, active }: { to: string, icon: Componen
   <Link
     to={to}
     aria-current={active ? 'page' : undefined}
-    className={`flex flex-col items-center justify-center gap-1 w-full py-2 text-[11px] transition-colors ${active ? 'font-extrabold text-ink' : 'font-semibold text-olive-500 hover:text-ink'}`}
+    className={`flex flex-col items-center justify-center gap-1 w-full py-2 text-[11px] transition-colors ${active ? 'font-extrabold text-ink' : 'font-semibold text-ink/45 hover:text-ink'}`}
   >
     <Icon className="w-6 h-6" />
     {label}

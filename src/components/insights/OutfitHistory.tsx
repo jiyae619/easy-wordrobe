@@ -74,26 +74,26 @@ export const OutfitHistory: React.FC = () => {
     return (
         <section>
             <div className="mb-4">
-                <h2 className="text-lg font-bold text-primary">Outfit History</h2>
-                <span className="text-xs text-olive-400 font-medium">What you've worn recently</span>
+                <h2 className="font-display text-xl font-extrabold text-ink">Outfit History</h2>
+                <span className="text-xs text-ink/50 font-medium">What you've worn recently</span>
             </div>
             <div className="space-y-3">
                 {records.map(({ record, items }) => (
-                    <div key={record.id} className="flex items-center gap-3 p-3 bg-white rounded-2xl border border-muted shadow-sm">
+                    <div key={record.id} className="flex items-center gap-3 p-3 bg-white rounded-[20px] border-[1.5px] border-ink">
                         <div className="flex -space-x-2 flex-shrink-0">
                             {items.slice(0, 3).map((item, j) => (
-                                <div key={j} className="w-11 h-11 rounded-xl overflow-hidden border-2 border-white bg-olive-50 flex items-center justify-center">
+                                <div key={j} className="w-11 h-11 rounded-xl overflow-hidden border-2 border-white bg-paper flex items-center justify-center">
                                     {item.imageUrl ? (
                                         <img src={item.imageUrl} alt={item.subcategory} className="w-full h-full object-cover" />
                                     ) : (
-                                        <Shirt className="w-4 h-4 text-olive-300" />
+                                        <Shirt className="w-4 h-4 text-ink/30" />
                                     )}
                                 </div>
                             ))}
                         </div>
                         <div className="flex-1 min-w-0">
-                            <p className="text-sm font-bold text-primary">{format(new Date(record.date), 'EEE, MMM d')}</p>
-                            <p className="text-[11px] text-olive-400 capitalize">
+                            <p className="text-sm font-bold text-ink">{format(new Date(record.date), 'EEE, MMM d')}</p>
+                            <p className="text-[11px] text-ink/50 capitalize">
                                 {moodName(record.mood)} · {items.length} item{items.length === 1 ? '' : 's'}
                             </p>
                         </div>
@@ -101,14 +101,14 @@ export const OutfitHistory: React.FC = () => {
                             onClick={() => toggleOutfitFavorite(record.id)}
                             aria-label={record.favorite ? 'Remove from favorites' : 'Add to favorites'}
                             aria-pressed={Boolean(record.favorite)}
-                            className="flex items-center justify-center w-9 h-9 rounded-full hover:bg-olive-50 transition-colors active:scale-[0.97] flex-shrink-0"
+                            className="flex items-center justify-center w-9 h-9 rounded-full hover:bg-paper transition-colors active:scale-[0.97] flex-shrink-0"
                         >
-                            <Heart className={`w-4 h-4 ${record.favorite ? 'text-red-500 fill-red-500' : 'text-olive-300'}`} />
+                            <Heart className={`w-4 h-4 ${record.favorite ? 'text-ink fill-ink' : 'text-ink/30'}`} />
                         </button>
                         <button
                             onClick={() => handleWearAgain(record, items)}
                             disabled={pendingId === record.id}
-                            className="flex items-center gap-1 px-3 py-1.5 bg-olive-100 hover:bg-olive-200 text-secondary text-xs font-semibold rounded-full transition-colors active:scale-[0.97] disabled:opacity-50 flex-shrink-0"
+                            className="flex items-center gap-1 px-3 py-1.5 bg-paper border-[1.5px] border-ink text-ink text-xs font-bold rounded-full transition-colors active:scale-[0.97] disabled:opacity-50 flex-shrink-0"
                         >
                             {rewornId === record.id ? (
                                 <><Check className="w-3 h-3" /> Logged</>

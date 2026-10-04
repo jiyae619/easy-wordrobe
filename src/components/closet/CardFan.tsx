@@ -1,11 +1,15 @@
 import React, { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { type ClothingItem } from '../../types';
-import { isStockPhoto } from '../../data/starterCatalog';
+import { Plus } from 'lucide-react';
 import { GarmentImage } from '../common/GarmentImage';
 import { clamp, haptic, prefersReducedMotion } from '../../utils/motion';
 
 interface CardFanProps {
+    /** Deck name, shown on the deck's back card at the start of the hand. */
+    label: string;
     items: ClothingItem[];
+    /** The "add a piece" card at the end of the hand. */
+    onAdd: () => void;
     dustyDays: Map<string, number>;
     /** Tap on the focused (raised) card. */
     onOpen: (item: ClothingItem) => void;
@@ -15,8 +19,8 @@ interface CardFanProps {
 
 /** Degrees between neighbouring cards in the fan. */
 const STEP = 10;
-const CARD_W = 164;
-const CARD_H = 222;
+const CARD_W = 186;
+const CARD_H = 250;
 /** The fan pivots around a point far below the cards, like a hand of cards. */
 const PIVOT = 720;
 /** Cards rendered on each side of the focused one — the rest are virtualized away. */
@@ -24,11 +28,13 @@ const WINDOW = 5;
 
 /**
  * One category of the closet as a fanned hand of cards. Drag sideways to sweep through the fan;
- * the card at the top is raised and focused. Cards deal in from the deck when the hand changes.
+ * the card at the top is raised and focused. The hand is bookended by the deck's back card on
+ * the left and an "add a piece" card on the right, so it reads balanced at either end. Cards deal
+ * in from the deck when the hand changes.
  * Rotation is written to the DOM from one rAF loop that sleeps when settled — React re-renders
  * only when the focused card changes.
  */
-export const CardFan: React.FC<CardFanProps> = memo(function CardFan({ items, dustyDays, onOpen, onFocus }) {
+export const CardFan: React.FC<CardFanProps> = memo(function CardFan({ label, items, dustyDays, onOpen, onAdd, onFocus }) {
     const n = items.length;
     const viewRef = useRef<HTMLDivElement>(null);
     const nodes = useRef(new Map<number, HTMLElement>());
@@ -164,8 +170,12 @@ export const CardFan: React.FC<CardFanProps> = memo(function CardFan({ items, du
         else nodes.current.delete(i);
     };
 
+    // Indices -1 (deck back) and n (add card) are the bookends around the real cards.
     const visible: number[] = [];
-    for (let i = Math.max(0, focus - WINDOW); i <= Math.min(n - 1, focus + WINDOW); i++) visible.push(i);
+    for (let i = Math.max(-1, focus - WINDOW); i <= Math.min(n, focus + WINDOW); i++) visible.push(i);
+
+    const cardStyle = { width: CARD_W, height: CARD_H, marginLeft: -CARD_W / 2, transformOrigin: `50% ${PIVOT}px` };
+    const cardClass = 'absolute left-1/2 top-6 p-0 border-0 bg-transparent will-change-transform focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink rounded-[22px]';
 
     return (
         <div
@@ -178,6 +188,29 @@ export const CardFan: React.FC<CardFanProps> = memo(function CardFan({ items, du
             onPointerCancel={endDrag}
         >
             {visible.map((i) => {
+                if (i === -1) {
+                    return (
+                        <button key="deck-back" ref={register(i)} type="button" onClick={() => { if (!ph.current.suppressClick) goTo(0); }} aria-label={`${label} deck, ${n} cards`} className={cardClass} style={cardStyle}>
+                            <span className="deal-in flex w-full h-full rounded-[22px] bg-ink border-2 border-ink p-2.5">
+                                {/* Text sits bottom-left: the only part not covered by the raised card. */}
+                                <span className="flex flex-col justify-end items-start w-full h-full rounded-[16px] border-[1.5px] border-lime/60 p-3 text-left">
+                                    <span className="font-display text-[20px] font-extrabold text-lime leading-none">{label}</span>
+                                    <span className="text-[11px] font-bold text-paper/70 mt-1">{n} {n === 1 ? 'card' : 'cards'}</span>
+                                </span>
+                            </span>
+                        </button>
+                    );
+                }
+                if (i === n) {
+                    return (
+                        <button key="add" ref={register(i)} type="button" onClick={() => { if (!ph.current.suppressClick) onAdd(); }} aria-label="Add a piece" className={cardClass} style={cardStyle}>
+                            <span className="deal-in flex flex-col items-center justify-center gap-2 w-full h-full rounded-[22px] bg-paper border-2 border-dashed border-ink/40 text-ink" style={{ animationDelay: `${Math.abs(i - focus) * 45}ms` }}>
+                                <span className="w-11 h-11 rounded-full bg-lime border-[1.5px] border-ink flex items-center justify-center"><Plus className="w-5 h-5" /></span>
+                                <span className="text-xs font-extrabold">Add a piece</span>
+                            </span>
+                        </button>
+                    );
+                }
                 const item = items[i];
                 const days = dustyDays.get(item.id);
                 const isFocus = i === focus;
@@ -188,22 +221,22 @@ export const CardFan: React.FC<CardFanProps> = memo(function CardFan({ items, du
                         type="button"
                         onClick={() => onCardClick(i)}
                         aria-label={isFocus ? `Open ${item.color} ${item.subcategory}` : `Show ${item.color} ${item.subcategory}`}
-                        className="absolute left-1/2 top-10 p-0 border-0 bg-transparent will-change-transform focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink rounded-[22px]"
-                        style={{ width: CARD_W, height: CARD_H, marginLeft: -CARD_W / 2, transformOrigin: `50% ${PIVOT}px` }}
+                        className={cardClass}
+                        style={cardStyle}
                     >
                         <span
-                            className="deal-in flex flex-col w-full h-full rounded-[22px] bg-white overflow-hidden border-2 shadow-[0_10px_24px_rgba(21,26,20,0.12)]"
-                            style={{ borderColor: isFocus ? '#151A14' : '#D9D6CB', animationDelay: `${Math.abs(i - focus) * 45}ms` }}
+                            className={`deal-in flex flex-col w-full h-full rounded-[22px] bg-white overflow-hidden border-2 shadow-[0_10px_24px_rgba(21,26,20,0.12)] ${isFocus ? 'border-ink' : 'border-ink/15'}`}
+                            style={{ animationDelay: `${Math.abs(i - focus) * 45}ms` }}
                         >
-                            <span className={`relative flex-none flex items-center justify-center ${isStockPhoto(item) ? 'p-1.5' : ''}`} style={{ height: CARD_W - 4 }}>
-                                <GarmentImage item={item} className="w-full h-full" rounded="rounded-none" />
+                            <span className="relative flex-none" style={{ height: CARD_W - 4 }}>
+                                <GarmentImage item={item} className="w-full h-full" />
                                 {days != null && (
                                     <span className="absolute left-2 top-2 px-1.5 h-[18px] rounded-full bg-ink text-lime text-[10px] font-extrabold flex items-center">{days}d</span>
                                 )}
                             </span>
-                            <span className={`flex-1 flex items-center justify-between gap-1 px-2.5 border-t-[1.5px] border-ink ${isFocus ? 'bg-lime' : 'bg-white'}`}>
-                                <span className="text-[11px] font-extrabold text-ink truncate">{item.subcategory}</span>
-                                <span className="text-[10px] font-extrabold text-ink flex-none">{item.wearFrequency}×</span>
+                            <span className={`flex-1 flex flex-col justify-center gap-0.5 px-3 border-t-[1.5px] ${isFocus ? 'bg-lime border-ink' : 'bg-white border-ink/15'}`}>
+                                <span className="text-[12px] font-extrabold text-ink truncate leading-tight">{item.subcategory}</span>
+                                <span className="text-[10px] font-semibold text-ink/60 truncate">{item.color} · worn {item.wearFrequency}×</span>
                             </span>
                         </span>
                     </button>

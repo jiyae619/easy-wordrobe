@@ -81,7 +81,7 @@ const UserMenu: React.FC = () => {
                             referrerPolicy="no-referrer"
                         />
                     ) : (
-                        <div className="w-9 h-9 rounded-full bg-secondary text-white flex items-center justify-center text-sm font-semibold">
+                        <div className="w-9 h-9 rounded-full bg-ink text-lime flex items-center justify-center text-sm font-bold">
                             {initials}
                         </div>
                     )}

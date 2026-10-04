@@ -143,7 +143,7 @@ const Suggest: React.FC = () => {
         body = (
             <div className="h-full flex flex-col items-center justify-center text-center rounded-[30px] border-2 border-dashed border-ink/40 p-6">
                 <h2 className="font-display text-2xl font-extrabold text-ink">{clothes.length === 0 ? 'Your closet is empty' : 'Almost there'}</h2>
-                <p className="text-sm text-olive-600 mt-2 mb-5">
+                <p className="text-sm text-ink/60 mt-2 mb-5">
                     {clothes.length === 0
                         ? 'Add some clothes to get personalized looks.'
                         : `Add ${readiness.missingForOutfit.join(' and ')} so the stylist can build full outfits.`}
@@ -159,7 +159,7 @@ const Suggest: React.FC = () => {
                 <div className="flex-1 flex items-center justify-center">
                     <div className="h-[80%] aspect-[0.8] rounded-t-[999px] rounded-b-2xl skeleton" />
                 </div>
-                <p className="flex items-center justify-center gap-2 text-sm font-semibold text-olive-600">
+                <p className="flex items-center justify-center gap-2 text-sm font-semibold text-ink/60">
                     <Loader2 className="w-4 h-4 animate-spin" /> Your stylist is curating today’s looks…
                 </p>
             </div>
@@ -168,7 +168,7 @@ const Suggest: React.FC = () => {
         body = (
             <div className="h-full flex flex-col items-center justify-center text-center rounded-[30px] border-2 border-dashed border-ink/40 p-6">
                 <h2 className="font-display text-2xl font-extrabold text-ink">Something went wrong</h2>
-                <p className="text-sm text-olive-600 mt-2 mb-5">{error}</p>
+                <p className="text-sm text-ink/60 mt-2 mb-5">{error}</p>
                 <button type="button" onClick={() => void regenerate()} className="h-12 px-6 rounded-full bg-ink text-paper text-sm font-bold inline-flex items-center gap-2">
                     <RefreshCw className="w-4 h-4" /> Try again
                 </button>
@@ -180,7 +180,7 @@ const Suggest: React.FC = () => {
                 <h2 className="font-display text-[28px] leading-tight font-extrabold text-ink">
                     {looks.length === 0 ? 'No looks for this mood yet' : 'That’s today’s looks.'}
                 </h2>
-                <p className="text-sm text-olive-700">
+                <p className="text-sm text-ink/70">
                     {wornLook != null
                         ? `Wearing look ${wornLook + 1} today. Skips teach the stylist what you don’t reach for.`
                         : 'Skips teach the stylist what you don’t reach for.'}
@@ -203,7 +203,7 @@ const Suggest: React.FC = () => {
         <div className="space-y-4">
             <header className="pr-12 flex items-end justify-between gap-3">
                 <div>
-                    <p className="text-xs font-bold text-olive-600">
+                    <p className="text-xs font-bold text-ink/60">
                         3 AI looks · {mood.name}{weather ? ` · ${Math.round(weather.temperature)}° ${weather.condition.toLowerCase()}` : ''}
                     </p>
                     <h1 className="font-display text-[34px] font-extrabold leading-none tracking-tight text-ink">Picks</h1>
@@ -213,10 +213,10 @@ const Suggest: React.FC = () => {
 
             <MoodChips value={mood.id} onChange={setMood} />
 
-            <div className="relative h-[min(560px,calc(100dvh-410px))] min-h-[400px]">{body}</div>
+            <div className="relative h-[min(580px,calc(100dvh-376px))] min-h-[420px]">{body}</div>
 
             {deckActive && (
-                <div className="flex items-center justify-center gap-5 pt-7">
+                <div className="flex items-center justify-center gap-5 pt-6">
                     <button type="button" onClick={() => deckRef.current?.swipe('left')} aria-label="Skip this look" className="w-[60px] h-[60px] rounded-full border-2 border-ink bg-white text-ink flex items-center justify-center active:scale-95">
                         <X className="w-6 h-6" />
                     </button>
@@ -230,8 +230,8 @@ const Suggest: React.FC = () => {
             )}
 
             {deckActive && (
-                <p className="text-center text-[11px] text-olive-500">
-                    Swipe right to wear · left to skip · up to tweak · tap a piece to swap
+                <p className="text-center text-[11px] text-ink/50">
+                    Right: wear · Left: skip · Up: tweak · Tap a piece to swap
                 </p>
             )}
 

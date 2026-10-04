@@ -37,31 +37,31 @@ export const StreakCard: React.FC = () => {
 
     return (
         <section>
-            <div className={`rounded-2xl p-5 border ${active ? 'bg-gradient-to-br from-amber-50 to-olive-50 border-amber-200/70' : 'bg-white border-olive-200/70'}`}>
-                <div className="flex items-center gap-4">
-                    <div className={`flex items-center justify-center w-12 h-12 rounded-2xl flex-shrink-0 ${active ? 'bg-amber-100' : 'bg-olive-100'}`}>
-                        <Star className={`w-6 h-6 ${active ? 'text-amber-500 fill-amber-400' : 'text-olive-400'}`} />
+            <div className="rounded-[22px] p-4 bg-white border-[1.5px] border-ink">
+                <div className="flex items-center gap-3.5">
+                    <div className={`flex items-center justify-center w-12 h-12 rounded-2xl flex-shrink-0 border-[1.5px] border-ink ${active ? 'bg-lime' : 'bg-paper'}`}>
+                        <Star className={`w-5 h-5 text-ink ${active ? 'fill-ink' : ''}`} />
                     </div>
                     <div className="flex-1 min-w-0">
-                        <p className="text-base font-bold text-primary">{headline}</p>
-                        <p className="text-xs text-olive-600 mt-0.5">{sub}</p>
+                        <p className="font-display text-base font-extrabold text-ink">{headline}</p>
+                        <p className="text-xs text-ink/60 mt-0.5">{sub}</p>
                     </div>
                     {active && (
                         <div className="text-right flex-shrink-0">
-                            <p className="text-2xl font-bold text-amber-500 leading-none">{current}</p>
-                            <p className="text-[10px] text-olive-400 uppercase tracking-wide mt-0.5">days</p>
+                            <p className="font-display text-[28px] font-extrabold text-ink leading-none">{current}</p>
+                            <p className="text-[10px] text-ink/50 uppercase tracking-wide mt-0.5">days</p>
                         </div>
                     )}
                 </div>
 
                 {rotation.total > 0 && (
-                    <div className="mt-4 pt-3 border-t border-amber-200/40">
+                    <div className="mt-3.5 pt-3 border-t border-ink/10">
                         <div className="flex items-center justify-between text-xs">
-                            <span className="text-olive-600 font-medium">Closet rotation this month</span>
-                            <span className="font-bold text-primary">{rotation.worn}/{rotation.total} pieces</span>
+                            <span className="text-ink/60 font-medium">Closet rotation this month</span>
+                            <span className="font-bold text-ink">{rotation.worn}/{rotation.total} pieces</span>
                         </div>
-                        <div className="h-1.5 rounded-full bg-olive-100 overflow-hidden mt-2">
-                            <div className="h-full bg-secondary transition-all duration-300" style={{ width: `${rotation.percent}%` }} />
+                        <div className="h-1.5 rounded-full bg-ink/10 overflow-hidden mt-2">
+                            <div className="h-full bg-ink transition-all duration-300" style={{ width: `${rotation.percent}%` }} />
                         </div>
                     </div>
                 )}

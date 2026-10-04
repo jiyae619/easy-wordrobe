@@ -1,6 +1,5 @@
 import React from 'react';
 import { type ClothingItem, type OutfitSuggestion } from '../../types';
-import { isStockPhoto } from '../../data/starterCatalog';
 import { GarmentImage } from '../common/GarmentImage';
 import { slotsFromItems, isDress, type SlotId } from '../../utils/outfitSlots';
 
@@ -15,7 +14,7 @@ interface MirrorCardProps {
     canSwap: (slot: SlotId) => boolean;
 }
 
-interface Placement { left: number; top: number; width: number; z: number }
+interface Placement { left: number; top: number; width: number; z: number; tilt: number }
 
 /** Where each piece hangs inside the mirror (percent of the glass). */
 function placements(slots: Record<SlotId, ClothingItem | null>): Partial<Record<SlotId, Placement>> {
@@ -23,17 +22,17 @@ function placements(slots: Record<SlotId, ClothingItem | null>): Partial<Record<
     const both = Boolean(slots.layer && slots.top && !dress);
     const out: Partial<Record<SlotId, Placement>> = {};
     if (dress) {
-        if (slots.layer) out.layer = { left: 2, top: 3, width: 46, z: 3 };
-        out.bottom = { left: slots.layer ? 30 : 20, top: slots.layer ? 14 : 6, width: 60, z: 2 };
+        if (slots.layer) out.layer = { left: 6, top: 12, width: 44, z: 3, tilt: -5 };
+        out.bottom = { left: slots.layer ? 36 : 22, top: slots.layer ? 18 : 12, width: 56, z: 2, tilt: 3 };
     } else {
         if (both) {
-            out.top = { left: 46, top: 7, width: 46, z: 1 };
-            out.layer = { left: 4, top: 2, width: 54, z: 2 };
-        } else if (slots.layer) out.layer = { left: 23, top: 2, width: 54, z: 2 };
-        else if (slots.top) out.top = { left: 23, top: 3, width: 54, z: 2 };
-        if (slots.bottom) out.bottom = { left: 25, top: 36, width: 50, z: 3 };
+            out.top = { left: 48, top: 14, width: 42, z: 1, tilt: 5 };
+            out.layer = { left: 8, top: 10, width: 46, z: 2, tilt: -4 };
+        } else if (slots.layer) out.layer = { left: 27, top: 10, width: 46, z: 2, tilt: -2 };
+        else if (slots.top) out.top = { left: 27, top: 10, width: 46, z: 2, tilt: -2 };
+        if (slots.bottom) out.bottom = { left: 27, top: 42, width: 46, z: 3, tilt: 2 };
     }
-    if (slots.shoes) out.shoes = { left: 35, top: 74, width: 30, z: 4 };
+    if (slots.shoes) out.shoes = { left: slots.bottom && !dress ? 58 : 38, top: 72, width: 30, z: 4, tilt: -6 };
     return out;
 }
 
@@ -59,13 +58,13 @@ export const MirrorCard: React.FC<MirrorCardProps> = ({ look, index, total, reas
                 <span className="h-[26px] px-2.5 rounded-full bg-ink text-lime text-[11px] font-extrabold flex items-center tracking-wide">
                     LOOK {index + 1} OF {total}
                 </span>
-                <span className="text-[11px] font-extrabold text-olive-500 uppercase tracking-wide">{look.mood.name}</span>
+                <span className="text-[11px] font-extrabold text-ink/50 uppercase tracking-wide">{look.mood.name}</span>
             </header>
 
-            <div className="flex-1 min-h-0 flex items-center justify-center px-6 pt-3 pb-2">
-                <div className="relative h-full max-w-full aspect-[0.8] rounded-t-[999px] rounded-b-2xl bg-walnut p-[7px] shadow-[0_10px_24px_rgba(60,40,20,0.18)]">
-                    <div className="relative w-full h-full rounded-t-[999px] rounded-b-[10px] bg-[#F5F2EB] overflow-hidden">
-                        <div className="absolute -left-10 top-0 w-14 h-[140%] bg-white/50 rotate-[24deg] pointer-events-none" />
+            <div className="flex-1 min-h-0 flex items-center justify-center px-4 pt-3 pb-2">
+                <div className="relative h-full max-w-full aspect-[0.82] rounded-t-[999px] rounded-b-2xl bg-ink p-[6px]">
+                    <div className="relative w-full h-full rounded-t-[999px] rounded-b-[11px] bg-paper overflow-hidden">
+                        <div className="absolute -left-10 top-0 w-14 h-[140%] bg-white/60 rotate-[24deg] pointer-events-none" />
                         {(Object.keys(place) as SlotId[]).map((slot) => {
                             const item = slots[slot];
                             const p = place[slot];
@@ -78,10 +77,12 @@ export const MirrorCard: React.FC<MirrorCardProps> = ({ look, index, total, reas
                                     disabled={!swappable}
                                     onClick={() => onSwap?.(slot)}
                                     aria-label={swappable ? `Swap the ${item.color} ${item.subcategory}` : `${item.color} ${item.subcategory}`}
-                                    className={`piece-swing absolute aspect-square p-0 border-0 bg-transparent disabled:cursor-default ${isStockPhoto(item) ? 'mix-blend-multiply' : ''}`}
-                                    style={{ left: `${p.left}%`, top: `${p.top}%`, width: `${p.width}%`, zIndex: p.z, animationDelay: `${p.z * 60}ms` }}
+                                    className="absolute aspect-square p-0 border-0 bg-transparent disabled:cursor-default"
+                                    style={{ left: `${p.left}%`, top: `${p.top}%`, width: `${p.width}%`, zIndex: p.z, transform: `rotate(${p.tilt}deg)` }}
                                 >
-                                    <GarmentImage item={item} className="w-full h-full" rounded="rounded-xl" />
+                                    <span className="piece-swing block w-full h-full rounded-xl overflow-hidden bg-white border-[3px] border-white shadow-[0_6px_14px_rgba(21,26,20,0.16)]" style={{ animationDelay: `${p.z * 60}ms` }}>
+                                        <GarmentImage item={item} className="w-full h-full rounded-[9px]" />
+                                    </span>
                                 </button>
                             );
                         })}
@@ -94,13 +95,13 @@ export const MirrorCard: React.FC<MirrorCardProps> = ({ look, index, total, reas
                     <p className="text-[11px] font-semibold text-amber-700 mb-1">Quick picks — our AI stylist is unavailable right now.</p>
                 )}
                 {look.explanation && (
-                    <p className="font-display font-bold text-[17px] leading-snug text-ink line-clamp-3">{look.explanation}</p>
+                    <p className="font-display font-bold text-[16px] leading-snug text-ink line-clamp-4">{look.explanation}</p>
                 )}
-                <div className="flex flex-wrap gap-1.5 mt-2.5">
+                <div className="flex flex-wrap gap-1.5 mt-2">
                     <span className="h-[26px] px-2.5 rounded-full border-[1.5px] border-ink text-[11px] font-extrabold flex items-center">Weather {Math.round(look.weatherMatch)}</span>
                     <span className="h-[26px] px-2.5 rounded-full border-[1.5px] border-ink text-[11px] font-extrabold flex items-center">Rotation {Math.round(look.wearScore)}</span>
                 </div>
-                {reason && <p className="mt-2 text-[11px] font-semibold text-olive-600">{reason}</p>}
+                {reason && <p className="mt-2 text-[11px] font-semibold text-ink/60">{reason}</p>}
             </div>
         </article>
     );

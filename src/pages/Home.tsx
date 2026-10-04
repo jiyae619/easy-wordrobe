@@ -37,11 +37,14 @@ import {
 import { haptic } from '../utils/motion';
 
 const REEL: Record<SlotId, { label: string; none: string; size: number }> = {
-    layer: { label: 'Layer', none: 'No layer', size: 84 },
-    top: { label: 'Top', none: 'No top', size: 84 },
-    bottom: { label: 'Bottom', none: '', size: 92 },
-    shoes: { label: 'Shoes', none: 'No shoes', size: 62 },
+    layer: { label: 'Layer', none: 'No layer', size: 80 },
+    top: { label: 'Top', none: 'No top', size: 80 },
+    bottom: { label: 'Bottom', none: '', size: 88 },
+    shoes: { label: 'Shoes', none: 'No shoes', size: 60 },
 };
+
+/** The centre "fitting spot" every rail lands its chosen piece in. */
+const SPOT_WIDTH = 120;
 
 const EMPTY_SLOTS: OutfitSlots = { layer: null, top: null, bottom: null, shoes: null };
 
@@ -237,7 +240,7 @@ const Home: React.FC = () => {
             {/* Header */}
             <header className="pr-12">
                 <div className="flex items-center gap-2">
-                    <p className="text-xs font-bold text-olive-600">{format(new Date(), 'EEE d MMM')}</p>
+                    <p className="text-xs font-bold text-ink/60">{format(new Date(), 'EEE d MMM')}</p>
                 <button
                     type="button"
                     onClick={() => setShowWeather((v) => !v)}
@@ -252,19 +255,19 @@ const Home: React.FC = () => {
                 <h1 className="font-display text-[32px] font-extrabold leading-none tracking-tight text-ink mt-1.5">Today’s fit</h1>
                 {showWeather && (
                     <div className="mt-2 p-3 rounded-2xl bg-white border-[1.5px] border-ink animate-fade-in-up">
-                        {weather?.location && <p className="text-[11px] font-extrabold uppercase tracking-wide text-olive-500 mb-2">{weather.location}</p>}
+                        {weather?.location && <p className="text-[11px] font-extrabold uppercase tracking-wide text-ink/50 mb-2">{weather.location}</p>}
                         {outlook.length > 0 && (
                             <div className="grid grid-cols-3 gap-2">
                                 {outlook.map((slot) => (
                                     <div key={slot.label} className="rounded-xl bg-paper px-2 py-1.5 text-center">
-                                        <p className="text-[10px] font-extrabold uppercase tracking-wide text-olive-500">{slot.label}</p>
+                                        <p className="text-[10px] font-extrabold uppercase tracking-wide text-ink/50">{slot.label}</p>
                                         <p className="text-sm font-bold text-ink">{slot.temperature}°</p>
-                                        <p className="text-[11px] text-olive-600 line-clamp-1">{slot.condition}</p>
+                                        <p className="text-[11px] text-ink/60 line-clamp-1">{slot.condition}</p>
                                     </div>
                                 ))}
                             </div>
                         )}
-                        {cheer && <p className="text-sm text-olive-700 leading-relaxed mt-2">{cheer}</p>}
+                        {cheer && <p className="text-sm text-ink/70 leading-relaxed mt-2">{cheer}</p>}
                         {usingDefaultLocation && (
                             <button
                                 type="button"
@@ -285,7 +288,7 @@ const Home: React.FC = () => {
                     <h2 className="font-display text-xl font-extrabold text-ink">
                         {clothes.length === 0 ? 'Hang up your first pieces' : 'Almost ready to spin'}
                     </h2>
-                    <p className="text-sm text-olive-600 mt-1 mb-4">
+                    <p className="text-sm text-ink/60 mt-1 mb-4">
                         {clothes.length === 0
                             ? 'Pick your basics from our catalog, or snap your closet — one shelf photo can capture several pieces.'
                             : `Add ${readiness.missingForOutfit.join(' and ')} so the rails can build full outfits.`}
@@ -304,14 +307,15 @@ const Home: React.FC = () => {
                     {/* Reels, with the lime "fitting column" behind the centre */}
                     <section className="relative -mx-4 px-4" aria-label="Outfit rails">
                         {/* The "fitting spot": white so garment colours stay true (photos blend onto it) */}
-                        <div className="absolute left-1/2 -translate-x-1/2 top-0 bottom-0 w-[112px] rounded-[30px] bg-white border-2 border-ink shadow-[0_0_0_5px_#D4F06A]" aria-hidden="true" />
+                        <div className="absolute left-1/2 -translate-x-1/2 -top-1 -bottom-1 rounded-[30px] bg-white border-2 border-ink shadow-[0_0_0_5px_#D4F06A]" style={{ width: SPOT_WIDTH }} aria-hidden="true" />
                         <div key={`${optionsKey}#${reelVersion}`} className="relative space-y-0.5">
                             {reelSlots.map((slot) => (
                                 <HangerReel
                                     key={slot}
                                     shelf={slot === 'shoes'}
                                     ref={(h) => { reelRefs.current[slot] = h; }}
-                                    label={slot === 'bottom' && options.bottom.some(isDress) ? 'Bottom / dress' : REEL[slot].label}
+                                    label={slot === 'bottom' && options.bottom.some(isDress) ? 'Bottom·Dress' : REEL[slot].label}
+                                    spotWidth={SPOT_WIDTH}
                                     options={options[slot]}
                                     initialIndex={indexFor(slot)}
                                     onSettle={onSettle(slot)}
@@ -338,14 +342,14 @@ const Home: React.FC = () => {
                                     <div className="flex justify-between text-[10px] font-extrabold uppercase">
                                         <span>{m.label}</span><span>{m.value ?? '–'}</span>
                                     </div>
-                                    <div className="h-1.5 rounded-full bg-olive-200/70 overflow-hidden">
+                                    <div className="h-1.5 rounded-full bg-ink/10 overflow-hidden">
                                         <div className="h-full rounded-full bg-ink transition-[width] duration-500" style={{ width: `${m.value ?? 0}%` }} />
                                     </div>
                                 </div>
                             ))}
                         </div>
                         <div className="min-w-0">
-                            <span className={`inline-block text-[10px] font-extrabold uppercase tracking-wide px-2 py-0.5 rounded-full ${matched ? 'bg-ink text-lime' : 'bg-olive-200/70 text-ink'}`}>{badge}</span>
+                            <span className={`inline-block text-[10px] font-extrabold uppercase tracking-wide px-2 py-0.5 rounded-full ${matched ? 'bg-ink text-lime' : 'bg-ink/10 text-ink'}`}>{badge}</span>
                             <p className="text-[13px] leading-snug font-semibold text-ink mt-1">{why}</p>
                         </div>
                     </section>
@@ -378,12 +382,12 @@ const Home: React.FC = () => {
                 <section className="rounded-[22px] bg-white border-[1.5px] border-ink p-4">
                     <div className="flex items-center justify-between gap-3">
                         <h2 className="text-sm font-extrabold text-ink">{clothes.length < 5 ? 'Build your 5-piece starter closet' : completeness.stage}</h2>
-                        <span className="text-xs font-bold text-olive-600">{clothes.length < 5 ? `${clothes.length}/5` : `${Math.round(completeness.ratio * 100)}%`}</span>
+                        <span className="text-xs font-bold text-ink/60">{clothes.length < 5 ? `${clothes.length}/5` : `${Math.round(completeness.ratio * 100)}%`}</span>
                     </div>
-                    <div className="h-1.5 rounded-full bg-olive-200/70 overflow-hidden mt-2">
+                    <div className="h-1.5 rounded-full bg-ink/10 overflow-hidden mt-2">
                         <div className="h-full bg-ink" style={{ width: `${clothes.length < 5 ? (clothes.length / 5) * 100 : completeness.ratio * 100}%` }} />
                     </div>
-                    <p className="text-xs text-olive-600 mt-2">{clothes.length < 5 ? 'More pieces make every spin more fun.' : `${completeness.nextUnlock}.`}</p>
+                    <p className="text-xs text-ink/60 mt-2">{clothes.length < 5 ? 'More pieces make every spin more fun.' : `${completeness.nextUnlock}.`}</p>
                     <div className="flex gap-2 mt-3">
                         <button type="button" onClick={() => openPicker(completeness.nextUnlockKey === 'shoes' ? [ClothingCategory.Shoes] : undefined)} className="flex-1 h-10 rounded-full bg-ink text-paper text-xs font-bold">
                             Pick basics

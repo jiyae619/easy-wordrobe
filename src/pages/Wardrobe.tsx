@@ -5,7 +5,6 @@ import { useWardrobe } from '../context/WardrobeContext';
 import { CardFan } from '../components/closet/CardFan';
 import { ItemDetailModal } from '../components/wardrobe/ItemDetailModal';
 import { GarmentImage } from '../components/common/GarmentImage';
-import { isStockPhoto } from '../data/starterCatalog';
 import { ClothingCategory, type ClothingItem } from '../types';
 import { computeSeasonalLeastWornIds } from '../services/agents/agentOutputGuards';
 import { daysIdle, lightness } from '../utils/outfitSlots';
@@ -79,9 +78,9 @@ const Wardrobe: React.FC = () => {
     const header = (
         <div className="pr-12">
             <h1 className="font-display text-[34px] font-extrabold leading-none tracking-tight text-ink">Closet</h1>
-            <p className="text-xs font-semibold text-olive-600 mt-1.5">
-                {clothes.length} {clothes.length === 1 ? 'card' : 'cards'}
-                {dustyDays.size > 0 && <span className="text-[#7A5A12]"> · {dustyDays.size} gathering dust</span>}
+            <p className="text-xs font-semibold text-ink/60 mt-1.5">
+                {clothes.length} {clothes.length === 1 ? 'piece' : 'pieces'}
+                {dustyDays.size > 0 && <> · <span className="text-ink">{dustyDays.size} gathering dust</span></>}
             </p>
         </div>
     );
@@ -107,7 +106,7 @@ const Wardrobe: React.FC = () => {
                         <span className="absolute inset-0 rounded-xl border-2 border-dashed border-ink bg-paper" />
                     </div>
                     <h2 className="font-display text-xl font-extrabold text-ink">No cards yet</h2>
-                    <p className="text-sm text-olive-600 mt-1 mb-5">Deal yourself a closet — pick common basics or scan your own pieces.</p>
+                    <p className="text-sm text-ink/60 mt-1 mb-5">Deal yourself a closet — pick common basics or scan your own pieces.</p>
                     <div className="flex flex-col w-full gap-2.5">
                         <button
                             type="button"
@@ -164,17 +163,25 @@ const Wardrobe: React.FC = () => {
                     onChange={(e) => setSearch(e.target.value)}
                     placeholder="Search pieces, colours, tags…"
                     aria-label="Search pieces, colours, tags"
-                    className="w-full h-11 px-4 rounded-full bg-white border-[1.5px] border-ink text-sm text-ink placeholder:text-olive-400 outline-none focus:ring-2 focus:ring-lime"
+                    className="w-full h-11 px-4 rounded-full bg-white border-[1.5px] border-ink text-sm text-ink placeholder:text-ink/40 outline-none focus:ring-2 focus:ring-lime"
                 />
             )}
 
             {!active ? (
-                <p className="text-sm text-olive-600 text-center py-16">No cards match “{search}”.</p>
+                <p className="text-sm text-ink/60 text-center py-16">No pieces match “{search}”.</p>
             ) : (
                 <>
                     {/* The dealt hand */}
-                    <div className="-mx-4 h-[322px]">
-                        <CardFan key={dealKey} items={active.items} dustyDays={dustyDays} onOpen={onOpen} onFocus={onFocus} />
+                    <div className="-mx-4 h-[372px]">
+                        <CardFan
+                            key={dealKey}
+                            label={active.label}
+                            items={active.items}
+                            dustyDays={dustyDays}
+                            onOpen={onOpen}
+                            onFocus={onFocus}
+                            onAdd={() => window.dispatchEvent(new CustomEvent('open-scanner'))}
+                        />
                     </div>
 
                     {/* Focused card */}
@@ -182,10 +189,12 @@ const Wardrobe: React.FC = () => {
                         <div className="flex items-end gap-3">
                             <div className="min-w-0 flex-1">
                                 <p className="font-display text-[20px] font-extrabold leading-tight text-ink line-clamp-2">{focused.color} {focused.subcategory}</p>
-                                <p className={`text-xs mt-0.5 ${dustyDays.has(focused.id) ? 'text-[#7A5A12] font-semibold' : 'text-olive-600'}`}>
-                                    {dustyDays.has(focused.id)
-                                        ? `Dusty · ${dustyDays.get(focused.id)} days unworn`
-                                        : `Worn ${focused.wearFrequency}× · ${focused.lastWorn ? `last ${daysIdle(focused)}d ago` : 'not worn yet'}`}
+                                <p className="text-xs mt-1 text-ink/60 flex items-center gap-1.5">
+                                    {dustyDays.has(focused.id) ? (
+                                        <><span className="px-1.5 h-[18px] rounded-full bg-ink text-lime text-[10px] font-extrabold inline-flex items-center">DUSTY</span>{dustyDays.get(focused.id)} days unworn</>
+                                    ) : (
+                                        `Worn ${focused.wearFrequency}× · ${focused.lastWorn ? `last ${daysIdle(focused)}d ago` : 'not worn yet'}`
+                                    )}
                                 </p>
                             </div>
                             <button
@@ -209,7 +218,7 @@ const Wardrobe: React.FC = () => {
             )}
 
             {/* Deck piles */}
-            <div className="flex justify-between items-end pt-2" role="tablist" aria-label="Decks">
+            <div className="flex justify-between items-end pt-1" role="tablist" aria-label="Decks">
                 {decks.map((d) => {
                     const on = active?.category === d.category;
                     const top = d.items[0];
@@ -224,13 +233,13 @@ const Wardrobe: React.FC = () => {
                             aria-label={`${d.label} deck, ${d.items.length} cards`}
                             className="relative w-[64px] h-[118px] p-0 border-0 bg-transparent text-ink disabled:opacity-35"
                         >
-                            <span className={`absolute left-1 w-14 h-[72px] rounded-xl border-[1.5px] border-ink -rotate-[9deg] transition-[top] duration-300 ${on ? 'bg-lime' : 'bg-white'}`} style={{ top: on ? 0 : 16 }} />
-                            <span className={`absolute left-1 w-14 h-[72px] rounded-xl border-[1.5px] border-ink rotate-6 transition-[top] duration-300 ${on ? 'bg-lime' : 'bg-white'}`} style={{ top: on ? 0 : 16 }} />
-                            <span className={`absolute left-1 w-14 h-[72px] rounded-xl bg-white overflow-hidden flex items-center justify-center transition-[top] duration-300 ${on ? 'border-2 border-ink' : 'border-[1.5px] border-ink'}`} style={{ top: on ? 0 : 16 }}>
-                                {top && <span className={`w-12 h-12 ${isStockPhoto(top) ? 'mix-blend-multiply' : ''}`}><GarmentImage item={top} className="w-full h-full" rounded="rounded-lg" /></span>}
+                            <span className={`absolute left-1 w-14 h-[72px] rounded-xl border-[1.5px] border-ink -rotate-[9deg] transition-[top] duration-300 ${on ? 'bg-lime' : 'bg-white'}`} style={{ top: on ? 0 : 14 }} />
+                            <span className={`absolute left-1 w-14 h-[72px] rounded-xl border-[1.5px] border-ink rotate-6 transition-[top] duration-300 ${on ? 'bg-lime' : 'bg-white'}`} style={{ top: on ? 0 : 14 }} />
+                            <span className={`absolute left-1 w-14 h-[72px] rounded-xl bg-white overflow-hidden transition-[top] duration-300 ${on ? 'border-2 border-ink' : 'border-[1.5px] border-ink'}`} style={{ top: on ? 0 : 14 }}>
+                                {top && <GarmentImage item={top} className="w-full h-full" />}
                             </span>
                             <span className="absolute inset-x-0 bottom-4 text-[11px] font-extrabold text-center">{d.label}</span>
-                            <span className="absolute inset-x-0 bottom-0 text-[10px] font-semibold text-olive-600 text-center">{d.items.length}</span>
+                            <span className="absolute inset-x-0 bottom-0 text-[10px] font-semibold text-ink/50 text-center">{d.items.length}</span>
                         </button>
                     );
                 })}

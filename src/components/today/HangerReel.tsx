@@ -1,7 +1,6 @@
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react';
 import { Lock, LockOpen } from 'lucide-react';
 import { type ClothingItem } from '../../types';
-import { isStockPhoto } from '../../data/starterCatalog';
 import { GarmentImage } from '../common/GarmentImage';
 import { clamp, haptic, prefersReducedMotion } from '../../utils/motion';
 import { wrapIndex } from '../../utils/outfitSlots';
@@ -29,6 +28,8 @@ interface HangerReelProps {
     size: number;
     /** Shoes sit on a shelf instead of hanging from the rail. */
     shelf?: boolean;
+    /** Width of the page's centre "fitting spot"; the label and lock sit on its edges. */
+    spotWidth: number;
 }
 
 const POOL = [-3, -2, -1, 0, 1, 2, 3];
@@ -41,12 +42,14 @@ const POOL = [-3, -2, -1, 0, 1, 2, 3];
  * re-renders only when the centred piece changes.
  */
 export const HangerReel = forwardRef<HangerReelHandle, HangerReelProps>(function HangerReel(
-    { label, options, initialIndex, onSettle, onInteract, locked, onToggleLock, dimmed = false, noneLabel, dustyDays, size, shelf = false },
+    { label, options, initialIndex, onSettle, onInteract, locked, onToggleLock, dimmed = false, noneLabel, dustyDays, size, shelf = false, spotWidth },
     ref,
 ) {
     const n = options.length;
-    const sp = size + 14;
-    const rowHeight = size + (shelf ? 26 : 22);
+    // Wide spacing keeps the neighbours clear of the label/lock tabs on the spot's edges.
+    const sp = size + 34;
+    const HOOK = 14;
+    const rowHeight = size + (shelf ? 20 : HOOK + 16);
     const viewRef = useRef<HTMLDivElement>(null);
     const slotEls = useRef<Array<HTMLDivElement | null>>([]);
     const [center, setCenter] = useState(initialIndex);
@@ -78,7 +81,7 @@ export const HangerReel = forwardRef<HangerReelHandle, HangerReelProps>(function
             const d = Math.abs(pos) / sp;
             const angle = shelf ? 0 : p.swing * (0.75 + (((base + POOL[k]) * 37 % 7 + 7) % 7) / 14);
             el.style.transform = `translate3d(${(cx - size / 2 + pos).toFixed(1)}px,0,0) rotate(${angle.toFixed(2)}deg) scale(${(1 - Math.min(d, 1.5) * 0.12).toFixed(3)})`;
-            el.style.opacity = String(Math.max(0, 1 - Math.min(d, 2) * 0.3) * dimFactor);
+            el.style.opacity = String(Math.max(0, 1 - Math.min(d, 2) * 0.32) * dimFactor);
             el.style.zIndex = String(100 - Math.round(d * 10));
             el.style.filter = blur > 0.4 ? `blur(${blur.toFixed(1)}px)` : '';
         });
@@ -246,7 +249,7 @@ export const HangerReel = forwardRef<HangerReelHandle, HangerReelProps>(function
     };
 
     const current = n > 0 ? options[wrapIndex(center, n)] : undefined;
-    const top = shelf ? 4 : 10;
+    const tileTop = shelf ? 4 : 8 + HOOK;
 
     return (
         <div className="relative" style={{ height: rowHeight }}>
@@ -268,9 +271,9 @@ export const HangerReel = forwardRef<HangerReelHandle, HangerReelProps>(function
                 onPointerCancel={endDrag}
             >
                 {shelf ? (
-                    <div className="absolute left-0 right-0 bottom-[6px] h-2 bg-[#CBBFA9] border-t-[3px] border-[#B4A68C]" aria-hidden="true" />
+                    <div className="absolute left-0 right-0 bottom-[8px] h-[6px] rounded-full bg-walnut/40" aria-hidden="true" />
                 ) : (
-                    <div className="absolute left-0 right-0 top-[9px] h-[6px] rounded-full bg-walnut shadow-[0_3px_0_rgba(60,40,20,0.15)]" aria-hidden="true" />
+                    <div className="absolute left-0 right-0 top-[8px] h-[5px] rounded-full bg-walnut" aria-hidden="true" />
                 )}
                 {n > 0 && POOL.map((k, slot) => {
                     if (n < POOL.length && Math.abs(k) > Math.floor(n / 2) + 1) {
@@ -279,54 +282,55 @@ export const HangerReel = forwardRef<HangerReelHandle, HangerReelProps>(function
                     }
                     const option = options[wrapIndex(center + k, n)];
                     const days = option ? dustyDays.get(option.id) : undefined;
-                    const stock = option ? isStockPhoto(option) : false;
                     return (
                         <div
                             key={slot}
                             ref={(el) => { slotEls.current[slot] = el; }}
-                            className={`absolute left-0 will-change-transform ${stock && !shelf ? 'mix-blend-multiply' : ''}`}
-                            style={{ top, width: size, height: size + (shelf ? 0 : 6), transformOrigin: '50% 2px' }}
+                            className="absolute left-0 top-0 will-change-transform"
+                            style={{ width: size, height: tileTop + size, transformOrigin: '50% 10px' }}
                         >
-                            {!option ? (
-                                <div className={`w-full ${shelf ? 'h-full' : 'h-[calc(100%-14px)] mt-[14px]'} rounded-2xl border-2 border-dashed border-olive-400 flex items-center justify-center text-[11px] font-bold text-olive-500 text-center px-2`}>
+                            {!shelf && (
+                                <svg width="16" height={HOOK + 4} viewBox="0 0 16 18" className="absolute left-1/2 -translate-x-1/2 top-[3px] text-ink/70" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+                                    <path d="M8 18V9.5a3.5 3.5 0 1 1 3.5-3.5" />
+                                </svg>
+                            )}
+                            {option ? (
+                                <div className="absolute left-0 rounded-2xl overflow-hidden bg-white ring-1 ring-ink/10 shadow-[0_6px_14px_rgba(21,26,20,0.10)]" style={{ top: tileTop, width: size, height: size }}>
+                                    <GarmentImage item={option} className="w-full h-full" />
+                                    {days != null && (
+                                        <span className="absolute left-1.5 top-1.5 px-1.5 h-[18px] rounded-full bg-ink text-lime text-[10px] font-extrabold flex items-center">{days}d</span>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="absolute left-0 rounded-2xl border-2 border-dashed border-ink/25 flex items-center justify-center text-[11px] font-bold text-ink/50 text-center px-2" style={{ top: tileTop, width: size, height: size }}>
                                     {noneLabel}
                                 </div>
-                            ) : shelf ? (
-                                <div className="w-full h-full rounded-2xl bg-white/90 shadow-sm overflow-hidden p-1">
-                                    <GarmentImage item={option} className="w-full h-full" rounded="rounded-xl" />
-                                </div>
-                            ) : stock ? (
-                                <GarmentImage item={option} className="w-full h-full" />
-                            ) : (
-                                <div className="flex flex-col items-center w-full h-full">
-                                    <svg width="50" height="20" viewBox="0 0 56 22" className="text-ink/70 flex-none" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                                        <path d="M25 6a3 3 0 1 1 3 3v3L5 20h46L28 12" />
-                                    </svg>
-                                    <GarmentImage item={option} className="w-[82%] flex-1 min-h-0 -mt-1" rounded="rounded-xl" />
-                                </div>
-                            )}
-                            {days != null && (
-                                <span className={`${shelf ? '' : 'dust-tag'} absolute top-3 right-1 flex flex-col items-center pointer-events-none`}>
-                                    {!shelf && <span className="block w-px h-3 bg-ink/60" />}
-                                    <span className="px-1.5 py-0.5 rounded bg-ink text-lime text-[10px] font-extrabold leading-none">{days}d</span>
-                                </span>
                             )}
                         </div>
                     );
                 })}
             </div>
-            <span className="absolute left-0 top-[18px] text-[10px] font-extrabold tracking-[0.12em] uppercase text-olive-600 pointer-events-none z-[110] bg-paper/80 rounded px-0.5">
+
+            {/* Label and lock sit as tabs on the left and right edges of the centre spot. */}
+            <span
+                className="absolute top-1/2 z-[110] pointer-events-none px-0.5 py-1.5 rounded-full bg-paper border-[1.5px] border-ink text-[9px] font-extrabold tracking-[0.14em] uppercase text-ink [writing-mode:vertical-rl]"
+                style={{ left: `calc(50% - ${spotWidth / 2}px)`, transform: 'translate(-50%, -50%) rotate(180deg)', marginTop: shelf ? 0 : HOOK / 2 }}
+            >
                 {label}
             </span>
             <button
                 type="button"
+                disabled={dimmed || n === 0}
                 onClick={() => { setWobble((w) => w + 1); haptic(10); onToggleLock(); }}
                 aria-pressed={locked}
                 aria-label={`${locked ? 'Unlock' : 'Lock'} ${label.toLowerCase()}`}
-                className={`absolute right-0 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full border-2 border-ink flex items-center justify-center z-[110] transition-colors ${locked ? 'bg-ink text-lime' : 'bg-paper text-ink'}`}
+                className="absolute top-1/2 z-[110] w-11 h-11 flex items-center justify-center disabled:opacity-0"
+                style={{ left: `calc(50% + ${spotWidth / 2}px)`, transform: 'translate(-50%, -50%)', marginTop: shelf ? 0 : HOOK / 2 }}
             >
-                <span key={wobble} className={wobble ? 'lock-wobble flex' : 'flex'}>
-                    {locked ? <Lock className="w-[18px] h-[18px]" /> : <LockOpen className="w-[18px] h-[18px]" />}
+                <span className={`w-8 h-8 rounded-full border-[1.5px] border-ink flex items-center justify-center transition-colors ${locked ? 'bg-ink text-lime' : 'bg-paper text-ink'}`}>
+                    <span key={wobble} className={wobble ? 'lock-wobble flex' : 'flex'}>
+                        {locked ? <Lock className="w-3.5 h-3.5" /> : <LockOpen className="w-3.5 h-3.5" />}
+                    </span>
                 </span>
             </button>
         </div>

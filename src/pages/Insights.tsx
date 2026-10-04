@@ -19,8 +19,8 @@ const Insights: React.FC = () => {
     if (isLoading) {
         return (
             <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
-                <Loader2 className="w-8 h-8 text-primary animate-spin" />
-                <p className="text-olive-600 font-medium">Generating your style insights...</p>
+                <Loader2 className="w-8 h-8 text-ink animate-spin" />
+                <p className="text-ink/60 font-medium">Generating your style insights...</p>
             </div>
         );
     }
@@ -29,17 +29,17 @@ const Insights: React.FC = () => {
         return (
             <div className="space-y-6">
                 <div>
-                    <h1 className="text-2xl md:text-3xl font-bold text-primary tracking-tight">
-                        Style Insights
+                    <h1 className="font-display text-[34px] font-extrabold leading-none tracking-tight text-ink">
+                        Stats
                     </h1>
-                    <p className="text-sm text-olive-500 mt-0.5">
+                    <p className="text-sm text-ink/50 mt-0.5">
                         Understand how you dress and dress smarter.
                     </p>
                 </div>
-                <div className="flex flex-col items-center justify-center py-16 bg-white rounded-2xl border-2 border-dashed border-olive-200 text-center">
-                    <Lightbulb className="w-12 h-12 text-olive-300 mb-4" />
-                    <h3 className="text-lg font-semibold text-primary mb-2">No insights yet</h3>
-                    <p className="text-sm text-olive-500 max-w-xs mb-4">
+                <div className="flex flex-col items-center justify-center py-16 bg-white rounded-2xl border-2 border-dashed border-ink/30 text-center">
+                    <Lightbulb className="w-12 h-12 text-ink/30 mb-4" />
+                    <h3 className="text-lg font-semibold text-ink mb-2">No insights yet</h3>
+                    <p className="text-sm text-ink/50 max-w-xs mb-4">
                         Add items to your wardrobe to get personalized style insights.
                     </p>
                 </div>
@@ -50,8 +50,8 @@ const Insights: React.FC = () => {
     if (!insights) {
         return (
             <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
-                <Loader2 className="w-8 h-8 text-primary animate-spin" />
-                <p className="text-olive-600 font-medium">Generating your style insights...</p>
+                <Loader2 className="w-8 h-8 text-ink animate-spin" />
+                <p className="text-ink/60 font-medium">Generating your style insights...</p>
             </div>
         );
     }
@@ -86,10 +86,10 @@ const Insights: React.FC = () => {
 
             {/* Header */}
             <div>
-                <h1 className="text-2xl md:text-3xl font-bold text-primary tracking-tight">
-                    Style Insights
+                <h1 className="font-display text-[34px] font-extrabold leading-none tracking-tight text-ink">
+                    Stats
                 </h1>
-                <p className="text-sm text-olive-500 mt-0.5">
+                <p className="text-sm text-ink/50 mt-0.5">
                     Understand how you dress and dress smarter.
                 </p>
             </div>
@@ -101,20 +101,20 @@ const Insights: React.FC = () => {
             {nextWeekItems.length > 0 && (
                 <section>
                     <div className="mb-4">
-                        <h2 className="text-lg font-bold text-primary">Try Next Week</h2>
-                        <span className="text-xs text-olive-400 font-medium">Least worn items during the past 3 weeks</span>
+                        <h2 className="font-display text-xl font-extrabold text-ink">Try Next Week</h2>
+                        <span className="text-xs text-ink/50 font-medium">Least worn items during the past 3 weeks</span>
                     </div>
 
                     {/* Behavioral Nudge */}
-                    <div className="mb-3 p-4 rounded-2xl bg-olive-100/50 border border-olive-200/60">
+                    <div className="mb-3 p-4 rounded-[20px] bg-lime border-[1.5px] border-ink">
                         <div className="flex gap-3">
-                            <div className="flex-shrink-0 w-9 h-9 rounded-xl bg-secondary/20 flex items-center justify-center">
-                                <Lightbulb className="w-4 h-4 text-secondary" />
+                            <div className="flex-shrink-0 w-9 h-9 rounded-xl bg-paper border-[1.5px] border-ink flex items-center justify-center">
+                                <Lightbulb className="w-4 h-4 text-ink" />
                             </div>
                             <div className="pt-1.5">
                                 <ExpandableText
                                     text={topNudge}
-                                    textClassName="text-sm leading-relaxed text-olive-600"
+                                    textClassName="text-sm leading-relaxed text-ink font-medium"
                                     collapsedClassName="line-clamp-2"
                                     minCharsForToggle={110}
                                 />
@@ -126,10 +126,10 @@ const Insights: React.FC = () => {
                         {nextWeekItems.slice(0, 3).map((item) => (
                             <div
                                 key={item.id}
-                                className="flex items-center gap-4 p-3 bg-white rounded-2xl border border-muted shadow-sm"
+                                className="flex items-center gap-4 p-3 bg-white rounded-[20px] border-[1.5px] border-ink"
                             >
                                 {/* Thumbnail */}
-                                <div className="w-14 h-14 rounded-xl overflow-hidden bg-olive-50 flex-shrink-0">
+                                <div className="w-14 h-14 rounded-xl overflow-hidden bg-paper flex-shrink-0">
                                     <img
                                         src={item.imageUrl}
                                         alt={item.subcategory}
@@ -138,10 +138,10 @@ const Insights: React.FC = () => {
                                 </div>
                                 {/* Details */}
                                 <div className="flex-1 min-w-0">
-                                    <h3 className="font-bold text-sm text-primary truncate capitalize">
+                                    <h3 className="font-bold text-sm text-ink truncate capitalize">
                                         {item.subcategory}
                                     </h3>
-                                    <p className="text-[11px] text-olive-400 capitalize">
+                                    <p className="text-[11px] text-ink/50 capitalize">
                                         {item.category} • Worn {item.wearFrequency}×
                                     </p>
                                 </div>
@@ -149,7 +149,7 @@ const Insights: React.FC = () => {
                                 {isSaved(item.id) ? (
                                     <button
                                         onClick={() => handleUnTryIt(item.id)}
-                                        className="flex items-center gap-1 px-3 py-1.5 bg-primary text-white text-xs font-semibold rounded-full transition-colors hover:bg-olive-700 active:scale-[0.97]"
+                                        className="flex items-center gap-1 px-3 py-1.5 bg-ink text-lime text-xs font-bold rounded-full transition-colors active:scale-[0.97]"
                                     >
                                         <Sparkles className="w-3 h-3" />
                                         Will try
@@ -157,7 +157,7 @@ const Insights: React.FC = () => {
                                 ) : (
                                     <button
                                         onClick={() => handleTryIt(item.id)}
-                                        className="flex items-center gap-1 px-3 py-1.5 bg-olive-100 hover:bg-olive-200 text-secondary text-xs font-semibold rounded-full transition-colors active:scale-[0.97]"
+                                        className="flex items-center gap-1 px-3 py-1.5 bg-paper border-[1.5px] border-ink text-ink text-xs font-bold rounded-full transition-colors active:scale-[0.97]"
                                     >
                                         <Sparkles className="w-3 h-3" />
                                         Try it
@@ -172,19 +172,19 @@ const Insights: React.FC = () => {
             {/* Most Worn Leaderboard */}
             <section>
                 <div className="mb-4">
-                    <h2 className="text-lg font-bold text-primary">Most Worn</h2>
-                    <span className="text-xs text-olive-400 font-medium">During the past 3 weeks</span>
+                    <h2 className="font-display text-xl font-extrabold text-ink">Most Worn</h2>
+                    <span className="text-xs text-ink/50 font-medium">During the past 3 weeks</span>
                 </div>
 
                 <div className="space-y-3">
                     {topWorn.length === 0 && (
                         <div className="text-center py-8 px-4">
-                            <p className="text-sm text-olive-500 mb-3">
+                            <p className="text-sm text-ink/50 mb-3">
                                 Wear and log a look to start your history — your most-worn pieces will show up here.
                             </p>
                             <Link
                                 to="/suggest"
-                                className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary text-white text-xs font-semibold rounded-full hover:bg-olive-700 transition-colors active:scale-[0.97]"
+                                className="inline-flex items-center gap-1.5 px-4 py-2 bg-ink text-paper text-xs font-bold rounded-full transition-colors active:scale-[0.97]"
                             >
                                 <Sparkles className="w-3.5 h-3.5" />
                                 Style a look
@@ -192,12 +192,12 @@ const Insights: React.FC = () => {
                         </div>
                     )}
                     {topWorn.map((entry, index) => {
-                        const rankColors = ['bg-primary', 'bg-olive-500', 'bg-olive-300'];
-                        const rankTextColors = ['text-white', 'text-white', 'text-primary'];
+                        const rankColors = ['bg-ink', 'bg-lime border-[1.5px] border-ink', 'bg-white border-[1.5px] border-ink'];
+                        const rankTextColors = ['text-lime', 'text-ink', 'text-ink'];
                         return (
                             <div
                                 key={entry.item.id}
-                                className="flex items-center gap-4 p-3 bg-white rounded-2xl border border-muted shadow-sm"
+                                className="flex items-center gap-4 p-3 bg-white rounded-[20px] border-[1.5px] border-ink"
                             >
                                 {/* Rank badge */}
                                 <div className={`w-8 h-8 rounded-full ${rankColors[index]} flex items-center justify-center flex-shrink-0`}>
@@ -206,7 +206,7 @@ const Insights: React.FC = () => {
                                     </span>
                                 </div>
                                 {/* Thumbnail */}
-                                <div className="w-12 h-12 rounded-xl overflow-hidden bg-olive-50 flex-shrink-0">
+                                <div className="w-12 h-12 rounded-xl overflow-hidden bg-paper flex-shrink-0">
                                     <img
                                         src={entry.item.imageUrl}
                                         alt={entry.item.subcategory}
@@ -215,17 +215,17 @@ const Insights: React.FC = () => {
                                 </div>
                                 {/* Name + subtitle */}
                                 <div className="flex-1 min-w-0">
-                                    <h3 className="font-bold text-sm text-primary truncate capitalize">
+                                    <h3 className="font-bold text-sm text-ink truncate capitalize">
                                         {entry.item.subcategory}
                                     </h3>
-                                    <p className="text-[11px] text-olive-400 capitalize">
+                                    <p className="text-[11px] text-ink/50 capitalize">
                                         {entry.item.category} • {entry.item.color}
                                     </p>
                                 </div>
                                 {/* Wear count */}
                                 <div className="text-right flex-shrink-0">
-                                    <p className="text-lg font-bold text-primary">{entry.count}</p>
-                                    <p className="text-[10px] text-olive-400 uppercase tracking-wide">wears</p>
+                                    <p className="font-display text-xl font-extrabold text-ink">{entry.count}</p>
+                                    <p className="text-[10px] text-ink/50 uppercase tracking-wide">wears</p>
                                 </div>
                             </div>
                         );
