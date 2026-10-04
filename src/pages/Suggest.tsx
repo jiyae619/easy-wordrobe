@@ -15,6 +15,7 @@ import { useTodayWeather } from '../hooks/useTodayWeather';
 import { useStylistLooks } from '../hooks/useStylistLooks';
 import { usePendingWear } from '../hooks/usePendingWear';
 import { MoodChips } from '../components/common/MoodChips';
+import { PageHeader } from '../components/common/PageHeader';
 import { WearToast } from '../components/common/WearToast';
 import { MirrorCard } from '../components/picks/MirrorCard';
 import { SwipeDeck, type SwipeDeckHandle, type SwipeDir } from '../components/picks/SwipeDeck';
@@ -201,22 +202,17 @@ const Suggest: React.FC = () => {
 
     return (
         <div className="space-y-4">
-            <header className="pr-12 flex items-end justify-between gap-3">
-                <div>
-                    <p className="text-xs font-bold text-ink/60">
-                        3 AI looks · {mood.name}{weather ? ` · ${Math.round(weather.temperature)}° ${weather.condition.toLowerCase()}` : ''}
-                    </p>
-                    <h1 className="font-display text-[34px] font-extrabold leading-none tracking-tight text-ink">Picks</h1>
-                </div>
-                {deckActive && <span className="text-xs font-extrabold text-ink pb-1">{index + 1} / {looks.length}</span>}
-            </header>
+            <PageHeader
+                title="Picks"
+                eyebrow={`3 AI looks · ${mood.name}${weather ? ` · ${Math.round(weather.temperature)}° ${weather.condition.toLowerCase()}` : ''}`}
+            />
 
             <MoodChips value={mood.id} onChange={setMood} />
 
-            <div className="relative h-[min(580px,calc(100dvh-376px))] min-h-[420px]">{body}</div>
+            <div className="relative h-[clamp(320px,calc(100dvh-352px),580px)]">{body}</div>
 
             {deckActive && (
-                <div className="flex items-center justify-center gap-5 pt-6">
+                <div className="flex items-center justify-center gap-5 pt-6 [@media(max-height:760px)]:pt-5">
                     <button type="button" onClick={() => deckRef.current?.swipe('left')} aria-label="Skip this look" className="w-[60px] h-[60px] rounded-full border-2 border-ink bg-white text-ink flex items-center justify-center active:scale-95">
                         <X className="w-6 h-6" />
                     </button>
@@ -230,7 +226,7 @@ const Suggest: React.FC = () => {
             )}
 
             {deckActive && (
-                <p className="text-center text-[11px] text-ink/50">
+                <p className="[@media(max-height:760px)]:hidden text-center text-[11px] text-ink/50">
                     Right: wear · Left: skip · Up: tweak · Tap a piece to swap
                 </p>
             )}

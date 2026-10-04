@@ -18,6 +18,7 @@ import { useStylistLooks } from '../hooks/useStylistLooks';
 import { usePendingWear } from '../hooks/usePendingWear';
 import { HangerReel, type HangerReelHandle } from '../components/today/HangerReel';
 import { MoodChips } from '../components/common/MoodChips';
+import { PageHeader } from '../components/common/PageHeader';
 import { WearToast } from '../components/common/WearToast';
 import { StreakCard } from '../components/home/StreakCard';
 import {
@@ -35,6 +36,7 @@ import {
     type SlotId,
 } from '../utils/outfitSlots';
 import { haptic } from '../utils/motion';
+import { useShortScreen } from '../hooks/useShortScreen';
 
 const REEL: Record<SlotId, { label: string; none: string; size: number }> = {
     layer: { label: 'Layer', none: 'No layer', size: 80 },
@@ -43,8 +45,12 @@ const REEL: Record<SlotId, { label: string; none: string; size: number }> = {
     shoes: { label: 'Shoes', none: 'No shoes', size: 60 },
 };
 
+/** Smaller garments on short phones (iPhone SE / mini) so the whole builder fits one screen. */
+const COMPACT_SIZE: Record<SlotId, number> = { layer: 62, top: 62, bottom: 70, shoes: 48 };
+
 /** The centre "fitting spot" every rail lands its chosen piece in. */
 const SPOT_WIDTH = 120;
+const SPOT_WIDTH_COMPACT = 100;
 
 const EMPTY_SLOTS: OutfitSlots = { layer: null, top: null, bottom: null, shoes: null };
 
@@ -74,6 +80,9 @@ const Home: React.FC = () => {
     const readiness = getWardrobeReadiness(clothes);
     const { looks, isLoading: looksLoading } = useStylistLooks(mood, readiness.canMakeOutfit ? weather : null);
     const { wear, undo, isPending, logged } = usePendingWear();
+    const compact = useShortScreen();
+    const spotWidth = compact ? SPOT_WIDTH_COMPACT : SPOT_WIDTH;
+    const sizeFor = (slot: SlotId) => (compact ? COMPACT_SIZE[slot] : REEL[slot].size);
 
     const options = useMemo(() => buildReelOptions(clothes), [clothes]);
     const optionsKey = SLOT_ORDER.map((s) => options[s].map((o) => o?.id ?? '-').join(',')).join('|');
@@ -236,25 +245,25 @@ const Home: React.FC = () => {
     const reelSlots = SLOT_ORDER.filter((s) => options[s].length > 0);
 
     return (
-        <div className="space-y-3.5 pb-6">
-            {/* Header */}
-            <header className="pr-12">
-                <div className="flex items-center gap-2">
-                    <p className="text-xs font-bold text-ink/60">{format(new Date(), 'EEE d MMM')}</p>
-                <button
-                    type="button"
-                    onClick={() => setShowWeather((v) => !v)}
-                    aria-expanded={showWeather}
-                    className="h-7 pl-2.5 pr-2 rounded-full bg-ink text-paper text-[11px] font-bold inline-flex items-center gap-1.5 min-w-0"
-                >
-                    <WeatherIcon condition={weather?.condition} />
-                    {weather ? `${Math.round(weather.temperature)}° ${weather.condition}` : weatherLoading ? 'Checking the sky…' : 'Weather unavailable'}
-                    <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showWeather ? 'rotate-180' : ''}`} />
-                </button>
-                </div>
-                <h1 className="font-display text-[32px] font-extrabold leading-none tracking-tight text-ink mt-1.5">Today’s fit</h1>
+        <div className="space-y-4 pb-6">
+            <PageHeader
+                title="Today’s fit"
+                eyebrow={
+                    <button
+                        type="button"
+                        onClick={() => setShowWeather((v) => !v)}
+                        aria-expanded={showWeather}
+                        className="inline-flex items-center gap-1 max-w-full hover:text-ink"
+                    >
+                        {format(new Date(), 'EEE d MMM')} ·
+                        <WeatherIcon condition={weather?.condition} />
+                        <span className="truncate">{weather ? `${Math.round(weather.temperature)}° ${weather.condition}` : weatherLoading ? 'Checking the sky…' : 'Weather unavailable'}</span>
+                        <ChevronDown className={`w-3.5 h-3.5 flex-none transition-transform ${showWeather ? 'rotate-180' : ''}`} />
+                    </button>
+                }
+            >
                 {showWeather && (
-                    <div className="mt-2 p-3 rounded-2xl bg-white border-[1.5px] border-ink animate-fade-in-up">
+                    <div className="p-3 rounded-2xl bg-white border-[1.5px] border-ink animate-fade-in-up">
                         {weather?.location && <p className="text-[11px] font-extrabold uppercase tracking-wide text-ink/50 mb-2">{weather.location}</p>}
                         {outlook.length > 0 && (
                             <div className="grid grid-cols-3 gap-2">
@@ -279,7 +288,7 @@ const Home: React.FC = () => {
                         )}
                     </div>
                 )}
-            </header>
+            </PageHeader>
 
             <MoodChips value={mood.id} onChange={changeMood} />
 
@@ -307,15 +316,15 @@ const Home: React.FC = () => {
                     {/* Reels, with the lime "fitting column" behind the centre */}
                     <section className="relative -mx-4 px-4" aria-label="Outfit rails">
                         {/* The "fitting spot": white so garment colours stay true (photos blend onto it) */}
-                        <div className="absolute left-1/2 -translate-x-1/2 -top-1 -bottom-1 rounded-[30px] bg-white border-2 border-ink shadow-[0_0_0_5px_#D4F06A]" style={{ width: SPOT_WIDTH }} aria-hidden="true" />
-                        <div key={`${optionsKey}#${reelVersion}`} className="relative space-y-0.5">
+                        <div className="absolute left-1/2 -translate-x-1/2 -top-1 -bottom-1 rounded-[30px] bg-white border-2 border-ink shadow-[0_0_0_5px_#D4F06A]" style={{ width: spotWidth }} aria-hidden="true" />
+                        <div key={`${optionsKey}#${reelVersion}#${compact ? "c" : "r"}`} className="relative space-y-0.5">
                             {reelSlots.map((slot) => (
                                 <HangerReel
                                     key={slot}
                                     shelf={slot === 'shoes'}
                                     ref={(h) => { reelRefs.current[slot] = h; }}
                                     label={slot === 'bottom' && options.bottom.some(isDress) ? 'Bottom·Dress' : REEL[slot].label}
-                                    spotWidth={SPOT_WIDTH}
+                                    spotWidth={spotWidth}
                                     options={options[slot]}
                                     initialIndex={indexFor(slot)}
                                     onSettle={onSettle(slot)}
@@ -325,7 +334,7 @@ const Home: React.FC = () => {
                                     dimmed={slot === 'top' && bottomIsDress}
                                     noneLabel={REEL[slot].none}
                                     dustyDays={dustyDays}
-                                    size={REEL[slot].size}
+                                    size={sizeFor(slot)}
                                 />
                             ))}
                         </div>
@@ -350,17 +359,20 @@ const Home: React.FC = () => {
                         </div>
                         <div className="min-w-0">
                             <span className={`inline-block text-[10px] font-extrabold uppercase tracking-wide px-2 py-0.5 rounded-full ${matched ? 'bg-ink text-lime' : 'bg-ink/10 text-ink'}`}>{badge}</span>
-                            <p className="text-[13px] leading-snug font-semibold text-ink mt-1">{why}</p>
+                            <p className={`text-[13px] leading-snug font-semibold text-ink mt-1 ${compact ? 'line-clamp-2' : 'line-clamp-3'}`}>{why}</p>
                         </div>
                     </section>
 
-                    {/* Actions — bottom third, thumb zone */}
-                    <section className="flex items-center gap-3">
+                    {/* Actions — pinned above the nav so they stay in thumb reach on any screen height */}
+                    <section
+                        className="sticky z-30 -mx-4 px-4 py-2 flex items-center gap-3 bg-paper/95 backdrop-blur-sm"
+                        style={{ bottom: 'calc(72px + env(safe-area-inset-bottom, 0px))' }}
+                    >
                         <button
                             type="button"
                             onClick={() => { if (weather && valid) { touched.current = true; wear(items.map((i) => i.id), mood.id, weather); } }}
                             disabled={!weather || !valid || isPending}
-                            className="flex-1 h-[56px] rounded-full bg-ink text-paper font-extrabold text-[15px] active:scale-[0.98] disabled:opacity-50"
+                            className={`flex-1 ${compact ? 'h-12' : 'h-[56px]'} rounded-full bg-ink text-paper font-extrabold text-[15px] active:scale-[0.98] disabled:opacity-50`}
                         >
                             {isPending ? 'Logging…' : logged ? 'Logged ✓' : 'Wear this fit'}
                         </button>
@@ -368,7 +380,7 @@ const Home: React.FC = () => {
                             type="button"
                             onClick={spin}
                             aria-label="Spin — let the AI stylist fill the unlocked rails"
-                            className="w-[64px] h-[64px] flex-none rounded-full bg-lime border-2 border-ink text-ink flex flex-col items-center justify-center text-[11px] font-extrabold transition-transform duration-700 ease-out active:scale-95"
+                            className={`${compact ? 'w-14 h-14' : 'w-[64px] h-[64px]'} flex-none rounded-full bg-lime border-2 border-ink text-ink flex flex-col items-center justify-center text-[11px] font-extrabold transition-transform duration-700 ease-out active:scale-95`}
                             style={{ transform: `rotate(${spinTurns * 360}deg)` }}
                         >
                             <Dices className="w-[22px] h-[22px]" />

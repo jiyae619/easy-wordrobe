@@ -95,13 +95,13 @@ export const MirrorCard: React.FC<MirrorCardProps> = ({ look, index, total, reas
                     <p className="text-[11px] font-semibold text-amber-700 mb-1">Quick picks — our AI stylist is unavailable right now.</p>
                 )}
                 {look.explanation && (
-                    <p className="font-display font-bold text-[16px] leading-snug text-ink line-clamp-4">{look.explanation}</p>
+                    <p className="font-display font-bold text-[16px] leading-snug text-ink line-clamp-4 [@media(max-height:760px)]:line-clamp-2">{look.explanation}</p>
                 )}
                 <div className="flex flex-wrap gap-1.5 mt-2">
                     <span className="h-[26px] px-2.5 rounded-full border-[1.5px] border-ink text-[11px] font-extrabold flex items-center">Weather {Math.round(look.weatherMatch)}</span>
                     <span className="h-[26px] px-2.5 rounded-full border-[1.5px] border-ink text-[11px] font-extrabold flex items-center">Rotation {Math.round(look.wearScore)}</span>
                 </div>
-                {reason && <p className="mt-2 text-[11px] font-semibold text-ink/60">{reason}</p>}
+                {reason && <p className="mt-2 text-[11px] font-semibold text-ink/60 [@media(max-height:760px)]:hidden">{reason}</p>}
             </div>
         </article>
     );

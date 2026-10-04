@@ -5,6 +5,8 @@ import { useWardrobe } from '../context/WardrobeContext';
 import { CardFan } from '../components/closet/CardFan';
 import { ItemDetailModal } from '../components/wardrobe/ItemDetailModal';
 import { GarmentImage } from '../components/common/GarmentImage';
+import { PageHeader } from '../components/common/PageHeader';
+import { useShortScreen } from '../hooks/useShortScreen';
 import { ClothingCategory, type ClothingItem } from '../types';
 import { computeSeasonalLeastWornIds } from '../services/agents/agentOutputGuards';
 import { daysIdle, lightness } from '../utils/outfitSlots';
@@ -33,6 +35,7 @@ const SORTS: Array<{ id: SortId; label: string }> = [
 const Wardrobe: React.FC = () => {
     const { clothes, outfits, isLoading } = useWardrobe();
     const navigate = useNavigate();
+    const compact = useShortScreen();
     const [deck, setDeck] = useState<ClothingCategory>(ClothingCategory.Tops);
     const [sort, setSort] = useState<SortId>('dusty');
     const [search, setSearch] = useState('');
@@ -76,13 +79,10 @@ const Wardrobe: React.FC = () => {
     const onOpen = useCallback((item: ClothingItem) => setSelected(item), []);
 
     const header = (
-        <div className="pr-12">
-            <h1 className="font-display text-[34px] font-extrabold leading-none tracking-tight text-ink">Closet</h1>
-            <p className="text-xs font-semibold text-ink/60 mt-1.5">
-                {clothes.length} {clothes.length === 1 ? 'piece' : 'pieces'}
-                {dustyDays.size > 0 && <> · <span className="text-ink">{dustyDays.size} gathering dust</span></>}
-            </p>
-        </div>
+        <PageHeader
+            title="Closet"
+            eyebrow={<>{clothes.length} {clothes.length === 1 ? 'piece' : 'pieces'}{dustyDays.size > 0 && ` · ${dustyDays.size} gathering dust`}</>}
+        />
     );
 
     if (isLoading) {
@@ -129,7 +129,7 @@ const Wardrobe: React.FC = () => {
     }
 
     return (
-        <div className="space-y-3">
+        <div className="space-y-4">
             {header}
 
             <div className="flex items-center gap-2 -mx-4 px-4 overflow-x-auto no-scrollbar">
@@ -172,7 +172,7 @@ const Wardrobe: React.FC = () => {
             ) : (
                 <>
                     {/* The dealt hand */}
-                    <div className="-mx-4 h-[372px]">
+                    <div className={`-mx-4 ${compact ? 'h-[236px]' : 'h-[372px]'}`}>
                         <CardFan
                             key={dealKey}
                             label={active.label}
@@ -181,6 +181,7 @@ const Wardrobe: React.FC = () => {
                             onOpen={onOpen}
                             onFocus={onFocus}
                             onAdd={() => window.dispatchEvent(new CustomEvent('open-scanner'))}
+                            compact={compact}
                         />
                     </div>
 
@@ -231,11 +232,11 @@ const Wardrobe: React.FC = () => {
                             disabled={d.items.length === 0}
                             onClick={() => { setDeck(d.category); setFocusedId(null); }}
                             aria-label={`${d.label} deck, ${d.items.length} cards`}
-                            className="relative w-[64px] h-[118px] p-0 border-0 bg-transparent text-ink disabled:opacity-35"
+                            className={`relative w-[64px] ${compact ? 'h-[104px]' : 'h-[118px]'} p-0 border-0 bg-transparent text-ink disabled:opacity-35`}
                         >
-                            <span className={`absolute left-1 w-14 h-[72px] rounded-xl border-[1.5px] border-ink -rotate-[9deg] transition-[top] duration-300 ${on ? 'bg-lime' : 'bg-white'}`} style={{ top: on ? 0 : 14 }} />
-                            <span className={`absolute left-1 w-14 h-[72px] rounded-xl border-[1.5px] border-ink rotate-6 transition-[top] duration-300 ${on ? 'bg-lime' : 'bg-white'}`} style={{ top: on ? 0 : 14 }} />
-                            <span className={`absolute left-1 w-14 h-[72px] rounded-xl bg-white overflow-hidden transition-[top] duration-300 ${on ? 'border-2 border-ink' : 'border-[1.5px] border-ink'}`} style={{ top: on ? 0 : 14 }}>
+                            <span className={`absolute ${compact ? 'left-2 w-12 h-[58px]' : 'left-1 w-14 h-[72px]'} rounded-xl border-[1.5px] border-ink -rotate-[9deg] transition-[top] duration-300 ${on ? 'bg-lime' : 'bg-white'}`} style={{ top: on ? 0 : 14 }} />
+                            <span className={`absolute ${compact ? 'left-2 w-12 h-[58px]' : 'left-1 w-14 h-[72px]'} rounded-xl border-[1.5px] border-ink rotate-6 transition-[top] duration-300 ${on ? 'bg-lime' : 'bg-white'}`} style={{ top: on ? 0 : 14 }} />
+                            <span className={`absolute ${compact ? 'left-2 w-12 h-[58px]' : 'left-1 w-14 h-[72px]'} rounded-xl bg-white overflow-hidden transition-[top] duration-300 ${on ? 'border-2 border-ink' : 'border-[1.5px] border-ink'}`} style={{ top: on ? 0 : 14 }}>
                                 {top && <GarmentImage item={top} className="w-full h-full" />}
                             </span>
                             <span className="absolute inset-x-0 bottom-4 text-[11px] font-extrabold text-center">{d.label}</span>

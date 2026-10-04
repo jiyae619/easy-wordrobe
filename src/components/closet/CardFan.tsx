@@ -15,12 +15,14 @@ interface CardFanProps {
     onOpen: (item: ClothingItem) => void;
     /** The raised card changed. */
     onFocus: (item: ClothingItem) => void;
+    /** Smaller cards for short screens. */
+    compact?: boolean;
 }
 
 /** Degrees between neighbouring cards in the fan. */
 const STEP = 10;
-const CARD_W = 186;
-const CARD_H = 250;
+const CARD = { w: 186, h: 250 };
+const CARD_COMPACT = { w: 146, h: 196 };
 /** The fan pivots around a point far below the cards, like a hand of cards. */
 const PIVOT = 720;
 /** Cards rendered on each side of the focused one — the rest are virtualized away. */
@@ -34,7 +36,7 @@ const WINDOW = 5;
  * Rotation is written to the DOM from one rAF loop that sleeps when settled — React re-renders
  * only when the focused card changes.
  */
-export const CardFan: React.FC<CardFanProps> = memo(function CardFan({ label, items, dustyDays, onOpen, onAdd, onFocus }) {
+export const CardFan: React.FC<CardFanProps> = memo(function CardFan({ label, items, dustyDays, onOpen, onAdd, onFocus, compact = false }) {
     const n = items.length;
     const viewRef = useRef<HTMLDivElement>(null);
     const nodes = useRef(new Map<number, HTMLElement>());
@@ -174,8 +176,9 @@ export const CardFan: React.FC<CardFanProps> = memo(function CardFan({ label, it
     const visible: number[] = [];
     for (let i = Math.max(-1, focus - WINDOW); i <= Math.min(n, focus + WINDOW); i++) visible.push(i);
 
+    const { w: CARD_W, h: CARD_H } = compact ? CARD_COMPACT : CARD;
     const cardStyle = { width: CARD_W, height: CARD_H, marginLeft: -CARD_W / 2, transformOrigin: `50% ${PIVOT}px` };
-    const cardClass = 'absolute left-1/2 top-6 p-0 border-0 bg-transparent will-change-transform focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink rounded-[22px]';
+    const cardClass = 'absolute left-1/2 top-5 p-0 border-0 bg-transparent will-change-transform focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink rounded-[22px]';
 
     return (
         <div

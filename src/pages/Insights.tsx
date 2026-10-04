@@ -5,6 +5,7 @@ import { Lightbulb, Sparkles, Loader2 } from 'lucide-react';
 import { WeeklyOutfitTimeline } from '../components/insights/WeeklyOutfitTimeline';
 import { OutfitHistory } from '../components/insights/OutfitHistory';
 import { ExpandableText } from '../components/common/ExpandableText';
+import { PageHeader } from '../components/common/PageHeader';
 
 const Insights: React.FC = () => {
     const { clothes, insights, fetchInsights, isLoading, addTryItItem, removeTryItItem, tryItItemIds } = useWardrobe();
@@ -16,26 +17,25 @@ const Insights: React.FC = () => {
         }
     }, [clothes.length]);
 
-    if (isLoading) {
-        return (
-            <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
+    const header = (
+        <PageHeader title="Stats" eyebrow="Your last 3 weeks of getting dressed" />
+    );
+    const loadingView = (
+        <div className="space-y-6">
+            {header}
+            <div className="flex flex-col items-center justify-center min-h-[45vh] space-y-4">
                 <Loader2 className="w-8 h-8 text-ink animate-spin" />
                 <p className="text-ink/60 font-medium">Generating your style insights...</p>
             </div>
-        );
-    }
+        </div>
+    );
+
+    if (isLoading) return loadingView;
 
     if (clothes.length === 0) {
         return (
             <div className="space-y-6">
-                <div>
-                    <h1 className="font-display text-[34px] font-extrabold leading-none tracking-tight text-ink">
-                        Stats
-                    </h1>
-                    <p className="text-sm text-ink/50 mt-0.5">
-                        Understand how you dress and dress smarter.
-                    </p>
-                </div>
+                {header}
                 <div className="flex flex-col items-center justify-center py-16 bg-white rounded-2xl border-2 border-dashed border-ink/30 text-center">
                     <Lightbulb className="w-12 h-12 text-ink/30 mb-4" />
                     <h3 className="text-lg font-semibold text-ink mb-2">No insights yet</h3>
@@ -47,14 +47,7 @@ const Insights: React.FC = () => {
         );
     }
 
-    if (!insights) {
-        return (
-            <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
-                <Loader2 className="w-8 h-8 text-ink animate-spin" />
-                <p className="text-ink/60 font-medium">Generating your style insights...</p>
-            </div>
-        );
-    }
+    if (!insights) return loadingView;
 
     const handleTryIt = async (itemId: string) => {
         await addTryItItem(itemId);
@@ -84,15 +77,7 @@ const Insights: React.FC = () => {
     return (
         <div className="space-y-6 md:space-y-8">
 
-            {/* Header */}
-            <div>
-                <h1 className="font-display text-[34px] font-extrabold leading-none tracking-tight text-ink">
-                    Stats
-                </h1>
-                <p className="text-sm text-ink/50 mt-0.5">
-                    Understand how you dress and dress smarter.
-                </p>
-            </div>
+            {header}
 
             {/* Weekly Outfit Timeline */}
             <WeeklyOutfitTimeline />
