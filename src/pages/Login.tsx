@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Shirt, Mail, Lock, User, Eye, EyeOff, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
+import { welcomeBackLine } from '../copy/voice';
 
 type AuthMode = 'signin' | 'signup' | 'reset';
 
@@ -60,32 +61,32 @@ const Login: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-surface flex justify-center font-sans">
+        <div className="min-h-screen bg-paper flex justify-center font-sans">
             <div className="w-full max-w-[480px] min-h-screen flex flex-col relative">
                 {/* Top decorative gradient */}
-                <div className="absolute top-0 left-0 right-0 h-64 bg-gradient-to-b from-olive-200/50 to-transparent pointer-events-none" />
+                <div className="absolute top-0 left-0 right-0 h-64 bg-gradient-to-b from-lime/30 to-transparent pointer-events-none" />
 
                 <div className="flex-grow flex flex-col justify-center px-6 py-12 relative z-10">
                     {/* Logo & Title */}
                     <div className="text-center mb-10 animate-fade-in-up">
-                        <div className="inline-flex items-center justify-center w-16 h-16 rounded-3xl bg-primary mb-4 shadow-lg">
+                        <div className="inline-flex items-center justify-center w-16 h-16 rounded-3xl bg-ink mb-4 shadow-lg">
                             <Shirt className="w-8 h-8 text-white" />
                         </div>
-                        <h1 className="text-2xl font-bold text-primary">Wardrobe AI</h1>
-                        <p className="text-sm text-gray-400 mt-1">Your AI powered personal stylist</p>
+                        <h1 className="font-display text-[32px] font-extrabold tracking-tight text-ink">Stylemax</h1>
+                        <p className="text-sm text-ink/50 mt-1">Your closet, styled every day.</p>
                     </div>
 
                     {/* Title for current mode */}
                     <div className="mb-6 animate-fade-in-up" style={{ animationDelay: '100ms' }}>
-                        <h2 className="text-xl font-semibold text-primary">
-                            {mode === 'signin' && 'Welcome back'}
-                            {mode === 'signup' && 'Create account'}
+                        <h2 className="font-display text-2xl font-extrabold text-ink">
+                            {mode === 'signin' && welcomeBackLine()}
+                            {mode === 'signup' && 'Join Stylemax'}
                             {mode === 'reset' && 'Reset password'}
                         </h2>
-                        <p className="text-sm text-gray-400 mt-0.5">
-                            {mode === 'signin' && 'Sign in to access your wardrobe'}
-                            {mode === 'signup' && 'Start organizing your closet'}
-                            {mode === 'reset' && 'We\'ll send you a reset link'}
+                        <p className="text-sm text-ink/50 mt-0.5">
+                            {mode === 'signin' && 'Your closet missed you.'}
+                            {mode === 'signup' && 'Let’s get your closet in order.'}
+                            {mode === 'reset' && 'We’ll email you a reset link.'}
                         </p>
                     </div>
 
@@ -101,7 +102,7 @@ const Login: React.FC = () => {
                     {resetSent && (
                         <div role="status" aria-live="polite" className="flex items-start gap-2 bg-green-50 border border-green-200 rounded-xl px-4 py-3 mb-4 animate-scale-in">
                             <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
-                            <p className="text-sm text-green-600">Password reset email sent! Check your inbox.</p>
+                            <p className="text-sm text-green-600">Check your inbox for the reset link.</p>
                         </div>
                     )}
 
@@ -110,7 +111,7 @@ const Login: React.FC = () => {
                         {/* Name field (signup only) */}
                         {mode === 'signup' && (
                             <div className="relative">
-                                <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-gray-400" />
+                                <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-ink/50" />
                                 <input
                                     id="displayName"
                                     type="text"
@@ -119,14 +120,14 @@ const Login: React.FC = () => {
                                     value={displayName}
                                     onChange={e => setDisplayName(e.target.value)}
                                     required
-                                    className="w-full pl-11 pr-4 py-3.5 bg-white border border-olive-200 rounded-xl text-sm text-primary placeholder:text-gray-300 focus:outline-none focus:border-secondary focus:ring-2 focus:ring-secondary/20 transition-all"
+                                    className="w-full pl-11 pr-4 py-3.5 bg-white border border-ink/15 rounded-xl text-sm text-ink placeholder:text-ink/35 focus:outline-none focus:border-ink focus:ring-2 focus:ring-lime transition-all"
                                 />
                             </div>
                         )}
 
                         {/* Email */}
                         <div className="relative">
-                            <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-gray-400" />
+                            <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-ink/50" />
                             <input
                                 id="email"
                                 type="email"
@@ -135,14 +136,14 @@ const Login: React.FC = () => {
                                 value={email}
                                 onChange={e => setEmail(e.target.value)}
                                 required
-                                className="w-full pl-11 pr-4 py-3.5 bg-white border border-olive-200 rounded-xl text-sm text-primary placeholder:text-gray-300 focus:outline-none focus:border-secondary focus:ring-2 focus:ring-secondary/20 transition-all"
+                                className="w-full pl-11 pr-4 py-3.5 bg-white border border-ink/15 rounded-xl text-sm text-ink placeholder:text-ink/35 focus:outline-none focus:border-ink focus:ring-2 focus:ring-lime transition-all"
                             />
                         </div>
 
                         {/* Password (not for reset) */}
                         {mode !== 'reset' && (
                             <div className="relative">
-                                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-gray-400" />
+                                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-ink/50" />
                                 <input
                                     id="password"
                                     type={showPassword ? 'text' : 'password'}
@@ -152,13 +153,13 @@ const Login: React.FC = () => {
                                     onChange={e => setPassword(e.target.value)}
                                     required
                                     minLength={6}
-                                    className="w-full pl-11 pr-11 py-3.5 bg-white border border-olive-200 rounded-xl text-sm text-primary placeholder:text-gray-300 focus:outline-none focus:border-secondary focus:ring-2 focus:ring-secondary/20 transition-all"
+                                    className="w-full pl-11 pr-11 py-3.5 bg-white border border-ink/15 rounded-xl text-sm text-ink placeholder:text-ink/35 focus:outline-none focus:border-ink focus:ring-2 focus:ring-lime transition-all"
                                 />
                                 <button
                                     type="button"
                                     onClick={() => setShowPassword(!showPassword)}
                                     aria-label={showPassword ? 'Hide password' : 'Show password'}
-                                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-ink/50 hover:text-ink/70 transition-colors"
                                 >
                                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                                 </button>
@@ -171,7 +172,7 @@ const Login: React.FC = () => {
                                 <button
                                     type="button"
                                     onClick={() => switchMode('reset')}
-                                    className="text-xs text-secondary hover:text-primary font-medium transition-colors"
+                                    className="text-xs text-ink hover:text-ink font-medium transition-colors"
                                 >
                                     Forgot password?
                                 </button>
@@ -182,14 +183,14 @@ const Login: React.FC = () => {
                         <button
                             type="submit"
                             disabled={isSubmitting}
-                            className="w-full py-3.5 bg-primary text-white rounded-xl font-semibold text-sm hover:bg-olive-900 focus:ring-2 focus:ring-secondary/30 focus:outline-none transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-sm"
+                            className="w-full py-3.5 bg-ink text-white rounded-full font-semibold text-sm hover:bg-ink/90 focus:ring-2 focus:ring-lime focus:outline-none transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-sm"
                         >
                             {isSubmitting ? (
                                 <Loader2 className="w-4 h-4 animate-spin" />
                             ) : (
                                 <>
                                     {mode === 'signin' && 'Sign in'}
-                                    {mode === 'signup' && 'Create account'}
+                                    {mode === 'signup' && 'Join Stylemax'}
                                     {mode === 'reset' && 'Send reset link'}
                                 </>
                             )}
@@ -199,9 +200,9 @@ const Login: React.FC = () => {
                     {/* Divider */}
                     {mode !== 'reset' && (
                         <div className="flex items-center gap-3 my-5 animate-fade-in-up" style={{ animationDelay: '300ms' }}>
-                            <div className="flex-grow h-px bg-olive-200" />
-                            <span className="text-xs text-gray-400 font-medium">or</span>
-                            <div className="flex-grow h-px bg-olive-200" />
+                            <div className="flex-grow h-px bg-ink/10" />
+                            <span className="text-xs text-ink/50 font-medium">or</span>
+                            <div className="flex-grow h-px bg-ink/10" />
                         </div>
                     )}
 
@@ -210,7 +211,7 @@ const Login: React.FC = () => {
                         <button
                             onClick={handleGoogleSignIn}
                             disabled={isSubmitting}
-                            className="w-full py-3.5 bg-white border border-olive-200 rounded-xl font-medium text-sm text-primary hover:bg-olive-50 focus:ring-2 focus:ring-secondary/20 focus:outline-none transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2.5 shadow-sm animate-fade-in-up"
+                            className="w-full py-3.5 bg-white border border-ink/15 rounded-xl font-medium text-sm text-ink hover:bg-ink/5 focus:ring-2 focus:ring-lime focus:outline-none transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2.5 shadow-sm animate-fade-in-up"
                             style={{ animationDelay: '350ms' }}
                         >
                             {/* Google Logo SVG */}
@@ -227,25 +228,25 @@ const Login: React.FC = () => {
                     {/* Mode Switch */}
                     <div className="text-center mt-6 animate-fade-in-up" style={{ animationDelay: '400ms' }}>
                         {mode === 'signin' && (
-                            <p className="text-sm text-gray-400">
+                            <p className="text-sm text-ink/50">
                                 Don't have an account?{' '}
-                                <button onClick={() => switchMode('signup')} className="text-secondary font-semibold hover:text-primary transition-colors">
+                                <button onClick={() => switchMode('signup')} className="text-ink font-semibold hover:text-ink transition-colors">
                                     Sign up
                                 </button>
                             </p>
                         )}
                         {mode === 'signup' && (
-                            <p className="text-sm text-gray-400">
+                            <p className="text-sm text-ink/50">
                                 Already have an account?{' '}
-                                <button onClick={() => switchMode('signin')} className="text-secondary font-semibold hover:text-primary transition-colors">
+                                <button onClick={() => switchMode('signin')} className="text-ink font-semibold hover:text-ink transition-colors">
                                     Sign in
                                 </button>
                             </p>
                         )}
                         {mode === 'reset' && (
-                            <p className="text-sm text-gray-400">
+                            <p className="text-sm text-ink/50">
                                 Remember your password?{' '}
-                                <button onClick={() => switchMode('signin')} className="text-secondary font-semibold hover:text-primary transition-colors">
+                                <button onClick={() => switchMode('signin')} className="text-ink font-semibold hover:text-ink transition-colors">
                                     Back to sign in
                                 </button>
                             </p>
@@ -254,8 +255,8 @@ const Login: React.FC = () => {
                 </div>
 
                 {/* Bottom branding */}
-                <div className="text-center py-4 text-xs text-gray-300">
-                    Powered by AI · Made with ♥
+                <div className="text-center py-4 text-xs text-ink/30">
+                    Made with ♥ and a little AI
                 </div>
             </div>
         </div>

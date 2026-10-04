@@ -38,7 +38,14 @@ export interface StylistMappingResult {
 }
 
 export function sanitizeUiCopy(text: string): string {
-    return text.replace(/[—–-]/g, " ").replace(/\s+/g, " ").trim();
+    return text
+        .replace(/\s*[—–]\s*/g, ", ") // a dash used as a pause reads as a comma (no em dashes in UI copy)
+        .replace(/-/g, " ")
+        .replace(/\s+/g, " ")
+        .replace(/\s+([,.!?])/g, "$1")
+        .replace(/,([.!?])/g, "$1")
+        .replace(/^,\s*/, "")
+        .trim();
 }
 
 /**
@@ -218,15 +225,15 @@ export function getWardrobeCompleteness(clothes: ClothingItem[]): WardrobeComple
                 ? `Add ${readiness.missingForOutfit.join(" and ")} to make your first outfit`
                 : "Add a top and a bottom to make your first outfit",
         },
-        { key: "variety", met: clothes.length >= 5, unlock: "Add a few more pieces for outfit variety" },
-        { key: "variety", met: clothes.length >= 8, unlock: "A few more pieces unlock richer combinations" },
+        { key: "variety", met: clothes.length >= 5, unlock: "Add a few more pieces for more variety" },
+        { key: "variety", met: clothes.length >= 8, unlock: "A few more pieces and the combos multiply" },
         { key: "shoes", met: readiness.hasShoes, unlock: "Add shoes to finish your looks" },
         {
             key: "stock",
             // Met only for a non-empty closet: an empty wardrobe trivially has no stock photos but
             // hasn't earned this milestone.
             met: clothes.length > 0 && stockCount === 0,
-            unlock: `Make it yours — replace ${stockCount || "your"} stock photo${stockCount === 1 ? "" : "s"} with your own shots`,
+            unlock: `Make it yours: replace ${stockCount || "your"} stock photo${stockCount === 1 ? "" : "s"} with your own shots`,
         },
     ];
     const metCount = milestones.filter((m) => m.met).length;
@@ -510,7 +517,7 @@ export function describeOutfitReason(
 
     const tried = suggestion.items.find((item) => tryItSet.has(item.id));
     if (tried) {
-        return `Featuring the ${tried.color.toLowerCase()} ${tried.subcategory.toLowerCase()} you wanted to try.`;
+        return `Starring the ${tried.color.toLowerCase()} ${tried.subcategory.toLowerCase()} you wanted to try.`;
     }
 
     const neglected = suggestion.items.find((item) => leastWornSet.has(item.id));
@@ -519,7 +526,7 @@ export function describeOutfitReason(
     }
 
     if (weather) {
-        return `Picked for today's ${Math.round(weather.temperature)}° ${weather.condition.toLowerCase()}.`;
+        return `Made for today's ${Math.round(weather.temperature)}° ${weather.condition.toLowerCase()}.`;
     }
 
     return null;

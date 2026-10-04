@@ -101,7 +101,7 @@ Output strictly as a JSON array of objects, with NO markdown formatting around i
     "moodName": "${mood.name}",
     "weatherMatch": 95,
     "wearScore": 90,
-                    "explanation": "Write AT MOST 2 short sentences of self contained outfit copy with no label prefix. Reference the specific colors and item types actually in this outfit. Vary your tone freely across the 3 outfits: one punchy and hype, one poetic or editorial, one warm and encouraging. Do not use hyphen or dash characters. Keep it tight — the final sentence should make the user genuinely excited to put it on."
+                    "explanation": "Write AT MOST 2 short sentences of self contained outfit copy with no label prefix. Reference the specific colors and item types actually in this outfit. Vary your tone freely across the 3 outfits: one punchy and hype, one poetic or editorial, one warm and encouraging. Do not use hyphen or dash characters. Keep it tight: under 20 words in plain, everyday language with no slang. The final sentence should make the user genuinely excited to put it on."
   }
 ]`;
 
@@ -151,12 +151,12 @@ function buildFallbackExplanation(items: ClothingItem[], mood: FashionMood, tone
     const moodName = mood.name.toLowerCase();
     switch (tone) {
         case 'hype':
-            return `${names}. This combo hits different. The colors lock in perfectly and the whole look screams ${moodName} without even trying. Step out and own it today.`;
+            return `${names}. The colors click and it's pure ${moodName}. Go own the day.`;
         case 'editorial':
-            return `There's a quiet confidence in pairing ${names}. Each piece earns its place, and together they speak the language of ${moodName} fluently. Consider this your look of the day.`;
+            return `${names}. Quiet, confident and very ${moodName}.`;
         case 'warm':
         default:
-            return `${names} makes for a look that feels just right, effortlessly ${moodName} and totally you. You're going to feel great in this one.`;
+            return `${names}. Easy, ${moodName} and totally you.`;
     }
 }
 

@@ -23,7 +23,7 @@ export function isProxyConfigured(): boolean {
 export async function getProxyIdToken(): Promise<string> {
     const user = auth.currentUser;
     if (!user) {
-        throw new Error("Not signed in — cannot reach the AI service.");
+        throw new Error("Not signed in, so the AI service is out of reach.");
     }
     return user.getIdToken();
 }

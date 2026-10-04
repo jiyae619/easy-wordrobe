@@ -14,8 +14,8 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
         return (
             <div className="flex items-center justify-center min-h-[60vh]">
                 <div className="flex flex-col items-center gap-3">
-                    <Loader2 className="w-8 h-8 text-secondary animate-spin" />
-                    <p className="text-sm text-gray-400 font-medium">Loading...</p>
+                    <Loader2 className="w-8 h-8 text-ink animate-spin" />
+                    <p className="text-sm text-ink/50 font-medium">Loading...</p>
                 </div>
             </div>
         );

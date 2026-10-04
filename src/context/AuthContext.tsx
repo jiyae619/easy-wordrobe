@@ -11,23 +11,23 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 function getAuthErrorMessage(code: string): string {
     switch (code) {
         case 'auth/email-already-in-use':
-            return 'This email is already registered. Try signing in instead.';
+            return 'You already have an account with this email. Try signing in.';
         case 'auth/invalid-email':
-            return 'Please enter a valid email address.';
+            return 'That email doesn’t look quite right.';
         case 'auth/weak-password':
-            return 'Password must be at least 6 characters.';
+            return 'Passwords need at least 6 characters.';
         case 'auth/user-not-found':
         case 'auth/wrong-password':
         case 'auth/invalid-credential':
-            return 'Invalid email or password.';
+            return 'That email and password don’t match. Try again?';
         case 'auth/too-many-requests':
-            return 'Too many attempts. Please try again later.';
+            return 'Lots of tries there. Take a breather and try again soon.';
         case 'auth/popup-closed-by-user':
-            return 'Google sign-in was cancelled.';
+            return 'Google sign in was closed. Try again when you’re ready.';
         case 'auth/network-request-failed':
-            return 'Network error. Check your connection.';
+            return 'Can’t reach the internet. Check your connection.';
         default:
-            return 'Something went wrong. Please try again.';
+            return 'Something went sideways. Try again?';
     }
 }
 

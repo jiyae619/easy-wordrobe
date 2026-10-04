@@ -74,9 +74,9 @@ function Chip({ children, color }: { children: React.ReactNode; color?: string }
 }
 
 function ParsedView({ parsed }: { parsed: Record<string, unknown> }) {
-    const category = String(parsed.category ?? "—");
-    const subcategory = String(parsed.subcategory ?? "—");
-    const color = String(parsed.color ?? "—");
+    const category = String(parsed.category ?? "n/a");
+    const subcategory = String(parsed.subcategory ?? "n/a");
+    const color = String(parsed.color ?? "n/a");
     const colorHex = typeof parsed.colorHex === "string" ? parsed.colorHex : undefined;
     const season = Array.isArray(parsed.season) ? parsed.season.map(String) : [];
     const mood = Array.isArray(parsed.mood) ? parsed.mood.map(String) : [];

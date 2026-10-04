@@ -6,6 +6,7 @@ import { buildCatalogItem, buildStarterDeck, catalogImageUrl, type StarterDeckCa
 import { COLOR_PALETTE } from '../../data/colorPalette';
 import { recordPickerEvent } from '../../services/agents/agentTelemetry';
 import { ClothingCategory, type ClothingItem } from '../../types';
+import { starterQuestion } from '../../copy/voice';
 
 /**
  * Starter Closet Picker. Listens for the global `open-starter-picker` event and walks the user
@@ -126,7 +127,7 @@ export const StarterPickerOverlay: React.FC = () => {
             setPhase('done');
         } catch (err) {
             console.error('[StarterPicker] Failed to save picks:', err);
-            setSaveError('Could not save your items. Check your connection and try again.');
+            setSaveError('Couldn’t save your picks. Check your connection and try again.');
             setPhase('deck');
         }
     };
@@ -164,7 +165,7 @@ export const StarterPickerOverlay: React.FC = () => {
 
     const close = () => {
         if (phase === 'deck' && acceptedCount > 0) {
-            if (!window.confirm(`Discard the ${acceptedCount} item${acceptedCount === 1 ? '' : 's'} you picked?`)) return;
+            if (!window.confirm(`Leave without saving your ${acceptedCount} pick${acceptedCount === 1 ? '' : 's'}?`)) return;
         }
         if (hintTimer.current) window.clearTimeout(hintTimer.current);
         setPhase('idle');
@@ -177,49 +178,43 @@ export const StarterPickerOverlay: React.FC = () => {
 
     return (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-            <div className="w-full max-w-sm bg-white rounded-3xl shadow-xl overflow-hidden animate-scale-in relative">
+            <div className="w-full max-w-sm bg-paper rounded-[28px] border-[1.5px] border-ink shadow-xl overflow-hidden animate-scale-in relative">
                 <button
                     onClick={close}
                     aria-label="Close starter picker"
-                    className="absolute top-4 right-4 z-10 p-2 rounded-full text-olive-400 hover:bg-olive-50 transition-colors"
+                    className="absolute top-4 right-4 z-10 p-2 rounded-full text-ink/50 hover:bg-ink/5 transition-colors"
                 >
                     <X className="w-5 h-5" />
                 </button>
 
                 {(phase === 'deck' || phase === 'saving') && deck.length > 0 && card && (
                     <div className="p-5 pb-6">
-                        <h3 className="text-lg font-bold text-primary pr-10">Do you have these items in your closet?</h3>
+                        <h3 className="font-display text-xl font-extrabold text-ink pr-10">{starterQuestion(card.entry.label, card.entry.category)}</h3>
 
                         {/* Category progress bar — one segment per category group */}
                         <div className="mt-4 mb-1 flex gap-1.5">
                             {segments.map((seg) => (
-                                <div key={seg.category} className="h-1.5 rounded-full bg-olive-100 overflow-hidden" style={{ flexGrow: seg.count }}>
+                                <div key={seg.category} className="h-1.5 rounded-full bg-ink/5 overflow-hidden" style={{ flexGrow: seg.count }}>
                                     <div
-                                        className="h-full bg-primary transition-all duration-300"
+                                        className="h-full bg-ink transition-all duration-300"
                                         style={{ width: `${Math.round((answeredInSegment(seg) / seg.count) * 100)}%` }}
                                     />
                                 </div>
                             ))}
                         </div>
-                        <div className="mb-4 flex gap-1.5">
-                            {segments.map((seg) => (
-                                <span
-                                    key={seg.category}
-                                    style={{ flexGrow: seg.count, flexBasis: 0 }}
-                                    className={`text-[10px] font-semibold text-center truncate ${card.entry.category === seg.category ? 'text-primary' : 'text-olive-300'}`}
-                                >
-                                    {CATEGORY_LABELS[seg.category] ?? seg.category}
-                                </span>
-                            ))}
+                        {/* One readable label for where you are, instead of squeezed labels per segment */}
+                        <div className="mb-4 flex justify-between text-[11px] font-semibold text-ink/60">
+                            <span className="text-ink">{CATEGORY_LABELS[card.entry.category] ?? card.entry.category}</span>
+                            <span>Card {idx + 1} of {deck.length}</span>
                         </div>
 
                         {/* Card stack */}
                         <div className="relative">
-                            {idx + 2 < deck.length && <div className="absolute inset-0 translate-y-3 scale-[0.92] rounded-2xl bg-olive-50 border border-olive-100" />}
-                            {idx + 1 < deck.length && <div className="absolute inset-0 translate-y-1.5 scale-[0.96] rounded-2xl bg-white border border-olive-100 shadow-sm" />}
+                            {idx + 2 < deck.length && <div className="absolute inset-0 translate-y-3 scale-[0.92] rounded-2xl bg-paper border border-ink/10" />}
+                            {idx + 1 < deck.length && <div className="absolute inset-0 translate-y-1.5 scale-[0.96] rounded-2xl bg-white border border-ink/10 shadow-sm" />}
 
                             <div
-                                className={`relative rounded-2xl border border-olive-100 bg-white shadow-md overflow-hidden transition-all duration-200 motion-reduce:transition-none ${
+                                className={`relative rounded-2xl border border-ink/10 bg-white shadow-md overflow-hidden transition-all duration-200 motion-reduce:transition-none ${
                                     leaving === 'yes' ? 'translate-x-[120%] rotate-12 opacity-0' :
                                     leaving === 'no' ? '-translate-x-[120%] -rotate-12 opacity-0' : ''
                                 }`}
@@ -227,20 +222,20 @@ export const StarterPickerOverlay: React.FC = () => {
                                 <img
                                     src={catalogImageUrl(card.entry, shownColor)}
                                     alt={`${shownColor} ${card.entry.label}`}
-                                    className="w-full aspect-square object-cover bg-olive-50"
+                                    className="w-full aspect-square object-cover bg-paper"
                                     draggable={false}
                                 />
                                 <div className="px-4 pt-3">
-                                    <p className="font-bold text-primary">{card.entry.label}</p>
-                                    <p className="text-xs text-secondary">{CATEGORY_LABELS[card.entry.category] ?? card.entry.category}</p>
+                                    <p className="font-bold text-ink">{card.entry.label}</p>
+                                    <p className="text-xs text-ink">{CATEGORY_LABELS[card.entry.category] ?? card.entry.category}</p>
                                 </div>
 
                                 {/* Color dots (multi-select) + first-time hint */}
                                 <div className="relative px-2 pt-1 flex items-center">
                                     {showDotHint && (
-                                        <div className="absolute -top-9 left-3 z-10 px-3 py-1.5 bg-primary text-white text-[11px] font-medium rounded-lg shadow-md animate-fade-in-up">
-                                            Each color you pick becomes its own item
-                                            <div className="absolute -bottom-1 left-6 w-2 h-2 bg-primary rotate-45" />
+                                        <div className="absolute -top-9 left-3 z-10 px-3 py-1.5 bg-ink text-white text-[11px] font-medium rounded-lg shadow-md animate-fade-in-up">
+                                            Each color you pick becomes its own piece
+                                            <div className="absolute -bottom-1 left-6 w-2 h-2 bg-ink rotate-45" />
                                         </div>
                                     )}
                                     {card.colors.map((color) => (
@@ -253,7 +248,7 @@ export const StarterPickerOverlay: React.FC = () => {
                                         >
                                             <span
                                                 className={`w-7 h-7 rounded-full border border-black/10 transition-shadow ${
-                                                    selected.has(color) ? 'ring-2 ring-secondary ring-offset-2' : ''
+                                                    selected.has(color) ? 'ring-2 ring-ink ring-offset-2' : ''
                                                 }`}
                                                 style={{ backgroundColor: paletteHex(color) }}
                                             />
@@ -265,16 +260,16 @@ export const StarterPickerOverlay: React.FC = () => {
                                     <button
                                         onClick={() => answer(false)}
                                         disabled={phase === 'saving'}
-                                        className="flex-1 py-3 rounded-xl bg-olive-100 text-olive-500 text-sm font-bold hover:bg-olive-200 transition-colors active:scale-[0.97] disabled:opacity-50"
+                                        className="flex-1 py-3 rounded-full bg-ink/5 text-ink/50 text-sm font-bold hover:bg-ink/10 transition-colors active:scale-[0.97] disabled:opacity-50"
                                     >
-                                        Don't have it
+                                        Nope
                                     </button>
                                     <button
                                         onClick={() => answer(true)}
                                         disabled={selected.size === 0 || phase === 'saving'}
-                                        className="flex-1 py-3 rounded-xl bg-primary text-white text-sm font-bold hover:bg-olive-700 transition-colors active:scale-[0.97] disabled:bg-olive-200"
+                                        className="flex-1 py-3 rounded-full bg-ink text-white text-sm font-bold hover:bg-ink/90 transition-colors active:scale-[0.97] disabled:bg-ink/20"
                                     >
-                                        {selected.size > 1 ? `I have these (${selected.size})` : 'I have this'}
+                                        {selected.size > 1 ? `Got these (${selected.size})` : 'Got it'}
                                     </button>
                                 </div>
                             </div>
@@ -284,11 +279,11 @@ export const StarterPickerOverlay: React.FC = () => {
 
                         <div className="mt-4 text-center min-h-[20px]">
                             {phase === 'saving' ? (
-                                <span className="inline-flex items-center gap-2 text-xs font-semibold text-secondary">
+                                <span className="inline-flex items-center gap-2 text-xs font-semibold text-ink">
                                     <Loader2 className="w-3.5 h-3.5 animate-spin" /> Saving your closet…
                                 </span>
                             ) : acceptedCount > 0 ? (
-                                <button onClick={finish} className="text-xs font-bold text-secondary underline underline-offset-2">
+                                <button onClick={finish} className="text-xs font-bold text-ink underline underline-offset-2">
                                     Save &amp; finish ({acceptedCount})
                                 </button>
                             ) : null}
@@ -298,10 +293,10 @@ export const StarterPickerOverlay: React.FC = () => {
 
                 {phase === 'deck' && deck.length === 0 && (
                     <div className="p-8 text-center">
-                        <CheckCircle2 className="w-10 h-10 text-secondary mx-auto mb-3" />
-                        <h3 className="text-lg font-bold text-primary mb-1">Staples covered!</h3>
-                        <p className="text-sm text-olive-500 mb-4">You already have everything in the starter set — scan your own pieces to keep growing.</p>
-                        <button onClick={close} className="w-full py-3 bg-primary text-white font-bold rounded-xl hover:bg-olive-700 transition-colors active:scale-[0.98]">
+                        <CheckCircle2 className="w-10 h-10 text-ink mx-auto mb-3" />
+                        <h3 className="font-display text-xl font-extrabold text-ink mb-1">Staples covered!</h3>
+                        <p className="text-sm text-ink/50 mb-4">You have the whole starter set. Scan your own pieces to keep growing.</p>
+                        <button onClick={close} className="w-full py-3 bg-ink text-white font-bold rounded-full hover:bg-ink/90 transition-colors active:scale-[0.98]">
                             Done
                         </button>
                     </div>
@@ -309,17 +304,17 @@ export const StarterPickerOverlay: React.FC = () => {
 
                 {phase === 'done' && (
                     <div className="p-8 text-center">
-                        <CheckCircle2 className="w-10 h-10 text-secondary mx-auto mb-3" />
-                        <h3 className="text-lg font-bold text-primary mb-1">
-                            {acceptedCount > 0 ? `Added ${acceptedCount} item${acceptedCount === 1 ? '' : 's'} to your closet` : 'No items added'}
+                        <CheckCircle2 className="w-10 h-10 text-ink mx-auto mb-3" />
+                        <h3 className="font-display text-xl font-extrabold text-ink mb-1">
+                            {acceptedCount > 0 ? `${acceptedCount} piece${acceptedCount === 1 ? '' : 's'} added to your closet!` : 'Nothing added this time'}
                         </h3>
-                        <p className="text-sm text-olive-500 mb-5">
-                            {acceptedCount > 0 ? 'Your basics are in — let’s put them to work.' : 'No problem — you can scan your own pieces anytime.'}
+                        <p className="text-sm text-ink/50 mb-5">
+                            {acceptedCount > 0 ? 'Your basics are in. Let’s put them to work.' : 'No problem. You can scan your own pieces anytime.'}
                         </p>
                         {acceptedCount > 0 ? (
                             <button
                                 onClick={() => { setPhase('idle'); navigate('/suggest'); }}
-                                className="w-full py-3 bg-primary text-white font-bold rounded-xl hover:bg-olive-700 transition-colors active:scale-[0.98]"
+                                className="w-full py-3 bg-ink text-white font-bold rounded-full hover:bg-ink/90 transition-colors active:scale-[0.98]"
                             >
                                 Style my first outfit
                             </button>
@@ -327,10 +322,10 @@ export const StarterPickerOverlay: React.FC = () => {
                         <button
                             onClick={() => setPhase('idle')}
                             className={`w-full py-3 font-bold rounded-xl transition-colors active:scale-[0.98] ${
-                                acceptedCount > 0 ? 'mt-2 text-secondary hover:bg-olive-50' : 'bg-primary text-white hover:bg-olive-700'
+                                acceptedCount > 0 ? 'mt-2 text-ink hover:bg-ink/5' : 'bg-ink text-white hover:bg-ink/90'
                             }`}
                         >
-                            {acceptedCount > 0 ? 'Back to home' : 'Done'}
+                            {acceptedCount > 0 ? 'Back to Today' : 'Done'}
                         </button>
                     </div>
                 )}

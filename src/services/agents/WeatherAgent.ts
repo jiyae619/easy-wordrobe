@@ -1,3 +1,4 @@
+import { sanitizeUiCopy } from './agentOutputGuards';
 import { type WeatherData, type WeatherOutlookPeriod } from "../../types";
 import { callBedrockConverseAPI } from "../bedrockClient";
 
@@ -33,7 +34,7 @@ RULES:
 
             const jsonStr = await callBedrockConverseAPI(payload);
             const parsed = JSON.parse(jsonStr) as { cheerLine?: string };
-            return (parsed.cheerLine || "").trim().replace(/[—–-]/g, ' ').replace(/\s+/g, ' ').trim();
+            return sanitizeUiCopy(parsed.cheerLine || "");
         } catch (error) {
             console.error("[Weather Agent] Failed to generate cheer line:", error);
             return "";
