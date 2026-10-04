@@ -14,7 +14,7 @@ interface PageHeaderProps {
  */
 export const PageHeader: React.FC<PageHeaderProps> = ({ eyebrow, title, children }) => (
     <header className="pr-12 min-h-[64px]">
-        <p className="text-xs font-bold text-ink/60 leading-5 truncate">{eyebrow}</p>
+        <p className="text-xs font-bold text-ink/60 leading-5">{eyebrow}</p>
         <h1 className="font-display text-[32px] font-extrabold leading-none tracking-tight text-ink mt-1">{title}</h1>
         {children && <div className="mt-2.5">{children}</div>}
     </header>

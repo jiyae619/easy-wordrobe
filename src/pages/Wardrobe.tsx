@@ -105,8 +105,8 @@ const Wardrobe: React.FC = () => {
                         <span className="absolute inset-0 rounded-xl border-2 border-ink/60 rotate-6" />
                         <span className="absolute inset-0 rounded-xl border-2 border-dashed border-ink bg-paper" />
                     </div>
-                    <h2 className="font-display text-xl font-extrabold text-ink">No cards yet</h2>
-                    <p className="text-sm text-ink/60 mt-1 mb-5">Deal yourself a closet — pick common basics or scan your own pieces.</p>
+                    <h2 className="font-display text-xl font-extrabold text-ink">Nothing here yet</h2>
+                    <p className="text-sm text-ink/60 mt-1 mb-5">Deal yourself a closet. Pick a few basics or scan your own.</p>
                     <div className="flex flex-col w-full gap-2.5">
                         <button
                             type="button"
@@ -132,7 +132,7 @@ const Wardrobe: React.FC = () => {
         <div className="space-y-4">
             {header}
 
-            <div className="flex items-center gap-2 -mx-4 px-4 overflow-x-auto no-scrollbar">
+            <div className="flex items-center gap-2 -mx-4 px-4 overflow-x-auto no-scrollbar [mask-image:linear-gradient(to_right,black_88%,transparent)]">
                 <button
                     type="button"
                     onClick={() => { setSearchOpen((o) => !o); if (searchOpen) setSearch(''); }}
@@ -168,7 +168,7 @@ const Wardrobe: React.FC = () => {
             )}
 
             {!active ? (
-                <p className="text-sm text-ink/60 text-center py-16">No pieces match “{search}”.</p>
+                <p className="text-sm text-ink/60 text-center py-16">Nothing matches “{search}”.</p>
             ) : (
                 <>
                     {/* The dealt hand */}
@@ -189,12 +189,12 @@ const Wardrobe: React.FC = () => {
                     {focused && (
                         <div className="flex items-end gap-3">
                             <div className="min-w-0 flex-1">
-                                <p className="font-display text-[20px] font-extrabold leading-tight text-ink line-clamp-2">{focused.color} {focused.subcategory}</p>
+                                <p className="font-display text-[20px] font-extrabold leading-tight text-ink">{focused.color} {focused.subcategory}</p>
                                 <p className="text-xs mt-1 text-ink/60 flex items-center gap-1.5">
                                     {dustyDays.has(focused.id) ? (
-                                        <><span className="px-1.5 h-[18px] rounded-full bg-ink text-lime text-[10px] font-extrabold inline-flex items-center">DUSTY</span>{dustyDays.get(focused.id)} days unworn</>
+                                        <><span className="px-1.5 h-[18px] rounded-full bg-ink text-lime text-[10px] font-extrabold inline-flex items-center">DUSTY</span>resting for {dustyDays.get(focused.id)} days</>
                                     ) : (
-                                        `Worn ${focused.wearFrequency}× · ${focused.lastWorn ? `last ${daysIdle(focused)}d ago` : 'not worn yet'}`
+                                        `Worn ${focused.wearFrequency}× · ${focused.lastWorn ? `last worn ${daysIdle(focused)} days ago` : 'not worn yet'}`
                                     )}
                                 </p>
                             </div>

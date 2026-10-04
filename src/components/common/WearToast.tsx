@@ -15,7 +15,7 @@ export const WearToast: React.FC<WearToastProps> = ({ isPending, logged, onUndo 
             <div className="flex items-center gap-3 px-4 py-3 bg-ink text-paper rounded-full shadow-lg text-sm font-semibold border-2 border-lime">
                 {isPending ? (
                     <>
-                        Logging this outfit in 4s
+                        Saving this look in 4s
                         <button
                             type="button"
                             onClick={onUndo}
@@ -27,7 +27,7 @@ export const WearToast: React.FC<WearToastProps> = ({ isPending, logged, onUndo 
                 ) : (
                     <>
                         <Check className="w-4 h-4 text-lime" />
-                        Outfit logged!
+                        Saved. Looking good!
                     </>
                 )}
             </div>

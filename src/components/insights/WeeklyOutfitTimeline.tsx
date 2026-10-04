@@ -106,7 +106,7 @@ export const WeeklyOutfitTimeline: React.FC = () => {
                                             </div>
                                         )}
                                         <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 to-transparent p-2">
-                                            <p className="text-white text-xs font-medium capitalize truncate">{item.subcategory}</p>
+                                            <p className="text-white text-xs font-medium capitalize leading-tight">{item.subcategory}</p>
                                         </div>
                                     </div>
                                 ))}

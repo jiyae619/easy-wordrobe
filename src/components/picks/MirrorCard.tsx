@@ -92,10 +92,10 @@ export const MirrorCard: React.FC<MirrorCardProps> = ({ look, index, total, reas
 
             <div className="px-4 pb-4">
                 {look.isFallback && (
-                    <p className="text-[11px] font-semibold text-amber-700 mb-1">Quick picks — our AI stylist is unavailable right now.</p>
+                    <p className="text-[11px] font-semibold text-amber-700 mb-1">Quick picks while your stylist takes a break.</p>
                 )}
                 {look.explanation && (
-                    <p className="font-display font-bold text-[16px] leading-snug text-ink line-clamp-4 [@media(max-height:760px)]:line-clamp-2">{look.explanation}</p>
+                    <p className="font-display font-bold text-[16px] leading-snug text-ink">{look.explanation}</p>
                 )}
                 <div className="flex flex-wrap gap-1.5 mt-2">
                     <span className="h-[26px] px-2.5 rounded-full border-[1.5px] border-ink text-[11px] font-extrabold flex items-center">Weather {Math.round(look.weatherMatch)}</span>

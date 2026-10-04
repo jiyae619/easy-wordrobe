@@ -146,8 +146,8 @@ const Suggest: React.FC = () => {
                 <h2 className="font-display text-2xl font-extrabold text-ink">{clothes.length === 0 ? 'Your closet is empty' : 'Almost there'}</h2>
                 <p className="text-sm text-ink/60 mt-2 mb-5">
                     {clothes.length === 0
-                        ? 'Add some clothes to get personalized looks.'
-                        : `Add ${readiness.missingForOutfit.join(' and ')} so the stylist can build full outfits.`}
+                        ? 'Add a few pieces and your stylist gets to work.'
+                        : `Add ${readiness.missingForOutfit.join(' and ')} and your stylist can start.`}
                 </p>
                 <button type="button" onClick={() => window.dispatchEvent(new CustomEvent('open-scanner'))} className="h-12 px-6 rounded-full bg-ink text-paper text-sm font-bold">
                     Add clothes
@@ -161,14 +161,14 @@ const Suggest: React.FC = () => {
                     <div className="h-[80%] aspect-[0.8] rounded-t-[999px] rounded-b-2xl skeleton" />
                 </div>
                 <p className="flex items-center justify-center gap-2 text-sm font-semibold text-ink/60">
-                    <Loader2 className="w-4 h-4 animate-spin" /> Your stylist is curating today’s looks…
+                    <Loader2 className="w-4 h-4 animate-spin" /> Your stylist is picking looks…
                 </p>
             </div>
         );
     } else if (error && looks.length === 0) {
         body = (
             <div className="h-full flex flex-col items-center justify-center text-center rounded-[30px] border-2 border-dashed border-ink/40 p-6">
-                <h2 className="font-display text-2xl font-extrabold text-ink">Something went wrong</h2>
+                <h2 className="font-display text-2xl font-extrabold text-ink">A little hiccup</h2>
                 <p className="text-sm text-ink/60 mt-2 mb-5">{error}</p>
                 <button type="button" onClick={() => void regenerate()} className="h-12 px-6 rounded-full bg-ink text-paper text-sm font-bold inline-flex items-center gap-2">
                     <RefreshCw className="w-4 h-4" /> Try again
@@ -179,18 +179,18 @@ const Suggest: React.FC = () => {
         body = (
             <div className="h-full flex flex-col items-center justify-center text-center gap-3 rounded-[30px] border-2 border-dashed border-ink p-6 animate-scale-in">
                 <h2 className="font-display text-[28px] leading-tight font-extrabold text-ink">
-                    {looks.length === 0 ? 'No looks for this mood yet' : 'That’s today’s looks.'}
+                    {looks.length === 0 ? 'No looks for this mood yet' : 'That’s all three!'}
                 </h2>
                 <p className="text-sm text-ink/70">
                     {wornLook != null
-                        ? `Wearing look ${wornLook + 1} today. Skips teach the stylist what you don’t reach for.`
-                        : 'Skips teach the stylist what you don’t reach for.'}
+                        ? `Look ${wornLook + 1} it is. Enjoy your day.`
+                        : 'Every skip helps your stylist learn your taste.'}
                 </p>
                 <button type="button" onClick={() => void showDifferent()} disabled={isLoading} className="h-12 px-5 rounded-full bg-ink text-paper text-sm font-bold inline-flex items-center gap-2 disabled:opacity-60">
-                    {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />} Show different looks
+                    {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />} Show me more
                 </button>
                 <button type="button" onClick={() => navigate('/')} className="h-11 px-5 rounded-full border-[1.5px] border-ink text-sm font-bold">
-                    Spin your own on Today’s rails
+                    Build my own
                 </button>
             </div>
         );
@@ -209,7 +209,7 @@ const Suggest: React.FC = () => {
 
             <MoodChips value={mood.id} onChange={setMood} />
 
-            <div className="relative h-[clamp(320px,calc(100dvh-352px),580px)]">{body}</div>
+            <div className="relative h-[clamp(320px,calc(100dvh-380px),560px)]">{body}</div>
 
             {deckActive && (
                 <div className="flex items-center justify-center gap-5 pt-6 [@media(max-height:760px)]:pt-5">

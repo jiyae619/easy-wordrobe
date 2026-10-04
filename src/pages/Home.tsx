@@ -219,15 +219,15 @@ const Home: React.FC = () => {
 
     let why: string;
     if (!valid) {
-        why = !slots.bottom ? 'Pick a bottom or a dress to finish the fit.' : 'Add a top or a layer — or swap in a dress.';
+        why = !slots.bottom ? 'Pick a bottom or a dress to finish the look.' : 'Add a top or a layer, or try a dress.';
     } else if (matched) {
-        why = matched.explanation || 'Your stylist put this together for today.';
+        why = matched.explanation || 'Your stylist picked this one for today.';
     } else if (looksLoading && !touched.current) {
-        why = 'Your stylist is picking today’s looks…';
+        why = 'Your stylist is picking looks…';
     } else {
         const asSuggestion: OutfitSuggestion = { id: 'mix', items, mood, weatherMatch: weatherScore ?? 0, wearScore: rotationScore ?? 0, explanation: '' };
         why = describeOutfitReason(asSuggestion, { tryItItemIds, leastWornItemIds: leastWornIds }, weather ?? undefined)
-            ?? 'Your own mix. Lock the pieces you love, then Spin for the rest.';
+            ?? 'Your own mix. Lock what you love, then spin the rest.';
     }
     const badge = matched ? (matched.isFallback ? 'Quick pick' : 'AI pick') : 'Your mix';
 
@@ -247,17 +247,17 @@ const Home: React.FC = () => {
     return (
         <div className="space-y-4 pb-6">
             <PageHeader
-                title="Today’s fit"
+                title="Today"
                 eyebrow={
                     <button
                         type="button"
                         onClick={() => setShowWeather((v) => !v)}
                         aria-expanded={showWeather}
-                        className="inline-flex items-center gap-1 max-w-full hover:text-ink"
+                        className="inline-flex flex-wrap items-center gap-1 text-left hover:text-ink"
                     >
                         {format(new Date(), 'EEE d MMM')} ·
                         <WeatherIcon condition={weather?.condition} />
-                        <span className="truncate">{weather ? `${Math.round(weather.temperature)}° ${weather.condition}` : weatherLoading ? 'Checking the sky…' : 'Weather unavailable'}</span>
+                        <span>{weather ? `${Math.round(weather.temperature)}° ${weather.condition}` : weatherLoading ? 'Checking the sky…' : 'No weather right now'}</span>
                         <ChevronDown className={`w-3.5 h-3.5 flex-none transition-transform ${showWeather ? 'rotate-180' : ''}`} />
                     </button>
                 }
@@ -271,7 +271,7 @@ const Home: React.FC = () => {
                                     <div key={slot.label} className="rounded-xl bg-paper px-2 py-1.5 text-center">
                                         <p className="text-[10px] font-extrabold uppercase tracking-wide text-ink/50">{slot.label}</p>
                                         <p className="text-sm font-bold text-ink">{slot.temperature}°</p>
-                                        <p className="text-[11px] text-ink/60 line-clamp-1">{slot.condition}</p>
+                                        <p className="text-[11px] text-ink/60 leading-tight">{slot.condition}</p>
                                     </div>
                                 ))}
                             </div>
@@ -283,7 +283,7 @@ const Home: React.FC = () => {
                                 onClick={() => window.dispatchEvent(new CustomEvent('open-settings'))}
                                 className="mt-2 text-[11px] font-semibold text-ink underline underline-offset-2"
                             >
-                                Location off — set your city for local weather
+                                Location is off. Set your city for local weather.
                             </button>
                         )}
                     </div>
@@ -295,12 +295,12 @@ const Home: React.FC = () => {
             {!readiness.canMakeOutfit ? (
                 <section className="rounded-[28px] border-2 border-dashed border-ink/40 p-5">
                     <h2 className="font-display text-xl font-extrabold text-ink">
-                        {clothes.length === 0 ? 'Hang up your first pieces' : 'Almost ready to spin'}
+                        {clothes.length === 0 ? 'Your rails are empty' : 'Almost ready to spin'}
                     </h2>
                     <p className="text-sm text-ink/60 mt-1 mb-4">
                         {clothes.length === 0
-                            ? 'Pick your basics from our catalog, or snap your closet — one shelf photo can capture several pieces.'
-                            : `Add ${readiness.missingForOutfit.join(' and ')} so the rails can build full outfits.`}
+                            ? 'Pick a few basics or snap your closet. One photo can catch several pieces.'
+                            : `Add ${readiness.missingForOutfit.join(' and ')} and we can start building outfits.`}
                     </p>
                     <div className="flex flex-col gap-2.5">
                         <button type="button" onClick={() => openPicker(clothes.length > 0 ? missingCategories : undefined)} className="h-12 rounded-full bg-ink text-paper font-bold text-sm active:scale-[0.97]">
@@ -340,16 +340,17 @@ const Home: React.FC = () => {
                         </div>
                     </section>
 
-                    {/* Scores + why */}
-                    <section className="flex gap-3 items-start">
-                        <div className="flex-none w-[112px] space-y-1">
+                    {/* Scores in one line, then the stylist's note at full width */}
+                    <section>
+                        <div className="flex items-center gap-3">
+                            <span className={`flex-none text-[10px] font-extrabold uppercase tracking-wide px-2 py-0.5 rounded-full ${matched ? 'bg-ink text-lime' : 'bg-ink/10 text-ink'}`}>{badge}</span>
                             {[
                                 { label: 'Weather', value: weatherScore },
                                 { label: 'Rotation', value: rotationScore },
                             ].map((m) => (
-                                <div key={m.label}>
+                                <div key={m.label} className="flex-1 min-w-0">
                                     <div className="flex justify-between text-[10px] font-extrabold uppercase">
-                                        <span>{m.label}</span><span>{m.value ?? '–'}</span>
+                                        <span>{m.label}</span><span>{m.value ?? '…'}</span>
                                     </div>
                                     <div className="h-1.5 rounded-full bg-ink/10 overflow-hidden">
                                         <div className="h-full rounded-full bg-ink transition-[width] duration-500" style={{ width: `${m.value ?? 0}%` }} />
@@ -357,13 +358,10 @@ const Home: React.FC = () => {
                                 </div>
                             ))}
                         </div>
-                        <div className="min-w-0">
-                            <span className={`inline-block text-[10px] font-extrabold uppercase tracking-wide px-2 py-0.5 rounded-full ${matched ? 'bg-ink text-lime' : 'bg-ink/10 text-ink'}`}>{badge}</span>
-                            <p className={`text-[13px] leading-snug font-semibold text-ink mt-1 ${compact ? 'line-clamp-2' : 'line-clamp-3'}`}>{why}</p>
-                        </div>
+                        <p className="text-[14px] leading-snug font-semibold text-ink mt-2">{why}</p>
                     </section>
 
-                    {/* Actions — pinned above the nav so they stay in thumb reach on any screen height */}
+                    {/* Actions: pinned above the nav so they stay in thumb reach on any screen height */}
                     <section
                         className="sticky z-30 -mx-4 px-4 py-2 flex items-center gap-3 bg-paper/95 backdrop-blur-sm"
                         style={{ bottom: 'calc(72px + env(safe-area-inset-bottom, 0px))' }}
@@ -374,12 +372,12 @@ const Home: React.FC = () => {
                             disabled={!weather || !valid || isPending}
                             className={`flex-1 ${compact ? 'h-12' : 'h-[56px]'} rounded-full bg-ink text-paper font-extrabold text-[15px] active:scale-[0.98] disabled:opacity-50`}
                         >
-                            {isPending ? 'Logging…' : logged ? 'Logged ✓' : 'Wear this fit'}
+                            {isPending ? 'Saving…' : logged ? 'Saved ✓' : 'Wear this'}
                         </button>
                         <button
                             type="button"
                             onClick={spin}
-                            aria-label="Spin — let the AI stylist fill the unlocked rails"
+                            aria-label="Spin: let your stylist fill the unlocked rails"
                             className={`${compact ? 'w-14 h-14' : 'w-[64px] h-[64px]'} flex-none rounded-full bg-lime border-2 border-ink text-ink flex flex-col items-center justify-center text-[11px] font-extrabold transition-transform duration-700 ease-out active:scale-95`}
                             style={{ transform: `rotate(${spinTurns * 360}deg)` }}
                         >
@@ -393,13 +391,13 @@ const Home: React.FC = () => {
             {readiness.canMakeOutfit && completeness.nextUnlock && (
                 <section className="rounded-[22px] bg-white border-[1.5px] border-ink p-4">
                     <div className="flex items-center justify-between gap-3">
-                        <h2 className="text-sm font-extrabold text-ink">{clothes.length < 5 ? 'Build your 5-piece starter closet' : completeness.stage}</h2>
+                        <h2 className="text-sm font-extrabold text-ink">{clothes.length < 5 ? 'Start with five pieces' : completeness.stage}</h2>
                         <span className="text-xs font-bold text-ink/60">{clothes.length < 5 ? `${clothes.length}/5` : `${Math.round(completeness.ratio * 100)}%`}</span>
                     </div>
                     <div className="h-1.5 rounded-full bg-ink/10 overflow-hidden mt-2">
                         <div className="h-full bg-ink" style={{ width: `${clothes.length < 5 ? (clothes.length / 5) * 100 : completeness.ratio * 100}%` }} />
                     </div>
-                    <p className="text-xs text-ink/60 mt-2">{clothes.length < 5 ? 'More pieces make every spin more fun.' : `${completeness.nextUnlock}.`}</p>
+                    <p className="text-xs text-ink/60 mt-2">{clothes.length < 5 ? 'More pieces, more fun spins.' : `${completeness.nextUnlock}.`}</p>
                     <div className="flex gap-2 mt-3">
                         <button type="button" onClick={() => openPicker(completeness.nextUnlockKey === 'shoes' ? [ClothingCategory.Shoes] : undefined)} className="flex-1 h-10 rounded-full bg-ink text-paper text-xs font-bold">
                             Pick basics

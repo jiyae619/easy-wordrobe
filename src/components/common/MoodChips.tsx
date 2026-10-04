@@ -8,7 +8,7 @@ interface MoodChipsProps {
 
 /** Horizontal mood selector shared by Today and Picks (bleeds to the screen edges). */
 export const MoodChips: React.FC<MoodChipsProps> = ({ value, onChange }) => (
-    <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4 pb-1" role="radiogroup" aria-label="Mood">
+    <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4 pb-1 [mask-image:linear-gradient(to_right,black_88%,transparent)]" role="radiogroup" aria-label="Mood">
         {MOODS.map((m) => {
             const on = m.id === value;
             return (

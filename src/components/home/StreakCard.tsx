@@ -25,14 +25,14 @@ export const StreakCard: React.FC = () => {
     if (current > 0 && loggedToday) {
         headline = `${current} day streak`;
         sub = current === 1
-            ? "You styled today — come back tomorrow to build it."
-            : "You're on a roll. Keep it going tomorrow.";
+            ? "Styled today. See you tomorrow!"
+            : "On a roll! Same time tomorrow?";
     } else if (current > 0) {
         headline = `${current} day streak`;
-        sub = "Log today's outfit to keep it alive.";
+        sub = "Wear a look today to keep it going.";
     } else {
         headline = "Start a streak";
-        sub = "Wear a look today to begin your styling streak.";
+        sub = "Wear a look today to start one.";
     }
 
     return (

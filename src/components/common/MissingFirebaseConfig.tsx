@@ -14,7 +14,7 @@ export default function MissingFirebaseConfig({ missingKeys }: Props) {
                     <div>
                         <h1 className="text-lg font-semibold text-primary">Firebase configuration missing</h1>
                         <p className="text-sm text-gray-600 mt-1">
-                            Stylemax needs Firebase environment variables to run. None of your app code loaded yet — this screen replaces a blank page.
+                            Stylemax needs Firebase environment variables to run. None of your app code loaded yet, so this screen replaces a blank page.
                         </p>
                     </div>
                 </div>

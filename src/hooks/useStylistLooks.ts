@@ -119,7 +119,7 @@ export function useStylistLooks(mood: FashionMood, weather: WeatherData | null):
             .then((r) => { if (!cancelled) setStored(r); })
             .catch((err) => {
                 console.error('Stylist error:', err);
-                if (!cancelled) setError('Failed to generate suggestions. Please try again.');
+                if (!cancelled) setError('Your stylist hit a snag. Want to try again?');
             })
             .finally(() => { if (!cancelled) setIsLoading(false); });
         return () => { cancelled = true; };
@@ -133,7 +133,7 @@ export function useStylistLooks(mood: FashionMood, weather: WeatherData | null):
             setStored(await fetchLooks(key));
         } catch (err) {
             console.error('Regeneration error:', err);
-            setError('Failed to generate suggestions. Please try again.');
+            setError('Your stylist hit a snag. Want to try again?');
         } finally {
             setIsLoading(false);
         }

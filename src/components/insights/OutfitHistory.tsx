@@ -74,8 +74,8 @@ export const OutfitHistory: React.FC = () => {
     return (
         <section>
             <div className="mb-4">
-                <h2 className="font-display text-xl font-extrabold text-ink">Outfit History</h2>
-                <span className="text-xs text-ink/50 font-medium">What you've worn recently</span>
+                <h2 className="font-display text-xl font-extrabold text-ink">Recently worn</h2>
+                <span className="text-xs text-ink/50 font-medium">Loved it? Wear it again.</span>
             </div>
             <div className="space-y-3">
                 {records.map(({ record, items }) => (

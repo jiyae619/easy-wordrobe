@@ -237,9 +237,9 @@ export const CardFan: React.FC<CardFanProps> = memo(function CardFan({ label, it
                                     <span className="absolute left-2 top-2 px-1.5 h-[18px] rounded-full bg-ink text-lime text-[10px] font-extrabold flex items-center">{days}d</span>
                                 )}
                             </span>
-                            <span className={`flex-1 flex flex-col justify-center gap-0.5 px-3 border-t-[1.5px] ${isFocus ? 'bg-lime border-ink' : 'bg-white border-ink/15'}`}>
-                                <span className="text-[12px] font-extrabold text-ink truncate leading-tight">{item.subcategory}</span>
-                                <span className="text-[10px] font-semibold text-ink/60 truncate">{item.color} · worn {item.wearFrequency}×</span>
+                            <span className={`flex-1 min-h-0 flex flex-col justify-center gap-0.5 px-3 py-1 border-t-[1.5px] ${isFocus ? 'bg-lime border-ink' : 'bg-white border-ink/15'}`}>
+                                <span className="text-[12px] font-extrabold text-ink leading-tight">{item.subcategory}</span>
+                                <span className="text-[10px] font-semibold text-ink/60 leading-tight">{item.color} · worn {item.wearFrequency}×</span>
                             </span>
                         </span>
                     </button>

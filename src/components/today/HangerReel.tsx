@@ -311,13 +311,7 @@ export const HangerReel = forwardRef<HangerReelHandle, HangerReelProps>(function
                 })}
             </div>
 
-            {/* Label and lock sit as tabs on the left and right edges of the centre spot. */}
-            <span
-                className="absolute top-1/2 z-[110] pointer-events-none px-0.5 py-1.5 rounded-full bg-paper border-[1.5px] border-ink text-[9px] font-extrabold tracking-[0.14em] uppercase text-ink [writing-mode:vertical-rl]"
-                style={{ left: `calc(50% - ${spotWidth / 2}px)`, transform: 'translate(-50%, -50%) rotate(180deg)', marginTop: shelf ? 0 : HOOK / 2 }}
-            >
-                {label}
-            </span>
+            {/* The lock sits as a tab on the right edge of the centre spot. */}
             <button
                 type="button"
                 disabled={dimmed || n === 0}

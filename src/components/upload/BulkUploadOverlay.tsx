@@ -132,7 +132,7 @@ export const BulkUploadOverlay: React.FC = () => {
                                         style={{ width: `${total ? Math.round((done / total) * 100) : 0}%` }}
                                     />
                                 </div>
-                                <p className="text-[11px] text-olive-400 mt-3">Hang tight — this can take a moment per photo.</p>
+                                <p className="text-[11px] text-olive-400 mt-3">Hang tight. Each photo takes a moment.</p>
                             </div>
                         )}
 
@@ -147,7 +147,7 @@ export const BulkUploadOverlay: React.FC = () => {
                                 </p>
                                 {summary.flagged > 0 && (
                                     <p className="text-xs text-amber-700 mb-1">
-                                        {summary.flagged} need a quick review — look for the badge in your wardrobe.
+                                        {summary.flagged} need a quick look. Find the badge in your closet.
                                     </p>
                                 )}
                                 {summary.restricted > 0 && (

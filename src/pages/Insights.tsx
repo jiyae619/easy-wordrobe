@@ -4,7 +4,6 @@ import { useWardrobe } from '../context/WardrobeContext';
 import { Lightbulb, Sparkles, Loader2 } from 'lucide-react';
 import { WeeklyOutfitTimeline } from '../components/insights/WeeklyOutfitTimeline';
 import { OutfitHistory } from '../components/insights/OutfitHistory';
-import { ExpandableText } from '../components/common/ExpandableText';
 import { PageHeader } from '../components/common/PageHeader';
 
 const Insights: React.FC = () => {
@@ -18,14 +17,14 @@ const Insights: React.FC = () => {
     }, [clothes.length]);
 
     const header = (
-        <PageHeader title="Stats" eyebrow="Your last 3 weeks of getting dressed" />
+        <PageHeader title="Stats" eyebrow="Your last 3 weeks in clothes" />
     );
     const loadingView = (
         <div className="space-y-6">
             {header}
             <div className="flex flex-col items-center justify-center min-h-[45vh] space-y-4">
                 <Loader2 className="w-8 h-8 text-ink animate-spin" />
-                <p className="text-ink/60 font-medium">Generating your style insights...</p>
+                <p className="text-ink/60 font-medium">Reading your style notes…</p>
             </div>
         </div>
     );
@@ -38,9 +37,9 @@ const Insights: React.FC = () => {
                 {header}
                 <div className="flex flex-col items-center justify-center py-16 bg-white rounded-2xl border-2 border-dashed border-ink/30 text-center">
                     <Lightbulb className="w-12 h-12 text-ink/30 mb-4" />
-                    <h3 className="text-lg font-semibold text-ink mb-2">No insights yet</h3>
+                    <h3 className="text-lg font-semibold text-ink mb-2">No stats yet</h3>
                     <p className="text-sm text-ink/50 max-w-xs mb-4">
-                        Add items to your wardrobe to get personalized style insights.
+                        Add a few pieces and wear them. Your patterns show up here.
                     </p>
                 </div>
             </div>
@@ -86,8 +85,8 @@ const Insights: React.FC = () => {
             {nextWeekItems.length > 0 && (
                 <section>
                     <div className="mb-4">
-                        <h2 className="font-display text-xl font-extrabold text-ink">Try Next Week</h2>
-                        <span className="text-xs text-ink/50 font-medium">Least worn items during the past 3 weeks</span>
+                        <h2 className="font-display text-xl font-extrabold text-ink">Forgotten favorites</h2>
+                        <span className="text-xs text-ink/50 font-medium">Unworn for 3 weeks. Give one a turn?</span>
                     </div>
 
                     {/* Behavioral Nudge */}
@@ -97,12 +96,7 @@ const Insights: React.FC = () => {
                                 <Lightbulb className="w-4 h-4 text-ink" />
                             </div>
                             <div className="pt-1.5">
-                                <ExpandableText
-                                    text={topNudge}
-                                    textClassName="text-sm leading-relaxed text-ink font-medium"
-                                    collapsedClassName="line-clamp-2"
-                                    minCharsForToggle={110}
-                                />
+                                <p className="text-sm leading-relaxed text-ink font-medium">{topNudge}</p>
                             </div>
                         </div>
                     </div>
@@ -123,7 +117,7 @@ const Insights: React.FC = () => {
                                 </div>
                                 {/* Details */}
                                 <div className="flex-1 min-w-0">
-                                    <h3 className="font-bold text-sm text-ink truncate capitalize">
+                                    <h3 className="font-bold text-sm text-ink leading-tight capitalize">
                                         {item.subcategory}
                                     </h3>
                                     <p className="text-[11px] text-ink/50 capitalize">
@@ -157,15 +151,15 @@ const Insights: React.FC = () => {
             {/* Most Worn Leaderboard */}
             <section>
                 <div className="mb-4">
-                    <h2 className="font-display text-xl font-extrabold text-ink">Most Worn</h2>
-                    <span className="text-xs text-ink/50 font-medium">During the past 3 weeks</span>
+                    <h2 className="font-display text-xl font-extrabold text-ink">Your go-tos</h2>
+                    <span className="text-xs text-ink/50 font-medium">Most worn in the last 3 weeks</span>
                 </div>
 
                 <div className="space-y-3">
                     {topWorn.length === 0 && (
                         <div className="text-center py-8 px-4">
                             <p className="text-sm text-ink/50 mb-3">
-                                Wear and log a look to start your history — your most-worn pieces will show up here.
+                                Wear a look and your favorites show up here.
                             </p>
                             <Link
                                 to="/suggest"
@@ -200,7 +194,7 @@ const Insights: React.FC = () => {
                                 </div>
                                 {/* Name + subtitle */}
                                 <div className="flex-1 min-w-0">
-                                    <h3 className="font-bold text-sm text-ink truncate capitalize">
+                                    <h3 className="font-bold text-sm text-ink leading-tight capitalize">
                                         {entry.item.subcategory}
                                     </h3>
                                     <p className="text-[11px] text-ink/50 capitalize">

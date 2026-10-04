@@ -300,7 +300,7 @@ export const StarterPickerOverlay: React.FC = () => {
                     <div className="p-8 text-center">
                         <CheckCircle2 className="w-10 h-10 text-secondary mx-auto mb-3" />
                         <h3 className="text-lg font-bold text-primary mb-1">Staples covered!</h3>
-                        <p className="text-sm text-olive-500 mb-4">You already have everything in the starter set — scan your own pieces to keep growing.</p>
+                        <p className="text-sm text-olive-500 mb-4">You have the whole starter set. Scan your own pieces to keep growing.</p>
                         <button onClick={close} className="w-full py-3 bg-primary text-white font-bold rounded-xl hover:bg-olive-700 transition-colors active:scale-[0.98]">
                             Done
                         </button>
@@ -314,7 +314,7 @@ export const StarterPickerOverlay: React.FC = () => {
                             {acceptedCount > 0 ? `Added ${acceptedCount} item${acceptedCount === 1 ? '' : 's'} to your closet` : 'No items added'}
                         </h3>
                         <p className="text-sm text-olive-500 mb-5">
-                            {acceptedCount > 0 ? 'Your basics are in — let’s put them to work.' : 'No problem — you can scan your own pieces anytime.'}
+                            {acceptedCount > 0 ? 'Your basics are in. Let’s put them to work.' : 'No problem. You can scan your own pieces anytime.'}
                         </p>
                         {acceptedCount > 0 ? (
                             <button

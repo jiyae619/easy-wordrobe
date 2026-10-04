@@ -21,19 +21,19 @@ function buildFallbackNudges(unwornItems: ClothingItem[]): string[] {
     const item2Label = item2 ? `that ${item2.color} ${item2.subcategory}` : 'another forgotten piece';
 
     const hypePools = [
-        `${itemLabel.charAt(0).toUpperCase() + itemLabel.slice(1)} is sitting there waiting. Stop scrolling, start wearing, today is the day.`,
-        `Wake up. ${itemLabel.charAt(0).toUpperCase() + itemLabel.slice(1)} has been benched for 3 weeks. Pull it out and remind everyone why you bought it.`,
-        `You've got ${itemLabel} collecting dust. That's a crime against fashion. Fix it tomorrow.`,
+        `${itemLabel.charAt(0).toUpperCase() + itemLabel.slice(1)} is ready when you are. Today works.`,
+        `${itemLabel.charAt(0).toUpperCase() + itemLabel.slice(1)} has sat out 3 weeks. Time to bring it back.`,
+        `Give ${itemLabel} a day out. You bought it for a reason.`,
     ];
     const wittyPools = [
-        `You and ${item2Label} used to be so close... what happened? It misses you. Reach out.`,
-        `Your wardrobe called, it says you keep picking the same three things. Time to branch out. ${item2Label} is raising its hand.`,
-        `If your closet could talk, ${item2Label} would be filing a formal complaint right about now.`,
+        `You and ${item2Label} used to be close. It misses you.`,
+        `Same three picks again? ${item2Label.charAt(0).toUpperCase() + item2Label.slice(1)} would love a turn.`,
+        `If closets could talk, ${item2Label} would have a few words for you.`,
     ];
     const editorialPools = [
-        `A wardrobe is only as interesting as its least worn piece, and the untold story is always the most compelling one.`,
-        `The most stylish wardrobes are the most rotated ones. Every item deserves its moment in the light.`,
-        `Fashion is a conversation between who you are and who you could be. Let the quieter pieces have a say.`,
+        `The best wardrobes are the well rotated ones. Every piece deserves a moment.`,
+        `Your quietest pieces often tell the best stories.`,
+        `A little variety goes a long way. Let a forgotten piece lead today.`,
     ];
 
     const pick = (pool: string[]) => pool[Math.floor(Math.random() * pool.length)];
@@ -106,7 +106,7 @@ Write exactly 3 nudges, each in a distinctly different voice:
 - Nudge 1: a fired up hype coach, short and punchy. Name a specific least-worn item by color and type.
 - Nudge 2: a witty best friend, playful and teasing. Tease one wear pattern (e.g. always the same color, always the same day).
 - Nudge 3: a thoughtful fashion editor, one elegant sentence about what the wardrobe could become with more variety.
-Be specific and surprising. No generic praise like "great job". Do not use hyphen or dash characters.
+Be specific and surprising. Keep each nudge under 18 words in plain, everyday language with no slang. No generic praise like "great job". Do not use hyphen or dash characters.
 
 OUTPUT STRICTLY AS JSON, no markdown:
 { "suggestedVariations": ["Nudge 1", "Nudge 2", "Nudge 3"] }`;
