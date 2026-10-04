@@ -4,7 +4,6 @@ import { useWardrobe } from '../../context/WardrobeContext';
 import { LogOut, User, Settings, X, Lock, Camera, Info, Cloud, Activity, Heart } from 'lucide-react';
 import { MOODS } from '../../data/moods';
 import { SUPPORTED_CITIES } from '../../services/weatherService';
-import { ExpandableText } from './ExpandableText';
 
 const UserMenu: React.FC = () => {
     const { user, logout } = useAuth();
@@ -126,7 +125,7 @@ const UserMenu: React.FC = () => {
                                 className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm text-gray-600 hover:bg-olive-50 rounded-xl transition-colors"
                             >
                                 <Settings className="w-4 h-4" />
-                                Profile & Settings
+                                Profile & settings
                             </button>
                             <button
                                 onClick={() => {
@@ -136,7 +135,7 @@ const UserMenu: React.FC = () => {
                                 className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm text-gray-600 hover:bg-olive-50 rounded-xl transition-colors"
                             >
                                 <Info className="w-4 h-4" />
-                                How We Curate
+                                How your stylist works
                             </button>
                             <button
                                 onClick={() => {
@@ -161,7 +160,7 @@ const UserMenu: React.FC = () => {
                         <div className="flex items-center justify-between p-5 border-b border-olive-100 flex-shrink-0">
                             <div className="flex items-center gap-2">
                                 <User className="w-5 h-5 text-primary" />
-                                <h3 className="text-lg font-bold text-primary">Profile & Settings</h3>
+                                <h3 className="text-lg font-bold text-primary">Profile & settings</h3>
                             </div>
                             <button
                                 onClick={() => setShowProfileModal(false)}
@@ -205,7 +204,7 @@ const UserMenu: React.FC = () => {
 
                                 {/* Display Name */}
                                 <div className="mb-3">
-                                    <label className="block text-sm font-semibold text-primary mb-1">Display Name</label>
+                                    <label className="block text-sm font-semibold text-primary mb-1">Name</label>
                                     <input
                                         type="text"
                                         defaultValue={user.displayName || ''}
@@ -238,7 +237,7 @@ const UserMenu: React.FC = () => {
                                             <option value="">Not specified</option>
                                             <option value="female">Female</option>
                                             <option value="male">Male</option>
-                                            <option value="non-binary">Non binary</option>
+                                            <option value="non-binary">Nonbinary</option>
                                         </select>
                                     </div>
                                     <div>
@@ -268,7 +267,7 @@ const UserMenu: React.FC = () => {
                                         </div>
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-semibold text-primary mb-1">Preferred Vibe</label>
+                                        <label className="block text-sm font-semibold text-primary mb-1">Favorite mood</label>
                                         <select
                                             value={preferredVibe}
                                             onChange={(e) => setPreferredVibe(e.target.value)}
@@ -281,7 +280,7 @@ const UserMenu: React.FC = () => {
                                         </select>
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-semibold text-primary mb-1">Weather City</label>
+                                        <label className="block text-sm font-semibold text-primary mb-1">Weather city</label>
                                         <select
                                             value={city}
                                             onChange={(e) => setCity(e.target.value)}
@@ -292,7 +291,7 @@ const UserMenu: React.FC = () => {
                                                 <option key={c} value={c}>{c}</option>
                                             ))}
                                         </select>
-                                        <p className="mt-1 text-[11px] text-olive-400">Used when location access is off. US cities only.</p>
+                                        <p className="mt-1 text-[11px] text-olive-400">For when location is off. US cities only.</p>
                                     </div>
                                 </div>
                             </section>
@@ -305,7 +304,7 @@ const UserMenu: React.FC = () => {
                                 onClick={handleSaveProfile}
                                 className="w-full py-3.5 bg-primary text-white font-bold rounded-xl active:scale-[0.98] transition-transform hover:bg-olive-900"
                             >
-                                Save Changes
+                                Save
                             </button>
                         </div>
                     </div>
@@ -319,7 +318,7 @@ const UserMenu: React.FC = () => {
                         <div className="flex items-center justify-between p-5 border-b border-olive-700">
                             <div className="flex items-center gap-2">
                                 <Info className="w-5 h-5 text-olive-300" />
-                                <h3 className="text-lg font-bold">How We Curate Your Outfits</h3>
+                                <h3 className="text-lg font-bold">How your stylist picks</h3>
                             </div>
                             <button
                                 onClick={() => setShowCurateModal(false)}
@@ -329,16 +328,10 @@ const UserMenu: React.FC = () => {
                             </button>
                         </div>
                         <div className="p-5 space-y-4">
-                            <ExpandableText
-                                text="Our AI considers three key factors when suggesting outfits. Current weather conditions keep you comfortable, how often you have worn each item promotes variety, and your selected mood matches the vibe you are going for."
-                                textClassName="text-sm leading-relaxed text-olive-200"
-                                collapsedClassName="line-clamp-3"
-                                minCharsForToggle={120}
-                                buttonClassName="mt-1 text-xs font-semibold text-olive-300 hover:underline"
-                            />
+                            <p className="text-sm leading-relaxed text-olive-200">Three things guide every look. The weather, so you stay comfy. How often you wear each piece, so nothing gets forgotten. And your mood, so it always feels like you.</p>
                             <div className="flex items-center gap-4 text-olive-300 text-xs font-medium">
                                 <span className="flex items-center gap-1.5"><Cloud className="w-3.5 h-3.5" /> Weather</span>
-                                <span className="flex items-center gap-1.5"><Activity className="w-3.5 h-3.5" /> Frequency</span>
+                                <span className="flex items-center gap-1.5"><Activity className="w-3.5 h-3.5" /> Rotation</span>
                                 <span className="flex items-center gap-1.5"><Heart className="w-3.5 h-3.5" /> Mood</span>
                             </div>
                         </div>

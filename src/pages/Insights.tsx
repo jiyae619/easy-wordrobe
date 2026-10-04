@@ -5,6 +5,8 @@ import { Lightbulb, Sparkles, Loader2 } from 'lucide-react';
 import { WeeklyOutfitTimeline } from '../components/insights/WeeklyOutfitTimeline';
 import { OutfitHistory } from '../components/insights/OutfitHistory';
 import { PageHeader } from '../components/common/PageHeader';
+import { forgottenSubtitle, goToSubtitle } from '../copy/voice';
+import { getCurrentSeason } from '../services/agents/agentOutputGuards';
 
 const Insights: React.FC = () => {
     const { clothes, insights, fetchInsights, isLoading, addTryItItem, removeTryItItem, tryItItemIds } = useWardrobe();
@@ -86,7 +88,7 @@ const Insights: React.FC = () => {
                 <section>
                     <div className="mb-4">
                         <h2 className="font-display text-xl font-extrabold text-ink">Forgotten favorites</h2>
-                        <span className="text-xs text-ink/50 font-medium">Unworn for 3 weeks. Give one a turn?</span>
+                        <span className="text-xs text-ink/50 font-medium">{forgottenSubtitle(nextWeekItems.length, getCurrentSeason())}</span>
                     </div>
 
                     {/* Behavioral Nudge */}
@@ -152,7 +154,7 @@ const Insights: React.FC = () => {
             <section>
                 <div className="mb-4">
                     <h2 className="font-display text-xl font-extrabold text-ink">Your go-tos</h2>
-                    <span className="text-xs text-ink/50 font-medium">Most worn in the last 3 weeks</span>
+                    <span className="text-xs text-ink/50 font-medium">{goToSubtitle(topWorn[0]?.item, topWorn[0]?.count ?? 0)}</span>
                 </div>
 
                 <div className="space-y-3">

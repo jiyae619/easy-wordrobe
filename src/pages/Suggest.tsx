@@ -15,11 +15,12 @@ import { useTodayWeather } from '../hooks/useTodayWeather';
 import { useStylistLooks } from '../hooks/useStylistLooks';
 import { usePendingWear } from '../hooks/usePendingWear';
 import { MoodChips } from '../components/common/MoodChips';
+import { picksDoneLine, stylistLoadingLine, wearSavedLine } from '../copy/voice';
 import { PageHeader } from '../components/common/PageHeader';
 import { WearToast } from '../components/common/WearToast';
 import { MirrorCard } from '../components/picks/MirrorCard';
 import { SwipeDeck, type SwipeDeckHandle, type SwipeDir } from '../components/picks/SwipeDeck';
-import { buildReelOptions, itemsFromSlots, slotsFromItems, type OutfitSlots, type SlotId } from '../utils/outfitSlots';
+import { daysIdle, buildReelOptions, itemsFromSlots, slotsFromItems, type OutfitSlots, type SlotId } from '../utils/outfitSlots';
 
 interface DeckState {
     key: string;
@@ -62,6 +63,12 @@ const Suggest: React.FC = () => {
 
     const options = useMemo(() => buildReelOptions(clothes), [clothes]);
     const leastWornIds = useMemo(() => computeSeasonalLeastWornIds(clothes, outfits), [clothes, outfits]);
+    const dustyDays = useMemo(() => {
+        const byId = new Map(clothes.map((c) => [c.id, c]));
+        const ids = computeSeasonalLeastWornIds(clothes, outfits, clothes.length);
+        return new Map(ids.map((id) => [id, byId.get(id) ? daysIdle(byId.get(id)!) : 0] as const));
+    }, [clothes, outfits]);
+    const [savedText, setSavedText] = useState<string | undefined>();
 
     const effective = (look: OutfitSuggestion): OutfitSuggestion => {
         const o = overrides[look.id];
@@ -101,6 +108,7 @@ const Suggest: React.FC = () => {
         }
         let worn = wornLook;
         if (dir === 'right' && weather) {
+            setSavedText(wearSavedLine({ items, weather, moodId: mood.id, dustyDays }));
             wear(ids, mood.id, weather);
             worn = lookIndex;
         }
@@ -161,7 +169,7 @@ const Suggest: React.FC = () => {
                     <div className="h-[80%] aspect-[0.8] rounded-t-[999px] rounded-b-2xl skeleton" />
                 </div>
                 <p className="flex items-center justify-center gap-2 text-sm font-semibold text-ink/60">
-                    <Loader2 className="w-4 h-4 animate-spin" /> Your stylist is picking looks…
+                    <Loader2 className="w-4 h-4 animate-spin" /> {stylistLoadingLine(mood.name, weather)}
                 </p>
             </div>
         );
@@ -182,9 +190,7 @@ const Suggest: React.FC = () => {
                     {looks.length === 0 ? 'No looks for this mood yet' : 'That’s all three!'}
                 </h2>
                 <p className="text-sm text-ink/70">
-                    {wornLook != null
-                        ? `Look ${wornLook + 1} it is. Enjoy your day.`
-                        : 'Every skip helps your stylist learn your taste.'}
+                    {picksDoneLine(wornLook, weather, mood.id)}
                 </p>
                 <button type="button" onClick={() => void showDifferent()} disabled={isLoading} className="h-12 px-5 rounded-full bg-ink text-paper text-sm font-bold inline-flex items-center gap-2 disabled:opacity-60">
                     {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />} Show me more
@@ -231,7 +237,7 @@ const Suggest: React.FC = () => {
                 </p>
             )}
 
-            <WearToast isPending={isPending} logged={logged} onUndo={() => { undo(); updateDeck({ wornLook: null }); }} />
+            <WearToast isPending={isPending} logged={logged} savedText={savedText} onUndo={() => { undo(); updateDeck({ wornLook: null }); }} />
         </div>
     );
 };

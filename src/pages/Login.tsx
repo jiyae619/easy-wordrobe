@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Shirt, Mail, Lock, User, Eye, EyeOff, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
+import { welcomeBackLine } from '../copy/voice';
 
 type AuthMode = 'signin' | 'signup' | 'reset';
 
@@ -71,21 +72,21 @@ const Login: React.FC = () => {
                         <div className="inline-flex items-center justify-center w-16 h-16 rounded-3xl bg-primary mb-4 shadow-lg">
                             <Shirt className="w-8 h-8 text-white" />
                         </div>
-                        <h1 className="text-2xl font-bold text-primary">Wardrobe AI</h1>
-                        <p className="text-sm text-gray-400 mt-1">Your AI powered personal stylist</p>
+                        <h1 className="text-2xl font-bold text-primary">Stylemax</h1>
+                        <p className="text-sm text-gray-400 mt-1">Your closet, styled every day.</p>
                     </div>
 
                     {/* Title for current mode */}
                     <div className="mb-6 animate-fade-in-up" style={{ animationDelay: '100ms' }}>
                         <h2 className="text-xl font-semibold text-primary">
-                            {mode === 'signin' && 'Welcome back'}
-                            {mode === 'signup' && 'Create account'}
+                            {mode === 'signin' && welcomeBackLine()}
+                            {mode === 'signup' && 'Join Stylemax'}
                             {mode === 'reset' && 'Reset password'}
                         </h2>
                         <p className="text-sm text-gray-400 mt-0.5">
-                            {mode === 'signin' && 'Sign in to access your wardrobe'}
-                            {mode === 'signup' && 'Start organizing your closet'}
-                            {mode === 'reset' && 'We\'ll send you a reset link'}
+                            {mode === 'signin' && 'Your closet missed you.'}
+                            {mode === 'signup' && 'Let’s get your closet in order.'}
+                            {mode === 'reset' && 'We’ll email you a reset link.'}
                         </p>
                     </div>
 
@@ -101,7 +102,7 @@ const Login: React.FC = () => {
                     {resetSent && (
                         <div role="status" aria-live="polite" className="flex items-start gap-2 bg-green-50 border border-green-200 rounded-xl px-4 py-3 mb-4 animate-scale-in">
                             <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
-                            <p className="text-sm text-green-600">Password reset email sent! Check your inbox.</p>
+                            <p className="text-sm text-green-600">Check your inbox for the reset link.</p>
                         </div>
                     )}
 
@@ -189,7 +190,7 @@ const Login: React.FC = () => {
                             ) : (
                                 <>
                                     {mode === 'signin' && 'Sign in'}
-                                    {mode === 'signup' && 'Create account'}
+                                    {mode === 'signup' && 'Join Stylemax'}
                                     {mode === 'reset' && 'Send reset link'}
                                 </>
                             )}
@@ -255,7 +256,7 @@ const Login: React.FC = () => {
 
                 {/* Bottom branding */}
                 <div className="text-center py-4 text-xs text-gray-300">
-                    Powered by AI · Made with ♥
+                    Made with ♥ and a little AI
                 </div>
             </div>
         </div>

@@ -7,6 +7,7 @@ import { ItemDetailModal } from '../components/wardrobe/ItemDetailModal';
 import { GarmentImage } from '../components/common/GarmentImage';
 import { PageHeader } from '../components/common/PageHeader';
 import { useShortScreen } from '../hooks/useShortScreen';
+import { dustyLine, wornLine } from '../copy/voice';
 import { ClothingCategory, type ClothingItem } from '../types';
 import { computeSeasonalLeastWornIds } from '../services/agents/agentOutputGuards';
 import { daysIdle, lightness } from '../utils/outfitSlots';
@@ -192,9 +193,9 @@ const Wardrobe: React.FC = () => {
                                 <p className="font-display text-[20px] font-extrabold leading-tight text-ink">{focused.color} {focused.subcategory}</p>
                                 <p className="text-xs mt-1 text-ink/60 flex items-center gap-1.5">
                                     {dustyDays.has(focused.id) ? (
-                                        <><span className="px-1.5 h-[18px] rounded-full bg-ink text-lime text-[10px] font-extrabold inline-flex items-center">DUSTY</span>resting for {dustyDays.get(focused.id)} days</>
+                                        <><span className="flex-none px-1.5 h-[18px] rounded-full bg-ink text-lime text-[10px] font-extrabold inline-flex items-center">DUSTY</span>{dustyLine(focused, dustyDays.get(focused.id) ?? 21)}</>
                                     ) : (
-                                        `Worn ${focused.wearFrequency}× · ${focused.lastWorn ? `last worn ${daysIdle(focused)} days ago` : 'not worn yet'}`
+                                        wornLine(focused)
                                     )}
                                 </p>
                             </div>

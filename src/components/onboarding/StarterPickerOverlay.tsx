@@ -6,6 +6,7 @@ import { buildCatalogItem, buildStarterDeck, catalogImageUrl, type StarterDeckCa
 import { COLOR_PALETTE } from '../../data/colorPalette';
 import { recordPickerEvent } from '../../services/agents/agentTelemetry';
 import { ClothingCategory, type ClothingItem } from '../../types';
+import { starterQuestion } from '../../copy/voice';
 
 /**
  * Starter Closet Picker. Listens for the global `open-starter-picker` event and walks the user
@@ -126,7 +127,7 @@ export const StarterPickerOverlay: React.FC = () => {
             setPhase('done');
         } catch (err) {
             console.error('[StarterPicker] Failed to save picks:', err);
-            setSaveError('Could not save your items. Check your connection and try again.');
+            setSaveError('Couldn’t save your picks. Check your connection and try again.');
             setPhase('deck');
         }
     };
@@ -164,7 +165,7 @@ export const StarterPickerOverlay: React.FC = () => {
 
     const close = () => {
         if (phase === 'deck' && acceptedCount > 0) {
-            if (!window.confirm(`Discard the ${acceptedCount} item${acceptedCount === 1 ? '' : 's'} you picked?`)) return;
+            if (!window.confirm(`Leave without saving your ${acceptedCount} pick${acceptedCount === 1 ? '' : 's'}?`)) return;
         }
         if (hintTimer.current) window.clearTimeout(hintTimer.current);
         setPhase('idle');
@@ -188,7 +189,7 @@ export const StarterPickerOverlay: React.FC = () => {
 
                 {(phase === 'deck' || phase === 'saving') && deck.length > 0 && card && (
                     <div className="p-5 pb-6">
-                        <h3 className="text-lg font-bold text-primary pr-10">Do you have these items in your closet?</h3>
+                        <h3 className="text-lg font-bold text-primary pr-10">{starterQuestion(card.entry.label, card.entry.category)}</h3>
 
                         {/* Category progress bar — one segment per category group */}
                         <div className="mt-4 mb-1 flex gap-1.5">
@@ -239,7 +240,7 @@ export const StarterPickerOverlay: React.FC = () => {
                                 <div className="relative px-2 pt-1 flex items-center">
                                     {showDotHint && (
                                         <div className="absolute -top-9 left-3 z-10 px-3 py-1.5 bg-primary text-white text-[11px] font-medium rounded-lg shadow-md animate-fade-in-up">
-                                            Each color you pick becomes its own item
+                                            Each color you pick becomes its own piece
                                             <div className="absolute -bottom-1 left-6 w-2 h-2 bg-primary rotate-45" />
                                         </div>
                                     )}
@@ -267,14 +268,14 @@ export const StarterPickerOverlay: React.FC = () => {
                                         disabled={phase === 'saving'}
                                         className="flex-1 py-3 rounded-xl bg-olive-100 text-olive-500 text-sm font-bold hover:bg-olive-200 transition-colors active:scale-[0.97] disabled:opacity-50"
                                     >
-                                        Don't have it
+                                        Nope
                                     </button>
                                     <button
                                         onClick={() => answer(true)}
                                         disabled={selected.size === 0 || phase === 'saving'}
                                         className="flex-1 py-3 rounded-xl bg-primary text-white text-sm font-bold hover:bg-olive-700 transition-colors active:scale-[0.97] disabled:bg-olive-200"
                                     >
-                                        {selected.size > 1 ? `I have these (${selected.size})` : 'I have this'}
+                                        {selected.size > 1 ? `Got these (${selected.size})` : 'Got it'}
                                     </button>
                                 </div>
                             </div>
@@ -311,7 +312,7 @@ export const StarterPickerOverlay: React.FC = () => {
                     <div className="p-8 text-center">
                         <CheckCircle2 className="w-10 h-10 text-secondary mx-auto mb-3" />
                         <h3 className="text-lg font-bold text-primary mb-1">
-                            {acceptedCount > 0 ? `Added ${acceptedCount} item${acceptedCount === 1 ? '' : 's'} to your closet` : 'No items added'}
+                            {acceptedCount > 0 ? `${acceptedCount} piece${acceptedCount === 1 ? '' : 's'} added to your closet!` : 'Nothing added this time'}
                         </h3>
                         <p className="text-sm text-olive-500 mb-5">
                             {acceptedCount > 0 ? 'Your basics are in. Let’s put them to work.' : 'No problem. You can scan your own pieces anytime.'}
@@ -330,7 +331,7 @@ export const StarterPickerOverlay: React.FC = () => {
                                 acceptedCount > 0 ? 'mt-2 text-secondary hover:bg-olive-50' : 'bg-primary text-white hover:bg-olive-700'
                             }`}
                         >
-                            {acceptedCount > 0 ? 'Back to home' : 'Done'}
+                            {acceptedCount > 0 ? 'Back to Today' : 'Done'}
                         </button>
                     </div>
                 )}

@@ -3,12 +3,11 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { Cloud, CloudRain, Sun, Wind, Dices, ChevronDown } from 'lucide-react';
 import { useWardrobe } from '../context/WardrobeContext';
-import { ClothingCategory, type OutfitSuggestion } from '../types';
+import { ClothingCategory } from '../types';
 import {
     computeSeasonalLeastWornIds,
     computeWearScore,
     computeWeatherMatch,
-    describeOutfitReason,
     getWardrobeCompleteness,
     getWardrobeReadiness,
 } from '../services/agents/agentOutputGuards';
@@ -37,6 +36,7 @@ import {
 } from '../utils/outfitSlots';
 import { haptic } from '../utils/motion';
 import { useShortScreen } from '../hooks/useShortScreen';
+import { mixNote, stylistLoadingLine, wearSavedLine } from '../copy/voice';
 
 const REEL: Record<SlotId, { label: string; none: string; size: number }> = {
     layer: { label: 'Layer', none: 'No layer', size: 80 },
@@ -109,6 +109,7 @@ const Home: React.FC = () => {
     const [locks, setLocks] = useState<Set<SlotId>>(() => new Set(lockSlot ? [lockSlot] : []));
     const [spinTurns, setSpinTurns] = useState(0);
     const [showWeather, setShowWeather] = useState(false);
+    const [savedText, setSavedText] = useState<string | undefined>();
     const [reelVersion, setReelVersion] = useState(0);
     const initialized = useRef(Boolean(incoming));
 
@@ -223,11 +224,10 @@ const Home: React.FC = () => {
     } else if (matched) {
         why = matched.explanation || 'Your stylist picked this one for today.';
     } else if (looksLoading && !touched.current) {
-        why = 'Your stylist is picking looks…';
+        // The AI weather cheer is a nice thing to read while the stylist works.
+        why = cheer || stylistLoadingLine(mood.name, weather);
     } else {
-        const asSuggestion: OutfitSuggestion = { id: 'mix', items, mood, weatherMatch: weatherScore ?? 0, wearScore: rotationScore ?? 0, explanation: '' };
-        why = describeOutfitReason(asSuggestion, { tryItItemIds, leastWornItemIds: leastWornIds }, weather ?? undefined)
-            ?? 'Your own mix. Lock what you love, then spin the rest.';
+        why = mixNote({ items, weather, moodId: mood.id, tryItItemIds, dustyDays });
     }
     const badge = matched ? (matched.isFallback ? 'Quick pick' : 'AI pick') : 'Your mix';
 
@@ -368,7 +368,7 @@ const Home: React.FC = () => {
                     >
                         <button
                             type="button"
-                            onClick={() => { if (weather && valid) { touched.current = true; wear(items.map((i) => i.id), mood.id, weather); } }}
+                            onClick={() => { if (weather && valid) { touched.current = true; setSavedText(wearSavedLine({ items, weather, moodId: mood.id, dustyDays })); wear(items.map((i) => i.id), mood.id, weather); } }}
                             disabled={!weather || !valid || isPending}
                             className={`flex-1 ${compact ? 'h-12' : 'h-[56px]'} rounded-full bg-ink text-paper font-extrabold text-[15px] active:scale-[0.98] disabled:opacity-50`}
                         >
@@ -411,7 +411,7 @@ const Home: React.FC = () => {
 
             <StreakCard />
 
-            <WearToast isPending={isPending} logged={logged} onUndo={undo} />
+            <WearToast isPending={isPending} logged={logged} onUndo={undo} savedText={savedText} />
         </div>
     );
 };

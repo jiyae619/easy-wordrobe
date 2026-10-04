@@ -7,6 +7,7 @@ import { awsNovaService } from '../../services/awsNova';
 import { COLOR_PALETTE } from '../../data/colorPalette';
 import { isStockPhoto } from '../../data/starterCatalog';
 import { compressImage } from '../../utils/imageUtils';
+import { wornLine } from '../../copy/voice';
 
 interface ItemDetailModalProps {
     item: ClothingItem;
@@ -45,7 +46,7 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({ item, onClose 
     };
 
     const handleDelete = async () => {
-        if (window.confirm('Are you sure you want to delete this item?')) {
+        if (window.confirm('Remove this piece from your closet?')) {
             await deleteClothingItem(item.id);
             onClose();
         }
@@ -71,7 +72,7 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({ item, onClose 
             }
         } catch (error) {
             console.error('[ItemDetailModal] Photo replacement failed:', error);
-            alert('Could not replace the photo right now.');
+            alert('Couldn’t update the photo. Try again?');
         } finally {
             setIsReplacingPhoto(false);
         }
@@ -99,11 +100,11 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({ item, onClose 
                 : await toDataUrl(item.imageUrl);
             const result = await awsNovaService.analyzeClothingImage(imageBase64);
             if (!result.success) {
-                alert(result.message || 'Re-analysis failed. Please try again.');
+                alert(result.message || 'Couldn’t read this piece again. Try once more?');
                 return;
             }
             if (result.items.length === 0) {
-                alert('Re-analysis failed. Please try again.');
+                alert('Couldn’t read this piece again. Try once more?');
                 return;
             }
 
@@ -117,11 +118,11 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({ item, onClose 
                 aiTags: detected.aiTags?.length ? detected.aiTags : item.aiTags,
                 userNotes: detected.userNotes ?? item.userNotes ?? '',
             });
-            alert('Item updated from AI re-analysis.');
+            alert('Updated! Your stylist took a fresh look.');
             onClose();
         } catch (error) {
             console.error('[ItemDetailModal] Re-analysis failed:', error);
-            alert('Could not re-analyze this item right now.');
+            alert('Couldn’t take a fresh look right now.');
         } finally {
             setIsReanalyzing(false);
         }
@@ -201,7 +202,7 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({ item, onClose 
                                     <Hash className="w-4 h-4 text-secondary" />
                                 </div>
                                 <div>
-                                    <p className="text-[10px] font-bold text-olive-400 uppercase tracking-wider">Total Wears</p>
+                                    <p className="text-[10px] font-bold text-olive-400 uppercase tracking-wider">Times worn</p>
                                     <p className="text-lg font-bold text-primary">{item.wearFrequency}</p>
                                 </div>
                             </div>
@@ -210,18 +211,19 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({ item, onClose 
                                     <Calendar className="w-4 h-4 text-secondary" />
                                 </div>
                                 <div>
-                                    <p className="text-[10px] font-bold text-olive-400 uppercase tracking-wider">Last Worn</p>
-                                    <p className="text-sm font-bold text-primary truncate">
+                                    <p className="text-[10px] font-bold text-olive-400 uppercase tracking-wider">Last worn</p>
+                                    <p className="text-sm font-bold text-primary">
                                         {item.lastWorn
                                             ? (() => {
                                                 const days = differenceInDays(new Date(), new Date(item.lastWorn));
-                                                return days === 0 ? 'Today' : `${days}d ago`;
+                                                return days === 0 ? 'Today' : days === 1 ? 'Yesterday' : `${days} days ago`;
                                             })()
-                                            : 'Never'}
+                                            : 'Not yet'}
                                     </p>
                                 </div>
                             </div>
                         </div>
+                        <p className="-mt-2 text-sm font-semibold text-olive-600">{wornLine(item)}</p>
 
                         {/* Name (subcategory) — editable in case scan got it wrong */}
                         <div>
@@ -269,7 +271,7 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({ item, onClose 
                             </div>
                             {colorSheetOpen && (
                                 <div className="mt-3">
-                                    <p className="text-xs text-olive-400 mb-2">Pick the correct color:</p>
+                                    <p className="text-xs text-olive-400 mb-2">Pick the right color:</p>
                                     <div className="grid grid-cols-4 gap-2">
                                         {COLOR_PALETTE.map((c) => {
                                             const selected = displayColor.name === c.name;
@@ -292,10 +294,10 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({ item, onClose 
                         {item.subcategory.toLowerCase() === 'unknown' && (
                             <div className="rounded-xl border border-amber-300 bg-amber-50 p-3">
                                 <p className="text-xs font-bold uppercase tracking-wide text-amber-800 mb-2">
-                                    Needs attention
+                                    Needs a look
                                 </p>
                                 <p className="text-sm text-amber-900 mb-3">
-                                    This item could not be categorized before. Re-analyze it to recover better outfit suggestions.
+                                    We couldn’t sort this piece yet. A fresh look helps your outfits.
                                 </p>
                                 <button
                                     onClick={handleReanalyze}
@@ -303,7 +305,7 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({ item, onClose 
                                     className="inline-flex items-center gap-2 px-4 py-2.5 bg-amber-600 text-white rounded-lg text-sm font-semibold hover:bg-amber-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                                 >
                                     <Sparkles className="w-4 h-4" />
-                                    {isReanalyzing ? 'Re-analyzing...' : 'Re-analyze with AI'}
+                                    {isReanalyzing ? 'Taking a fresh look…' : 'Take a fresh look'}
                                 </button>
                             </div>
                         )}

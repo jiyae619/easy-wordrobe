@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { useWardrobe } from '../../context/WardrobeContext';
 import { Star } from 'lucide-react';
+import { streakLine } from '../../copy/voice';
 import { computeMonthlyRotation, computeWearStreak, getWardrobeReadiness } from '../../services/agents/agentOutputGuards';
 
 /**
@@ -20,20 +21,8 @@ export const StreakCard: React.FC = () => {
     const { current, loggedToday } = streak;
     const active = current > 0;
 
-    let headline: string;
-    let sub: string;
-    if (current > 0 && loggedToday) {
-        headline = `${current} day streak`;
-        sub = current === 1
-            ? "Styled today. See you tomorrow!"
-            : "On a roll! Same time tomorrow?";
-    } else if (current > 0) {
-        headline = `${current} day streak`;
-        sub = "Wear a look today to keep it going.";
-    } else {
-        headline = "Start a streak";
-        sub = "Wear a look today to start one.";
-    }
+    const headline = current > 0 ? `${current} day streak` : 'Start a streak';
+    const sub = streakLine(current, loggedToday);
 
     return (
         <section>

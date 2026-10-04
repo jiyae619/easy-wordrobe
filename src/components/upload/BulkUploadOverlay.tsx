@@ -122,9 +122,9 @@ export const BulkUploadOverlay: React.FC = () => {
                         {phase === 'processing' && (
                             <div className="p-8 text-center">
                                 <Loader2 className="w-8 h-8 text-secondary animate-spin mx-auto mb-4" />
-                                <h3 className="text-lg font-bold text-primary mb-1">Adding your wardrobe</h3>
+                                <h3 className="text-lg font-bold text-primary mb-1">Hanging up your pieces</h3>
                                 <p className="text-sm text-olive-500">
-                                    Analyzing photo {Math.min(done + 1, total)} of {total}…
+                                    Reading photo {Math.min(done + 1, total)} of {total}…
                                 </p>
                                 <div className="h-2 rounded-full bg-olive-100 overflow-hidden mt-4">
                                     <div
@@ -140,10 +140,10 @@ export const BulkUploadOverlay: React.FC = () => {
                             <div className="p-6 text-center">
                                 <CheckCircle2 className="w-10 h-10 text-secondary mx-auto mb-3" />
                                 <h3 className="text-lg font-bold text-primary mb-1">
-                                    Added {summary.added} item{summary.added === 1 ? '' : 's'}
+                                    {summary.added === 0 ? 'Nothing new this time' : `${summary.added} new piece${summary.added === 1 ? '' : 's'}!`}
                                 </h3>
                                 <p className="text-sm text-olive-500 mb-2">
-                                    from {summary.photos} photo{summary.photos === 1 ? '' : 's'}.
+                                    From {summary.photos} photo{summary.photos === 1 ? '' : 's'}. Your closet just grew.
                                 </p>
                                 {summary.flagged > 0 && (
                                     <p className="text-xs text-amber-700 mb-1">
@@ -152,11 +152,11 @@ export const BulkUploadOverlay: React.FC = () => {
                                 )}
                                 {summary.restricted > 0 && (
                                     <p className="text-xs text-olive-400 mb-1 inline-flex items-center gap-1">
-                                        <ImageOff className="w-3 h-3" /> {summary.restricted} photo{summary.restricted === 1 ? '' : 's'} skipped.
+                                        <ImageOff className="w-3 h-3" /> {summary.restricted} photo{summary.restricted === 1 ? '' : 's'} skipped (we only read clothes).
                                     </p>
                                 )}
                                 {summary.truncated && (
-                                    <p className="text-xs text-olive-400 mb-1">Only the first {MAX_PHOTOS} photos were used.</p>
+                                    <p className="text-xs text-olive-400 mb-1">We read the first {MAX_PHOTOS} photos. Add the rest next round.</p>
                                 )}
                                 <button
                                     onClick={close}

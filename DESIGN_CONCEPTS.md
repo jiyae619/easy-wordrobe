@@ -46,3 +46,11 @@ All three keep the current agent contracts unchanged. Only the presentation laye
 ## References
 
 Whering "Dress Me" and Combyne "Swipe" (reel builders) · Whering daily swipe · Cladwell daily 3 + swap · Apple Wallet card stacks · Cover Flow in CSS (scroll-driven `rotateY`) · Zara finger-tracked category swipe · GOAT AR / `<model-viewer>` poster-first 3D · View Transitions API for item → detail morphs. The hanger-rail pattern exists only as concept shots, which makes it a chance to stand out.
+
+## Voice and copy
+
+Short, warm and a little playful. No slang, no em dashes.
+
+- **AI writes:** outfit notes (StylistAgent), the weather cheer (WeatherAgent, also shown on Today while the stylist works) and the Stats tips (BehavioralAgent). All of it passes through `sanitizeUiCopy`, which turns dashes into commas.
+- **Code writes everything else** from real context in `src/copy/voice.ts`: weather, mood, the pieces on screen (names, colours, categories), days unworn, wear counts, streaks, time of day and weekday. Each line comes from a small pool, picked with a seed of today's date plus the context: stable while you use the app, different tomorrow or when the context changes. No model call, so it is instant and free.
+- Lines never put an article or a singular verb on a piece name, because names can be plural ("Slim Jeans"). `src/copy/__tests__/voice.test.ts` checks this, plus no dashes, no unfilled placeholders and a 72 character cap.

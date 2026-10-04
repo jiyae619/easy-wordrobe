@@ -5,10 +5,12 @@ interface WearToastProps {
     isPending: boolean;
     logged: boolean;
     onUndo: () => void;
+    /** What to say once saved (contextual, from copy/voice). */
+    savedText?: string;
 }
 
 /** "Logging in 4s · Undo" while a wear is pending, then a short "logged" confirmation. */
-export const WearToast: React.FC<WearToastProps> = ({ isPending, logged, onUndo }) => {
+export const WearToast: React.FC<WearToastProps> = ({ isPending, logged, onUndo, savedText = 'Saved. Looking good!' }) => {
     if (!isPending && !logged) return null;
     return (
         <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 animate-fade-in-up" role="status" aria-live="polite">
@@ -27,7 +29,7 @@ export const WearToast: React.FC<WearToastProps> = ({ isPending, logged, onUndo 
                 ) : (
                     <>
                         <Check className="w-4 h-4 text-lime" />
-                        Saved. Looking good!
+                        {savedText}
                     </>
                 )}
             </div>
