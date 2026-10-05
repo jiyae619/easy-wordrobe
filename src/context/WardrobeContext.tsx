@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import {
     type ClothingItem,
     type ColorCorrection,
@@ -57,6 +57,11 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
 
     // --- State ---
     const [clothes, setClothes] = useState<ClothingItem[]>([]);
+    // The latest closet, updated the moment a piece is added or worn. Several wears logged in one go
+    // (a batch of photos from different days) must each see the previous one's counts, which the
+    // render-time `clothes` can't guarantee between awaits.
+    const clothesRef = useRef<ClothingItem[]>([]);
+    useEffect(() => { clothesRef.current = clothes; }, [clothes]);
     const [outfits, setOutfits] = useState<WearRecord[]>([]);
     const [bookmarkedItems, setBookmarkedItems] = useState<string[]>([]);
     const [tryItItemIds, setTryItItemIds] = useState<string[]>([]);
@@ -271,6 +276,7 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
             }
 
             // Update local state
+            clothesRef.current = [newItem, ...clothesRef.current];
             setClothes(prev => [newItem, ...prev]);
             return newItem.id;
         } catch (err) {
@@ -424,27 +430,23 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
 
             // Update worn items. lastWorn only moves forward: logging last Tuesday must not
             // overwrite a wear from yesterday.
-            // Only pieces already known here are counted: a piece created moments ago (e.g. found in
-            // an outfit photo) carries its own wear data, so Firestore and local state stay in step.
+            // Counts come from the live closet (clothesRef), so back-to-back logs build on each other
+            // and a piece added a moment ago is counted too.
             const laterOf = (prev: Date | null) => (prev && new Date(prev).getTime() > date.getTime() ? prev : date);
-            const known = outfitItems.filter((id) => clothes.some((c) => c.id === id));
-            for (const itemId of known) {
-                const item = clothes.find(c => c.id === itemId)!;
-                await firestoreService.updateClothingItem(uid, itemId, {
-                    wearFrequency: item.wearFrequency + 1,
-                    lastWorn: laterOf(item.lastWorn),
+            const wear = (item: ClothingItem): ClothingItem => ({ ...item, wearFrequency: item.wearFrequency + 1, lastWorn: laterOf(item.lastWorn) });
+            const updated = clothesRef.current.filter((c) => outfitItems.includes(c.id)).map(wear);
+            const byId = new Map(updated.map((c) => [c.id, c]));
+            clothesRef.current = clothesRef.current.map((c) => byId.get(c.id) ?? c);
+            for (const item of updated) {
+                await firestoreService.updateClothingItem(uid, item.id, {
+                    wearFrequency: item.wearFrequency,
+                    lastWorn: item.lastWorn,
                 });
             }
 
             setClothes(prev => prev.map(item => {
-                if (known.includes(item.id)) {
-                    return {
-                        ...item,
-                        wearFrequency: item.wearFrequency + 1,
-                        lastWorn: laterOf(item.lastWorn),
-                    };
-                }
-                return item;
+                const next = byId.get(item.id);
+                return next ? { ...item, wearFrequency: next.wearFrequency, lastWorn: next.lastWorn } : item;
             }));
         } catch (err) {
             console.error('[Wardrobe] Failed to log outfit:', err);
@@ -464,7 +466,7 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
             }
         }
         return true;
-    }, [uid, clothes, outfits, tryItItemIds]);
+    }, [uid, outfits, tryItItemIds]);
 
     const toggleOutfitFavorite = useCallback(async (id: string) => {
         if (!uid) return;

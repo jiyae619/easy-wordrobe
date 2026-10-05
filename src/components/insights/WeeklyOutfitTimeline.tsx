@@ -31,8 +31,9 @@ export const WeeklyOutfitTimeline: React.FC = () => {
     const [weekOffset, setWeekOffset] = useState(0);
     const [pickKey, setPickKey] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
-    const [photoLog, setPhotoLog] = useState<{ files: File[]; day: Date; isToday: boolean } | null>(null);
+    const [photoLog, setPhotoLog] = useState<{ files: File[]; day: Date | null } | null>(null);
     const photoInput = useRef<HTMLInputElement>(null);
+    const batchInput = useRef<HTMLInputElement>(null);
 
     const today = startOfDay(new Date());
     const thisWeek = startOfWeek(today, { weekStartsOn: 1 });
@@ -115,9 +116,28 @@ export const WeeklyOutfitTimeline: React.FC = () => {
 
     return (
         <section>
-            <div className="flex items-baseline justify-between mb-3">
+            <div className="flex items-center justify-between mb-3">
                 <h2 className="font-display text-xl font-extrabold text-ink">{weekLabel}</h2>
-                <span className="text-[11px] font-semibold text-ink/50">Swipe for past weeks</span>
+                {/* A batch of old outfit photos: each lands on the day it was taken */}
+                <button
+                    type="button"
+                    onClick={() => batchInput.current?.click()}
+                    className="h-8 px-3 rounded-full border-[1.5px] border-ink text-[11px] font-bold inline-flex items-center gap-1.5"
+                >
+                    <Camera className="w-3.5 h-3.5" /> From photos
+                </button>
+                <input
+                    ref={batchInput}
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => {
+                        const files = Array.from(e.target.files ?? []);
+                        e.target.value = '';
+                        if (files.length > 0) setPhotoLog({ files, day: null });
+                    }}
+                />
             </div>
             <div
                 ref={scroller}
@@ -156,6 +176,7 @@ export const WeeklyOutfitTimeline: React.FC = () => {
                     </div>
                 ))}
             </div>
+            <p className="mt-1.5 text-[11px] text-ink/50 text-center">Swipe for past weeks · tap a day to log it</p>
 
             {/* Day sheet: what was worn, and log a look for that day */}
             {openDay && day && (
@@ -225,7 +246,7 @@ export const WeeklyOutfitTimeline: React.FC = () => {
                                         Build it on the rails
                                     </button>
                                 </div>
-                                <p className="text-[11px] text-ink/50 text-center">Got an outfit photo from that day? We’ll spot the pieces.</p>
+                                <p className="text-[11px] text-ink/50 text-center">Got outfit photos? We’ll spot the pieces and the date.</p>
                                 <input
                                     ref={photoInput}
                                     type="file"
@@ -236,7 +257,7 @@ export const WeeklyOutfitTimeline: React.FC = () => {
                                         const files = Array.from(e.target.files ?? []);
                                         e.target.value = '';
                                         if (files.length === 0 || !openDay) return;
-                                        setPhotoLog({ files, day: openDay, isToday: Boolean(day.isToday) });
+                                        setPhotoLog({ files, day: openDay });
                                         closeDay();
                                     }}
                                 />
@@ -260,7 +281,7 @@ export const WeeklyOutfitTimeline: React.FC = () => {
             )}
 
             {photoLog && (
-                <OutfitPhotoLog files={photoLog.files} day={photoLog.day} isToday={photoLog.isToday} onClose={() => setPhotoLog(null)} />
+                <OutfitPhotoLog files={photoLog.files} fallbackDay={photoLog.day} onClose={() => setPhotoLog(null)} />
             )}
         </section>
     );

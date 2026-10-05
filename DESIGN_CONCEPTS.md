@@ -59,5 +59,5 @@ Short, warm and a little playful. No slang, no em dashes.
 
 - **Style it after a scan:** the finish screen offers a look built around the new piece, so the first minute ends with an outfit, not a list.
 - **First-week checklist** on Today: add 5 pieces, wear a first look, log 3 days. Each step says what it gives back.
-- **Log a forgotten day from photos:** pick that day's outfit photos; the AI spots each piece, matches it to the closet (or adds it as new), and the outfit is logged for that day.
+- **Log forgotten days from photos:** pick outfit photos (one day, or a batch from "From photos"). Each photo lands on the day it was taken (EXIF date, else the file date, else the day tapped; every day can be changed). The AI spots each piece, matches it to the closet or adds it as new (the same new piece across days is added once), and every day is logged.
 - **Weekly recap** on Stats: outfits logged, pieces brought back after 3+ weeks, streak, the colour worn most.

@@ -106,7 +106,8 @@ App.tsx (Layout wrapper with navigation)
 │   └── /insights → Insights = "Stats" (ProtectedRoute)
 │       ├── WeeklyRecap (outfits, pieces brought back, streak, top colour)
 │       ├── WeeklyOutfitTimeline (scrollable weeks; tap a day to log a forgotten outfit:
-│       │   a recent look, the rails, or OutfitPhotoLog from that day's photos)
+│       │   a recent look, the rails, or OutfitPhotoLog from photos; "From photos" takes a batch
+│       │   and puts each photo on the day it was taken, read from its EXIF date)
 │       ├── Forgotten favorites (least worn) · Style it
 │       ├── Your go-tos (2+ wears)
 │       └── OutfitHistory (browse past wears + one-tap re-wear)
