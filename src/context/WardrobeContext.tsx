@@ -424,19 +424,20 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
 
             // Update worn items. lastWorn only moves forward: logging last Tuesday must not
             // overwrite a wear from yesterday.
+            // Only pieces already known here are counted: a piece created moments ago (e.g. found in
+            // an outfit photo) carries its own wear data, so Firestore and local state stay in step.
             const laterOf = (prev: Date | null) => (prev && new Date(prev).getTime() > date.getTime() ? prev : date);
-            for (const itemId of outfitItems) {
-                const item = clothes.find(c => c.id === itemId);
-                if (item) {
-                    await firestoreService.updateClothingItem(uid, itemId, {
-                        wearFrequency: item.wearFrequency + 1,
-                        lastWorn: laterOf(item.lastWorn),
-                    });
-                }
+            const known = outfitItems.filter((id) => clothes.some((c) => c.id === id));
+            for (const itemId of known) {
+                const item = clothes.find(c => c.id === itemId)!;
+                await firestoreService.updateClothingItem(uid, itemId, {
+                    wearFrequency: item.wearFrequency + 1,
+                    lastWorn: laterOf(item.lastWorn),
+                });
             }
 
             setClothes(prev => prev.map(item => {
-                if (outfitItems.includes(item.id)) {
+                if (known.includes(item.id)) {
                     return {
                         ...item,
                         wearFrequency: item.wearFrequency + 1,

@@ -1,12 +1,13 @@
 import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { startOfWeek, addDays, addWeeks, isSameDay, isAfter, startOfDay, differenceInCalendarWeeks, format } from 'date-fns';
-import { Check, Plus, Shirt, X } from 'lucide-react';
+import { Camera, Check, Plus, Shirt, X } from 'lucide-react';
 import { useWardrobe } from '../../context/WardrobeContext';
 import type { ClothingItem, WearRecord } from '../../types';
 import { itemName } from '../../utils/itemName';
 import { outfitKey, loggedKeysOn } from '../../utils/wearLog';
 import type { TodayRouteState } from '../../pages/Today';
+import { OutfitPhotoLog } from './OutfitPhotoLog';
 
 const MIN_WEEKS = 4;
 const MAX_WEEKS = 26;
@@ -30,6 +31,8 @@ export const WeeklyOutfitTimeline: React.FC = () => {
     const [weekOffset, setWeekOffset] = useState(0);
     const [pickKey, setPickKey] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
+    const [photoLog, setPhotoLog] = useState<{ files: File[]; day: Date; isToday: boolean } | null>(null);
+    const photoInput = useRef<HTMLInputElement>(null);
 
     const today = startOfDay(new Date());
     const thisWeek = startOfWeek(today, { weekStartsOn: 1 });
@@ -206,13 +209,37 @@ export const WeeklyOutfitTimeline: React.FC = () => {
                                         </button>
                                     );
                                 })}
-                                <button
-                                    type="button"
-                                    onClick={buildOnRails}
-                                    className="w-full h-11 rounded-full border-[1.5px] border-dashed border-ink text-xs font-bold"
-                                >
-                                    {recentLooks.length > 0 ? 'Something else? Build it on the rails' : 'Build it on the rails'}
-                                </button>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => photoInput.current?.click()}
+                                        className="h-11 rounded-full bg-lime border-[1.5px] border-ink text-xs font-bold inline-flex items-center justify-center gap-1.5"
+                                    >
+                                        <Camera className="w-3.5 h-3.5" /> From a photo
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={buildOnRails}
+                                        className="h-11 rounded-full border-[1.5px] border-dashed border-ink text-xs font-bold"
+                                    >
+                                        Build it on the rails
+                                    </button>
+                                </div>
+                                <p className="text-[11px] text-ink/50 text-center">Got an outfit photo from that day? We’ll spot the pieces.</p>
+                                <input
+                                    ref={photoInput}
+                                    type="file"
+                                    accept="image/*"
+                                    multiple
+                                    className="hidden"
+                                    onChange={(e) => {
+                                        const files = Array.from(e.target.files ?? []);
+                                        e.target.value = '';
+                                        if (files.length === 0 || !openDay) return;
+                                        setPhotoLog({ files, day: openDay, isToday: Boolean(day.isToday) });
+                                        closeDay();
+                                    }}
+                                />
                             </div>
                         </div>
 
@@ -230,6 +257,10 @@ export const WeeklyOutfitTimeline: React.FC = () => {
                         )}
                     </div>
                 </div>
+            )}
+
+            {photoLog && (
+                <OutfitPhotoLog files={photoLog.files} day={photoLog.day} isToday={photoLog.isToday} onClose={() => setPhotoLog(null)} />
             )}
         </section>
     );

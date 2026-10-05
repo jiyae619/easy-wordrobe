@@ -221,14 +221,17 @@ export const BulkUploadOverlay: React.FC = () => {
                                                 />
                                                 <div className="flex items-center gap-1.5">
                                                     <span className="w-3 h-3 rounded-full border border-black/10 flex-none" style={{ backgroundColor: d.item.colorHex }} title={d.item.color} />
-                                                    <select
-                                                        value={d.item.category}
-                                                        onChange={(e) => update(d.key, (cur) => ({ item: { ...cur.item, category: e.target.value as ClothingCategory } }))}
-                                                        aria-label="Category"
-                                                        className="bg-transparent text-[11px] font-semibold text-ink/60 outline-none"
-                                                    >
-                                                        {CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
-                                                    </select>
+                                                    <span className="relative inline-flex items-center text-[11px] font-semibold text-ink/60">
+                                                        {CATEGORIES.find((c) => c.id === d.item.category)?.label ?? d.item.category} · <span className="ml-0.5 underline underline-offset-2">Change</span>
+                                                        <select
+                                                            value={d.item.category}
+                                                            onChange={(e) => update(d.key, (cur) => ({ item: { ...cur.item, category: e.target.value as ClothingCategory } }))}
+                                                            aria-label="Category"
+                                                            className="absolute inset-0 w-full opacity-0 cursor-pointer"
+                                                        >
+                                                            {CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+                                                        </select>
+                                                    </span>
                                                 </div>
                                             </div>
                                             <button
