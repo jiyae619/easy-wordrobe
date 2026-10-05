@@ -36,7 +36,7 @@ const Insights: React.FC = () => {
     }, [wardrobeKey]);
 
     const header = (
-        <PageHeader title="Stats" eyebrow="Your last 3 weeks in clothes" />
+        <PageHeader title="Style Log" eyebrow="What you wore, day by day" />
     );
     const loadingView = (
         <div className="space-y-6">
@@ -93,7 +93,7 @@ const Insights: React.FC = () => {
             {/* Least-worn pieces, with a placeholder until there is enough history */}
             {nextWeekItems.length === 0 && (
                 <section>
-                    <h2 className="font-display text-xl font-extrabold text-ink">Forgotten favorites</h2>
+                    <h2 className="font-display text-xl font-extrabold text-ink">Forgotten gems</h2>
                     <p className="text-xs text-ink/50 font-medium mt-1">
                         Pieces you haven’t worn in 3 weeks show up here, so nothing gets left behind.
                     </p>
@@ -104,7 +104,7 @@ const Insights: React.FC = () => {
             {nextWeekItems.length > 0 && (
                 <section>
                     <div className="mb-4">
-                        <h2 className="font-display text-xl font-extrabold text-ink">Forgotten favorites</h2>
+                        <h2 className="font-display text-xl font-extrabold text-ink">Forgotten gems</h2>
                         <span className="text-xs text-ink/50 font-medium">{forgottenSubtitle(nextWeekItems.length, getCurrentSeason())}</span>
                     </div>
 

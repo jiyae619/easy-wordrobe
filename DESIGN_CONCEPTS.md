@@ -6,7 +6,7 @@ Interactive prototypes (9 phone screens, all built with real catalog photos): **
 
 All three keep the current agent contracts unchanged. Only the presentation layer changes.
 
-> **Chosen direction (implemented):** B · Mix Reels as the structure, with A's hanger rails and A3's mirror inside B3's swipe stack. After a UX test run the tabs were simplified to three: **Today** (the stylist: 3 mirror cards to swipe; "Tweak" opens one hanger rail per outfit slot with lock + Spin) · **Closet** (bird's-eye view: every category on its own rail, stacked; tap a piece for Info, Wear more or Style it) · (+ Scan: several photos or several pieces per photo, one AI-filled review) · **Stats** (weekly recap, a scrollable wear calendar where a forgotten day can be logged, least and most worn).
+> **Chosen direction (implemented):** B · Mix Reels as the structure, with A's hanger rails and A3's mirror inside B3's swipe stack. After a UX test run the tabs were simplified to three: **Today** (the stylist: 3 mirror cards to swipe; "Tweak" opens one hanger rail per outfit slot with lock + Spin) · **Closet** (bird's-eye view: every category on its own rail, stacked; tap a piece for Info, Wear more or Style it) · (+ Scan: several photos or several pieces per photo, one AI-filled review) · **Style Log** (weekly recap, a scrollable wear calendar where a forgotten day can be logged, least and most worn) · **You** (account).
 
 | | A · The Walk-in | B · Mix Reels | C · Orbit |
 |---|---|---|---|
@@ -51,7 +51,7 @@ Whering "Dress Me" and Combyne "Swipe" (reel builders) · Whering daily swipe ·
 
 Short, warm and a little playful. No slang, no em dashes.
 
-- **AI writes:** outfit notes (StylistAgent), the weather cheer (WeatherAgent, also shown on Today while the stylist works) and the Stats tips (BehavioralAgent). All of it passes through `sanitizeUiCopy`, which turns dashes into commas.
+- **AI writes:** outfit notes (StylistAgent), the weather cheer (WeatherAgent, also shown on Today while the stylist works) and the Style Log tips (BehavioralAgent). All of it passes through `sanitizeUiCopy`, which turns dashes into commas.
 - **Code writes everything else** from real context in `src/copy/voice.ts`: weather, mood, the pieces on screen (names, colours, categories), days unworn, wear counts, streaks, time of day and weekday. Each line comes from a small pool, picked with a seed of today's date plus the context: stable while you use the app, different tomorrow or when the context changes. No model call, so it is instant and free.
 - Lines never put an article or a singular verb on a piece name, because names can be plural ("Slim Jeans"). `src/copy/__tests__/voice.test.ts` checks this, plus no dashes, no unfilled placeholders and a 72 character cap.
 
@@ -60,4 +60,4 @@ Short, warm and a little playful. No slang, no em dashes.
 - **Style it after a scan:** the finish screen offers a look built around the new piece, so the first minute ends with an outfit, not a list.
 - **First-week checklist** on Today: add 5 pieces, wear a first look, log 3 days. Each step says what it gives back.
 - **Log forgotten days from photos:** pick outfit photos (one day, or a batch from "From photos"). Each photo lands on the day it was taken (EXIF date, else the file date, else the day tapped; every day can be changed). The AI spots each piece, matches it to the closet or adds it as new (the same new piece across days is added once), and every day is logged.
-- **Weekly recap** on Stats: outfits logged, pieces brought back after 3+ weeks, streak, the colour worn most.
+- **Weekly recap** on Style Log: the days logged this week, the streak with a bar to the next milestone, and one forgotten gem shown as the piece itself (with Style it).

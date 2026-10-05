@@ -19,7 +19,7 @@ Stylemax uses **three specialized AI agents**, all powered by **Amazon Nova 2 Li
         ▼
 
 ┌───────────────────┐
-│  BehavioralAgent  │  ← Runs when Stats loads, and again after each logged wear
+│  BehavioralAgent  │  ← Runs when Style Log loads, and again after each logged wear
 │   temp: 0.85      │     21-day wear history → insights + nudges
 └───────────────────┘
         │
@@ -165,7 +165,7 @@ Items the user **repeatedly skips and has never worn** (3+ times, from `suggesti
 
 **File:** `src/services/agents/BehavioralAgent.ts`
 
-**Trigger:** When a user opens the Stats page, and again after each logged wear or closet change while it is open. The generated **nudge copy is cached in Firestore** (`/insights/latest`) keyed by a signature of season + wear state, so a repeat visit skips the Bedrock call unless the wear data changed or the cache is >24h old. The analytics (counts, most/least worn, weekly pattern) are always recomputed in code, so charts are never stale even on a cache hit.
+**Trigger:** When a user opens the Style Log page, and again after each logged wear or closet change while it is open. The generated **nudge copy is cached in Firestore** (`/insights/latest`) keyed by a signature of season + wear state, so a repeat visit skips the Bedrock call unless the wear data changed or the cache is >24h old. The analytics (counts, most/least worn, weekly pattern) are always recomputed in code, so charts are never stale even on a cache hit.
 
 **What it does:** Analyzes the user's 21-day (3-week) wear history against their full wardrobe composition, filtered to the current season. Nova identifies patterns — overused items, neglected items, color biases, day-of-week habits — and generates three personalized behavioral nudges alongside analytics data.
 
@@ -238,8 +238,8 @@ The tradeoff is latency — each Bedrock call adds 2–5 seconds. For intake (on
 ## Cross-Agent Data Flow
 
 ```text
-Stats page                                 Today
-──────────                                 ─────
+Style Log                                  Today
+─────────                                  ─────
 BehavioralAgent.generateInsights()
         │
         ├─→ insights.leastWornItems ──────→ behavioralContext.leastWornItemIds

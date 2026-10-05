@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ClothingCategory, Season, type ClothingItem, type WearRecord } from '../../types';
-import { computeWeeklyRecap } from '../weeklyRecap';
+import { computeWeeklyRecap, streakGoal } from '../weeklyRecap';
 import { loggedTodayKeys, outfitKey, wornOn, wornToday } from '../wearLog';
 import { itemName } from '../itemName';
 
@@ -63,7 +63,18 @@ describe('weeklyRecap', () => {
         const recap = computeWeeklyRecap([coat, tee, fresh], outfits, day(8));
         expect(recap.outfits).toBe(2);
         expect(recap.daysLogged).toBe(2);
-        expect(recap.rediscovered.map((i) => i.id)).toEqual(['coat']);
+        expect(recap.rediscovered.map((r) => r.item.id)).toEqual(['coat']);
+        expect(recap.rediscovered[0].idleDays).toBeGreaterThanOrEqual(21);
+        expect(recap.loggedDays).toEqual([false, true, true, false, false, false, false]);
         expect(recap.topColor?.name).toBe('White');
+    });
+});
+
+describe('streakGoal', () => {
+    it('aims at the next milestone', () => {
+        expect(streakGoal(0)).toMatchObject({ target: 3, left: 3, progress: 0 });
+        expect(streakGoal(4)).toMatchObject({ target: 7, name: 'a full week', left: 3 });
+        expect(streakGoal(7).target).toBe(14);
+        expect(streakGoal(120)).toMatchObject({ target: 200, left: 80 });
     });
 });

@@ -71,11 +71,6 @@ const Layout = () => {
             </div>
           )}
           <main className="px-4 py-6 pb-24 relative">
-            {!showScanner && (
-              <div className="absolute top-6 right-4 z-20">
-                <UserMenu />
-              </div>
-            )}
             <Routes>
               <Route path="/" element={<ProtectedRoute><Today /></ProtectedRoute>} />
               <Route path="/wardrobe" element={<ProtectedRoute><Wardrobe /></ProtectedRoute>} />
@@ -106,7 +101,9 @@ const Layout = () => {
                     <Plus className="w-6 h-6" />
                   </span>
                 </button>
-                <NavItem to="/insights" icon={BarChart2} label="Stats" active={isActive('/insights')} />
+                <NavItem to="/insights" icon={BarChart2} label="Style Log" active={isActive('/insights')} />
+                {/* Account: profile, settings, sign out (opens upward) */}
+                <UserMenu variant="nav" />
               </div>
             </div>
           </div>

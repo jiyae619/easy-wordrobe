@@ -45,7 +45,7 @@ export const FirstWeekChecklist: React.FC = () => {
         },
         {
             title: `Log ${DAYS_GOAL} days`,
-            unlock: 'Your Stats start to fill in.',
+            unlock: 'Your Style Log starts to fill in.',
             progress: Math.min(daysLogged, DAYS_GOAL),
             goal: DAYS_GOAL,
             action: <Link to="/insights" className="text-xs font-bold underline underline-offset-2">Log a past day</Link>,

@@ -1,11 +1,17 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useWardrobe } from '../../context/WardrobeContext';
 import { LogOut, User, Settings, X, Lock, Camera, Info, Cloud, Activity, Heart } from 'lucide-react';
 import { MOODS } from '../../data/moods';
 import { SUPPORTED_CITIES } from '../../services/weatherService';
 
-const UserMenu: React.FC = () => {
+interface UserMenuProps {
+    /** 'nav': the "You" slot in the bottom bar, opening upward. 'avatar': a round avatar button. */
+    variant?: 'avatar' | 'nav';
+}
+
+const UserMenu: React.FC<UserMenuProps> = ({ variant = 'avatar' }) => {
     const { user, logout } = useAuth();
     const { userSettings, updateUserSettings } = useWardrobe();
     const [isOpen, setIsOpen] = useState(false);
@@ -66,8 +72,23 @@ const UserMenu: React.FC = () => {
 
     return (
         <>
-            <div className="relative" ref={menuRef}>
-                {/* Avatar Button */}
+            <div className={variant === 'nav' ? 'relative w-full' : 'relative'} ref={menuRef}>
+                {variant === 'nav' ? (
+                    <button
+                        type="button"
+                        onClick={() => setIsOpen(!isOpen)}
+                        aria-expanded={isOpen}
+                        aria-label="You: profile and settings"
+                        className={`flex flex-col items-center justify-center gap-1 w-full py-2 text-[11px] transition-colors ${isOpen ? 'font-extrabold text-ink' : 'font-semibold text-ink/45 hover:text-ink'}`}
+                    >
+                        {user.photoURL ? (
+                            <img src={user.photoURL} alt="" className="w-6 h-6 rounded-full object-cover" referrerPolicy="no-referrer" />
+                        ) : (
+                            <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-extrabold ${isOpen ? 'bg-ink text-lime' : 'bg-ink/15 text-ink'}`}>{initials}</span>
+                        )}
+                        You
+                    </button>
+                ) : (
                 <button
                     onClick={() => setIsOpen(!isOpen)}
                     className="flex items-center justify-center w-9 h-9 rounded-full transition-all duration-200 hover:ring-2 hover:ring-lime focus:outline-none focus:ring-2 focus:ring-lime"
@@ -85,10 +106,11 @@ const UserMenu: React.FC = () => {
                         </div>
                     )}
                 </button>
+                )}
 
                 {/* Dropdown Menu */}
                 {isOpen && (
-                    <div className="absolute right-0 top-12 w-56 bg-paper rounded-2xl shadow-xl border-[1.5px] border-ink overflow-hidden animate-scale-in z-50">
+                    <div className={`absolute ${variant === 'nav' ? 'right-1 bottom-full mb-3' : 'right-0 top-12'} w-56 bg-paper rounded-2xl shadow-xl border-[1.5px] border-ink overflow-hidden animate-scale-in z-50`}>
                         {/* User Info */}
                         <div className="px-4 py-3 border-b border-ink/10">
                             <div className="flex items-center gap-3">
@@ -153,7 +175,8 @@ const UserMenu: React.FC = () => {
             </div>
 
             {/* Profile & Settings Modal */}
-            {showProfileModal && (
+            {/* Modals go to <body>: the nav bar's backdrop blur would otherwise trap fixed children */}
+            {showProfileModal && createPortal(
                 <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
                     <div className="w-full max-w-sm bg-paper rounded-[28px] border-[1.5px] border-ink shadow-xl overflow-hidden animate-scale-in max-h-[85vh] flex flex-col">
                         {/* Modal Header */}
@@ -308,11 +331,12 @@ const UserMenu: React.FC = () => {
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body,
             )}
 
             {/* How We Curate Modal */}
-            {showCurateModal && (
+            {showCurateModal && createPortal(
                 <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
                     <div className="w-full max-w-sm bg-ink text-paper rounded-[28px] border-[1.5px] border-lime shadow-xl overflow-hidden animate-scale-in">
                         <div className="flex items-center justify-between p-5 border-b border-paper/15">
@@ -336,7 +360,8 @@ const UserMenu: React.FC = () => {
                             </div>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body,
             )}
         </>
     );

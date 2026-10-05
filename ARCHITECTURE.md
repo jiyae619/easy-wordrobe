@@ -94,7 +94,7 @@ App.tsx (Layout wrapper with navigation)
 │   │   ├── Weather pill (useTodayWeather) + MoodChips (useMood)
 │   │   ├── LooksDeck: SwipeDeck of MirrorCard (3 AI looks: right wear · left skip · up tweak)
 │   │   ├── OutfitBuilder ("Tweak"): HangerReel ×4 (layer / top / bottom-or-dress / shoes) — lock + Spin;
-│   │   │   also logs a past day when opened from the Stats calendar
+│   │   │   also logs a past day when opened from the Style Log calendar
 │   │   └── FirstWeekChecklist (then closet-growth nudge) + StreakCard
 │   ├── /wardrobe → Wardrobe = "Closet" (ProtectedRoute) — bird's-eye view
 │   │   ├── ClosetRail ×5 (Layers / Tops / Bottoms / Dresses / Shoes), natively scrolling
@@ -103,12 +103,12 @@ App.tsx (Layout wrapper with navigation)
 │   │   "Wear more" toggle, "Add all", then "Style it" on the new piece
 │   ├── BulkUploadOverlay (global) — several gallery photos → one AI-filled review list → Add all
 │   ├── /suggest → redirects to / (Picks merged into Today)
-│   └── /insights → Insights = "Stats" (ProtectedRoute)
-│       ├── WeeklyRecap (outfits, pieces brought back, streak, top colour)
+│   └── /insights → Insights = "Style Log" (ProtectedRoute)
+│       ├── WeeklyRecap (days logged, streak toward the next milestone, a forgotten gem)
 │       ├── WeeklyOutfitTimeline (scrollable weeks; tap a day to log a forgotten outfit:
 │       │   a recent look, the rails, or OutfitPhotoLog from photos; "From photos" takes a batch
 │       │   and puts each photo on the day it was taken, read from its EXIF date)
-│       ├── Forgotten favorites (least worn) · Style it
+│       ├── Forgotten gems (least worn) · Style it
 │       ├── Your go-tos (2+ wears)
 │       └── OutfitHistory (browse past wears + one-tap re-wear)
 │
@@ -116,7 +116,8 @@ App.tsx (Layout wrapper with navigation)
     ├── Today
     ├── Closet
     ├── Scan (+) → opens CameraScannerOverlay
-    └── Stats
+    ├── Style Log
+    └── You (account menu: profile, settings, sign out)
 ```
 
 ---
