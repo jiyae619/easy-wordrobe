@@ -104,8 +104,7 @@ App.tsx (Layout wrapper with navigation)
 │   ├── BulkUploadOverlay (global) — several gallery photos → one AI-filled review list → Add all
 │   ├── /suggest → redirects to / (Picks merged into Today)
 │   └── /insights → Insights = "Style Log" (ProtectedRoute)
-│       ├── WeeklyRecap (days logged, streak toward the next milestone, a forgotten gem)
-│       ├── WeeklyOutfitTimeline (scrollable weeks; tap a day to log a forgotten outfit:
+│       ├── WeeklyOutfitTimeline (scrollable weeks + logging streak bar; tap a day to log a forgotten outfit:
 │       │   a recent look, the rails, or OutfitPhotoLog from photos; "From photos" takes a batch
 │       │   and puts each photo on the day it was taken, read from its EXIF date)
 │       ├── Forgotten gems (least worn) · Style it

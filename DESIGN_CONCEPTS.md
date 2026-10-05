@@ -6,7 +6,7 @@ Interactive prototypes (9 phone screens, all built with real catalog photos): **
 
 All three keep the current agent contracts unchanged. Only the presentation layer changes.
 
-> **Chosen direction (implemented):** B · Mix Reels as the structure, with A's hanger rails and A3's mirror inside B3's swipe stack. After a UX test run the tabs were simplified to three: **Today** (the stylist: 3 mirror cards to swipe; "Tweak" opens one hanger rail per outfit slot with lock + Spin) · **Closet** (bird's-eye view: every category on its own rail, stacked; tap a piece for Info, Wear more or Style it) · (+ Scan: several photos or several pieces per photo, one AI-filled review) · **Style Log** (weekly recap, a scrollable wear calendar where a forgotten day can be logged, least and most worn) · **You** (account).
+> **Chosen direction (implemented):** B · Mix Reels as the structure, with A's hanger rails and A3's mirror inside B3's swipe stack. After a UX test run the tabs were simplified to three: **Today** (the stylist: 3 mirror cards to swipe; "Tweak" opens one hanger rail per outfit slot with lock + Spin) · **Closet** (bird's-eye view: every category on its own rail, stacked; tap a piece for Info, Wear more or Style it) · (+ Scan: several photos or several pieces per photo, one AI-filled review) · **Style Log** (a scrollable wear calendar with the streak bar where a forgotten day can be logged, least and most worn) · **You** (account).
 
 | | A · The Walk-in | B · Mix Reels | C · Orbit |
 |---|---|---|---|
@@ -60,4 +60,4 @@ Short, warm and a little playful. No slang, no em dashes.
 - **Style it after a scan:** the finish screen offers a look built around the new piece, so the first minute ends with an outfit, not a list.
 - **First-week checklist** on Today: add 5 pieces, wear a first look, log 3 days. Each step says what it gives back.
 - **Log forgotten days from photos:** pick outfit photos (one day, or a batch from "From photos"). Each photo lands on the day it was taken (EXIF date, else the file date, else the day tapped; every day can be changed). The AI spots each piece, matches it to the closet or adds it as new (the same new piece across days is added once), and every day is logged.
-- **Weekly recap** on Style Log: the days logged this week, the streak with a bar to the next milestone, and one forgotten gem shown as the piece itself (with Style it).
+- **Streak bar** under the Style Log calendar: the logging streak with a bar to the next milestone (3 days, a week, two weeks, a month).

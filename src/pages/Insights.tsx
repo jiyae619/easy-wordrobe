@@ -11,7 +11,6 @@ import { forgottenSubtitle, goToSubtitle } from '../copy/voice';
 import { getCurrentSeason } from '../services/agents/agentOutputGuards';
 import { ItemDetailModal } from '../components/wardrobe/ItemDetailModal';
 import { itemName } from '../utils/itemName';
-import { WeeklyRecap } from '../components/insights/WeeklyRecap';
 import type { TodayRouteState } from './Today';
 
 /** A piece needs this many wears in the window to count as a go-to. */
@@ -84,8 +83,6 @@ const Insights: React.FC = () => {
         <div className="space-y-6 md:space-y-8">
 
             {header}
-
-            <WeeklyRecap />
 
             {/* Wear calendar: scroll back through weeks, log a forgotten day */}
             <WeeklyOutfitTimeline />

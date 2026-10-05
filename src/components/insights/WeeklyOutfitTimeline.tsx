@@ -1,11 +1,13 @@
 import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { startOfWeek, addDays, addWeeks, isSameDay, isAfter, startOfDay, differenceInCalendarWeeks, format } from 'date-fns';
-import { Camera, Check, Plus, Shirt, X } from 'lucide-react';
+import { Camera, Check, Flame, Plus, Shirt, X } from 'lucide-react';
 import { useWardrobe } from '../../context/WardrobeContext';
 import type { ClothingItem, WearRecord } from '../../types';
 import { itemName } from '../../utils/itemName';
 import { outfitKey, loggedKeysOn } from '../../utils/wearLog';
+import { streakGoal } from '../../utils/streakGoal';
+import { computeWearStreak } from '../../services/agents/agentOutputGuards';
 import type { TodayRouteState } from '../../pages/Today';
 import { OutfitPhotoLog } from './OutfitPhotoLog';
 
@@ -36,6 +38,8 @@ export const WeeklyOutfitTimeline: React.FC = () => {
     const batchInput = useRef<HTMLInputElement>(null);
 
     const today = startOfDay(new Date());
+    const streak = useMemo(() => computeWearStreak(outfits).current, [outfits]);
+    const goal = streakGoal(streak);
     const thisWeek = startOfWeek(today, { weekStartsOn: 1 });
     const byId = useMemo(() => new Map(clothes.map((c) => [c.id, c])), [clothes]);
 
@@ -177,6 +181,22 @@ export const WeeklyOutfitTimeline: React.FC = () => {
                 ))}
             </div>
             <p className="mt-1.5 text-[11px] text-ink/50 text-center">Swipe for past weeks · tap a day to log it</p>
+
+            {/* Logging streak, with a bar to the next milestone */}
+            <div className="mt-3 rounded-2xl bg-white border-[1.5px] border-ink px-3.5 py-3">
+                <div className="flex items-baseline justify-between gap-2">
+                    <p className="inline-flex items-center gap-1.5 text-sm font-extrabold text-ink">
+                        <Flame className={`w-4 h-4 ${streak > 0 ? 'fill-lime' : 'text-ink/40'}`} />
+                        {streak > 0 ? `${streak}-day streak` : 'No streak yet'}
+                    </p>
+                    <p className="text-[11px] font-semibold text-ink/55">
+                        {streak > 0 ? `${goal.left} more to ${goal.name}` : 'Log today to start one'}
+                    </p>
+                </div>
+                <div className="mt-2 h-2 rounded-full bg-ink/10 overflow-hidden" role="progressbar" aria-label="Streak" aria-valuemin={0} aria-valuemax={goal.target} aria-valuenow={streak}>
+                    <div className="h-full rounded-full bg-ink transition-[width] duration-500" style={{ width: `${Math.max(goal.progress * 100, streak > 0 ? 4 : 0)}%` }} />
+                </div>
+            </div>
 
             {/* Day sheet: what was worn, and log a look for that day */}
             {openDay && day && (
