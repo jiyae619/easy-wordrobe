@@ -19,17 +19,17 @@ Stylemax uses **three specialized AI agents**, all powered by **Amazon Nova 2 Li
         ▼
 
 ┌───────────────────┐
-│  BehavioralAgent  │  ← Runs independently when Insights page loads (cached per session)
+│  BehavioralAgent  │  ← Runs when Stats loads, and again after each logged wear
 │   temp: 0.85      │     21-day wear history → insights + nudges
 └───────────────────┘
         │
         ├── leastWornItemIds ──────────┐
         │                              │
-        │  User clicks "Will try"      │
+        │  User tags "Wear more"       │
         ├── tryItItemIds ──────────────┤
         │                              ▼
         │                    ┌───────────────────────┐
-        │                    │   StylistAgent         │  ← Runs on Suggest page
+        │                    │   StylistAgent         │  ← Runs on Today
         │                    │   temp: 0.75           │     Wardrobe + weather + mood
         │                    │                        │     + BehavioralContext → 3 outfits
         │                    └───────────────────────┘
@@ -91,7 +91,7 @@ Stylemax uses **three specialized AI agents**, all powered by **Amazon Nova 2 Li
 
 **File:** `src/services/agents/StylistAgent.ts`
 
-**Trigger:** When Today or Picks needs looks for the selected mood and today's weather. One batch is fetched per (wardrobe items, mood, weather) and shared by both pages through a session cache (`useStylistLooks`): Picks shows it as a swipe stack, and Today's **Spin** lands the hanger rails on it (respecting locked pieces), then falls back to code-assembled combinations once the batch is used up.
+**Trigger:** When Today needs looks for the selected mood and today's weather. One batch is fetched per (wardrobe items, mood, weather) and cached for the session (`useStylistLooks`): Today shows it as a swipe stack, and Tweak mode's **Spin** lands the hanger rails on it (respecting locked pieces), then falls back to code-assembled combinations once the batch is used up.
 
 **What it does:** Receives the user's entire wardrobe inventory (as a condensed JSON array), the current weather conditions, the selected mood, and a `BehavioralContext` from BehavioralAgent. Nova reasons about which combinations work together — considering color coordination, seasonal appropriateness, weather practicality, and wear-history priorities — and returns three distinct outfits with explanations.
 
@@ -110,7 +110,7 @@ behavioralContext?: BehavioralContext  (see below)
 ```typescript
 type BehavioralContext = {
     leastWornItemIds: string[];      // Items unworn for 3+ weeks in current season (computed in code)
-    tryItItemIds: string[];          // Items the user explicitly tapped "Will try" on Insights page
+    tryItItemIds: string[];          // Items the user tagged "Wear more" (scanner or Closet); cleared once worn
     deprioritizeItemIds?: string[];  // Items the user keeps skipping & has never worn — surfaced less
 };
 ```
@@ -133,7 +133,7 @@ These are merged into a `priorityIds` set and injected into the prompt as **BEHA
 
 **How it prioritizes items:**
 
-1. **"Try it" items** (highest) — user explicitly requested these from the Insights page
+1. **"Wear more" items** (highest) — user tagged these when scanning or in the Closet
 
 2. **Least-worn items** — BehavioralAgent flagged these as unworn for 3+ weeks in the current season
 
@@ -165,11 +165,11 @@ Items the user **repeatedly skips and has never worn** (3+ times, from `suggesti
 
 **File:** `src/services/agents/BehavioralAgent.ts`
 
-**Trigger:** When a user navigates to the Insights page. The generated **nudge copy is cached in Firestore** (`/insights/latest`) keyed by a signature of season + wear state, so a repeat visit skips the Bedrock call unless the wear data changed or the cache is >24h old. The analytics (counts, most/least worn, weekly pattern) are always recomputed in code, so charts are never stale even on a cache hit.
+**Trigger:** When a user opens the Stats page, and again after each logged wear or closet change while it is open. The generated **nudge copy is cached in Firestore** (`/insights/latest`) keyed by a signature of season + wear state, so a repeat visit skips the Bedrock call unless the wear data changed or the cache is >24h old. The analytics (counts, most/least worn, weekly pattern) are always recomputed in code, so charts are never stale even on a cache hit.
 
 **What it does:** Analyzes the user's 21-day (3-week) wear history against their full wardrobe composition, filtered to the current season. Nova identifies patterns — overused items, neglected items, color biases, day-of-week habits — and generates three personalized behavioral nudges alongside analytics data.
 
-**Its output also feeds into StylistAgent** — the `leastWornItems` list becomes `leastWornItemIds` in the `BehavioralContext`, and any items the user marks "Will try" become `tryItItemIds`. This creates a feedback loop where insights directly influence the next outfit suggestion.
+**Its output also feeds into StylistAgent** — the `leastWornItems` list becomes `leastWornItemIds` in the `BehavioralContext`, and any items the user tags "Wear more" become `tryItItemIds`. This creates a feedback loop where insights directly influence the next outfit suggestion.
 
 **Input:**
 
@@ -238,13 +238,13 @@ The tradeoff is latency — each Bedrock call adds 2–5 seconds. For intake (on
 ## Cross-Agent Data Flow
 
 ```text
-Insights Page                              Suggest Page
-─────────────                              ────────────
+Stats page                                 Today
+──────────                                 ─────
 BehavioralAgent.generateInsights()
         │
         ├─→ insights.leastWornItems ──────→ behavioralContext.leastWornItemIds
         │                                          │
-        │   User taps "Will try"                   │
+        │   User tags "Wear more" (scan / Closet)  │
         ├─→ tryItItemIds (saved to Firestore) ──→ behavioralContext.tryItItemIds
         │                                          │
         │                                          ▼

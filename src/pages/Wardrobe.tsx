@@ -1,8 +1,8 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, X, Plus, Sparkles, Info } from 'lucide-react';
+import { Search, X, Plus, Sparkles, Info, Star } from 'lucide-react';
 import { useWardrobe } from '../context/WardrobeContext';
-import { CardFan } from '../components/closet/CardFan';
+import { ClosetRail } from '../components/closet/ClosetRail';
 import { ItemDetailModal } from '../components/wardrobe/ItemDetailModal';
 import { GarmentImage } from '../components/common/GarmentImage';
 import { PageHeader } from '../components/common/PageHeader';
@@ -12,11 +12,13 @@ import { ClothingCategory, type ClothingItem } from '../types';
 import { computeSeasonalLeastWornIds } from '../services/agents/agentOutputGuards';
 import { daysIdle, lightness } from '../utils/outfitSlots';
 import { itemName } from '../utils/itemName';
+import type { TodayRouteState } from './Today';
 
-const DECKS: Array<{ category: ClothingCategory; label: string }> = [
+/** Rails top to bottom in the order an outfit is put together. */
+const RAILS: Array<{ category: ClothingCategory; label: string }> = [
+    { category: ClothingCategory.Outerwear, label: 'Layers' },
     { category: ClothingCategory.Tops, label: 'Tops' },
     { category: ClothingCategory.Bottoms, label: 'Bottoms' },
-    { category: ClothingCategory.Outerwear, label: 'Layers' },
     { category: ClothingCategory.Dresses, label: 'Dresses' },
     { category: ClothingCategory.Shoes, label: 'Shoes' },
 ];
@@ -30,28 +32,29 @@ const SORTS: Array<{ id: SortId; label: string }> = [
 ];
 
 /**
- * Closet — every category is a deck of cards. Tap a deck to deal it into a fanned hand, drag to
- * sweep through it, tap the raised card for its details, or "Style it" to build today's outfit
- * around it. Neglected pieces (in season, unworn 3+ weeks) carry a "days idle" badge.
+ * Closet — the bird's-eye view: every category hangs on its own rail, stacked, so the whole closet
+ * is visible at once. Tap a piece to see it, tag it "Wear more", or "Style it" (Today builds a look
+ * around it). Neglected pieces (in season, unworn 3+ weeks) carry a "days idle" badge.
  */
 const Wardrobe: React.FC = () => {
-    const { clothes, outfits, isLoading } = useWardrobe();
+    const { clothes, outfits, isLoading, tryItItemIds, addTryItItem, removeTryItItem } = useWardrobe();
     const navigate = useNavigate();
     const compact = useShortScreen();
-    const [deck, setDeck] = useState<ClothingCategory>(ClothingCategory.Tops);
     const [sort, setSort] = useState<SortId>('dusty');
     const [search, setSearch] = useState('');
     const [searchOpen, setSearchOpen] = useState(false);
-    const [focusedId, setFocusedId] = useState<string | null>(null);
-    const [selected, setSelected] = useState<ClothingItem | null>(null);
+    const [selectedId, setSelectedId] = useState<string | null>(null);
+    const [swayKey, setSwayKey] = useState(0);
+    const [detail, setDetail] = useState<ClothingItem | null>(null);
 
     const dustyDays = useMemo(() => {
         const byId = new Map(clothes.map((c) => [c.id, c]));
         const ids = computeSeasonalLeastWornIds(clothes, outfits, clothes.length);
         return new Map(ids.map((id) => [id, byId.get(id) ? daysIdle(byId.get(id)!) : 0] as const));
     }, [clothes, outfits]);
+    const wearMoreIds = useMemo(() => new Set(tryItItemIds), [tryItItemIds]);
 
-    const decks = useMemo(() => {
+    const rails = useMemo(() => {
         const q = search.trim().toLowerCase();
         const matches = (item: ClothingItem) => !q ||
             item.subcategory.toLowerCase().includes(q) ||
@@ -69,16 +72,22 @@ const Wardrobe: React.FC = () => {
                 default: return new Date(b.dateAdded).getTime() - new Date(a.dateAdded).getTime();
             }
         };
-        return DECKS.map((d) => ({ ...d, items: clothes.filter((c) => c.category === d.category && matches(c)).sort(order) }));
+        return RAILS.map((r) => ({ ...r, items: clothes.filter((c) => c.category === r.category && matches(c)).sort(order) }));
     }, [clothes, search, sort, dustyDays]);
 
-    // Show the chosen deck, or the first non-empty one when it has no cards (e.g. after a search).
-    const active = decks.find((d) => d.category === deck && d.items.length > 0) ?? decks.find((d) => d.items.length > 0) ?? null;
-    const focused = (active && focusedId ? active.items.find((i) => i.id === focusedId) : null) ?? active?.items[0] ?? null;
-    const dealKey = `${active?.category}|${sort}|${search.trim().toLowerCase()}`;
-
-    const onFocus = useCallback((item: ClothingItem) => setFocusedId(item.id), []);
-    const onOpen = useCallback((item: ClothingItem) => setSelected(item), []);
+    const selected = selectedId ? clothes.find((c) => c.id === selectedId) ?? null : null;
+    const searching = search.trim().length > 0;
+    const visibleRails = searching ? rails.filter((r) => r.items.length > 0) : rails;
+    const openScanner = () => window.dispatchEvent(new CustomEvent('open-scanner'));
+    const select = (item: ClothingItem) => {
+        setSelectedId(item.id);
+        setSwayKey((k) => k + 1);
+    };
+    const toggleWearMore = (item: ClothingItem) => {
+        if (wearMoreIds.has(item.id)) void removeTryItItem(item.id);
+        else void addTryItItem(item.id);
+    };
+    const styleIt = (item: ClothingItem) => navigate('/', { state: { lockItemId: item.id } satisfies TodayRouteState });
 
     const header = (
         <PageHeader
@@ -91,8 +100,7 @@ const Wardrobe: React.FC = () => {
         return (
             <div className="space-y-6">
                 {header}
-                <div className="skeleton h-[300px] w-full rounded-[28px]" />
-                <div className="flex justify-between">{[0, 1, 2, 3, 4].map((i) => <div key={i} className="skeleton w-14 h-20 rounded-xl" />)}</div>
+                {[0, 1, 2].map((i) => <div key={i} className="skeleton h-[96px] w-full rounded-[22px]" />)}
             </div>
         );
     }
@@ -102,13 +110,8 @@ const Wardrobe: React.FC = () => {
             <div className="space-y-6">
                 {header}
                 <div className="flex flex-col items-center text-center px-6 py-10 rounded-[28px] border-2 border-dashed border-ink/40">
-                    <div className="relative w-20 h-24 mb-5" aria-hidden="true">
-                        <span className="absolute inset-0 rounded-xl border-2 border-ink/40 -rotate-12" />
-                        <span className="absolute inset-0 rounded-xl border-2 border-ink/60 rotate-6" />
-                        <span className="absolute inset-0 rounded-xl border-2 border-dashed border-ink bg-paper" />
-                    </div>
-                    <h2 className="font-display text-xl font-extrabold text-ink">Nothing here yet</h2>
-                    <p className="text-sm text-ink/60 mt-1 mb-5">Deal yourself a closet. Pick a few basics or scan your own.</p>
+                    <h2 className="font-display text-xl font-extrabold text-ink">Nothing on the rails yet</h2>
+                    <p className="text-sm text-ink/60 mt-1 mb-5">Pick a few basics, or snap your closet. One photo can catch several pieces.</p>
                     <div className="flex flex-col w-full gap-2.5">
                         <button
                             type="button"
@@ -119,10 +122,10 @@ const Wardrobe: React.FC = () => {
                         </button>
                         <button
                             type="button"
-                            onClick={() => window.dispatchEvent(new CustomEvent('open-scanner'))}
+                            onClick={openScanner}
                             className="h-12 rounded-full border-[1.5px] border-ink text-ink font-bold text-sm active:scale-[0.97]"
                         >
-                            Scan my items
+                            Scan my clothes
                         </button>
                     </div>
                 </div>
@@ -130,8 +133,11 @@ const Wardrobe: React.FC = () => {
         );
     }
 
+    const sizeFor = (category: ClothingCategory) =>
+        category === ClothingCategory.Shoes ? (compact ? 52 : 60) : (compact ? 64 : 76);
+
     return (
-        <div className="space-y-4">
+        <div className="space-y-4 pb-2">
             {header}
 
             <div className="flex items-center gap-2 -mx-4 px-4 overflow-x-auto no-scrollbar [mask-image:linear-gradient(to_right,black_88%,transparent)]">
@@ -169,86 +175,78 @@ const Wardrobe: React.FC = () => {
                 />
             )}
 
-            {!active ? (
+            {visibleRails.length === 0 ? (
                 <p className="text-sm text-ink/60 text-center py-16">Nothing matches “{search}”.</p>
             ) : (
-                <>
-                    {/* The dealt hand */}
-                    <div className={`-mx-4 ${compact ? 'h-[236px]' : 'h-[372px]'}`}>
-                        <CardFan
-                            key={dealKey}
-                            label={active.label}
-                            items={active.items}
+                <div className="space-y-2">
+                    {visibleRails.map((r) => (
+                        <ClosetRail
+                            key={r.category}
+                            label={r.label}
+                            items={r.items}
                             dustyDays={dustyDays}
-                            onOpen={onOpen}
-                            onFocus={onFocus}
-                            onAdd={() => window.dispatchEvent(new CustomEvent('open-scanner'))}
-                            compact={compact}
+                            wearMoreIds={wearMoreIds}
+                            selectedId={selectedId}
+                            swayKey={swayKey}
+                            onSelect={select}
+                            onAdd={openScanner}
+                            shelf={r.category === ClothingCategory.Shoes}
+                            size={sizeFor(r.category)}
                         />
-                    </div>
+                    ))}
+                </div>
+            )}
 
-                    {/* Focused card */}
-                    {focused && (
-                        <div className="flex items-end gap-3">
+            {/* The picked piece: pinned above the nav so its actions stay in thumb reach */}
+            <div className="sticky z-30 -mx-4 px-4 pt-1 pb-2 bg-paper/95 backdrop-blur-sm" style={{ bottom: 'calc(72px + env(safe-area-inset-bottom, 0px))' }}>
+                {selected ? (
+                    <div className="rounded-[22px] bg-white border-[1.5px] border-ink p-3 animate-fade-in-up">
+                        <div className="flex items-center gap-3">
+                            <div className="flex-none w-11 h-11 rounded-xl overflow-hidden bg-paper">
+                                <GarmentImage item={selected} className="w-full h-full" />
+                            </div>
                             <div className="min-w-0 flex-1">
-                                <p className="font-display text-[20px] font-extrabold leading-tight text-ink">{itemName(focused)}</p>
-                                <p className="text-xs mt-1 text-ink/60 flex items-center gap-1.5">
-                                    {dustyDays.has(focused.id) ? (
-                                        <><span className="flex-none px-1.5 h-[18px] rounded-full bg-ink text-lime text-[10px] font-extrabold inline-flex items-center">DUSTY</span>{dustyLine(focused, dustyDays.get(focused.id) ?? 21)}</>
-                                    ) : (
-                                        wornLine(focused)
-                                    )}
+                                <p className="text-sm font-extrabold leading-tight text-ink truncate">{itemName(selected)}</p>
+                                <p className="text-xs text-ink/60 truncate">
+                                    {dustyDays.has(selected.id) ? dustyLine(selected, dustyDays.get(selected.id) ?? 21) : wornLine(selected)}
                                 </p>
                             </div>
+                            <button type="button" onClick={() => setSelectedId(null)} aria-label="Close" className="flex-none w-8 h-8 rounded-full text-ink/50 flex items-center justify-center">
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+                        <div className="flex gap-2 mt-2.5">
                             <button
                                 type="button"
-                                onClick={() => setSelected(focused)}
-                                aria-label={`Details for ${itemName(focused)}`}
-                                className="flex-none w-11 h-11 rounded-full border-[1.5px] border-ink text-ink flex items-center justify-center"
+                                onClick={() => setDetail(selected)}
+                                aria-label={`Details for ${itemName(selected)}`}
+                                className="flex-none w-10 h-10 rounded-full border-[1.5px] border-ink flex items-center justify-center"
                             >
-                                <Info className="w-[18px] h-[18px]" />
+                                <Info className="w-4 h-4" />
                             </button>
                             <button
                                 type="button"
-                                onClick={() => navigate('/', { state: { lockItemId: focused.id } })}
-                                className="flex-none h-11 px-4 rounded-full bg-ink text-paper text-xs font-bold inline-flex items-center gap-1.5"
+                                onClick={() => toggleWearMore(selected)}
+                                aria-pressed={wearMoreIds.has(selected.id)}
+                                className={`flex-1 h-10 rounded-full border-[1.5px] border-ink text-xs font-bold inline-flex items-center justify-center gap-1.5 ${wearMoreIds.has(selected.id) ? 'bg-lime' : ''}`}
+                            >
+                                <Star className={`w-3.5 h-3.5 ${wearMoreIds.has(selected.id) ? 'fill-ink' : ''}`} /> Wear more
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => styleIt(selected)}
+                                className="flex-1 h-10 rounded-full bg-ink text-paper text-xs font-bold inline-flex items-center justify-center gap-1.5"
                             >
                                 <Sparkles className="w-3.5 h-3.5" /> Style it
                             </button>
                         </div>
-                    )}
-                </>
-            )}
-
-            {/* Deck piles */}
-            <div className="flex justify-between items-end pt-1" role="tablist" aria-label="Decks">
-                {decks.map((d) => {
-                    const on = active?.category === d.category;
-                    const top = d.items[0];
-                    return (
-                        <button
-                            key={d.category}
-                            type="button"
-                            role="tab"
-                            aria-selected={on}
-                            disabled={d.items.length === 0}
-                            onClick={() => { setDeck(d.category); setFocusedId(null); }}
-                            aria-label={`${d.label} deck, ${d.items.length} cards`}
-                            className={`relative w-[64px] ${compact ? 'h-[104px]' : 'h-[118px]'} p-0 border-0 bg-transparent text-ink disabled:opacity-35`}
-                        >
-                            <span className={`absolute ${compact ? 'left-2 w-12 h-[58px]' : 'left-1 w-14 h-[72px]'} rounded-xl border-[1.5px] border-ink -rotate-[9deg] transition-[top] duration-300 ${on ? 'bg-lime' : 'bg-white'}`} style={{ top: on ? 0 : 14 }} />
-                            <span className={`absolute ${compact ? 'left-2 w-12 h-[58px]' : 'left-1 w-14 h-[72px]'} rounded-xl border-[1.5px] border-ink rotate-6 transition-[top] duration-300 ${on ? 'bg-lime' : 'bg-white'}`} style={{ top: on ? 0 : 14 }} />
-                            <span className={`absolute ${compact ? 'left-2 w-12 h-[58px]' : 'left-1 w-14 h-[72px]'} rounded-xl bg-white overflow-hidden transition-[top] duration-300 ${on ? 'border-2 border-ink' : 'border-[1.5px] border-ink'}`} style={{ top: on ? 0 : 14 }}>
-                                {top && <GarmentImage item={top} className="w-full h-full" />}
-                            </span>
-                            <span className="absolute inset-x-0 bottom-4 text-[11px] font-extrabold text-center">{d.label}</span>
-                            <span className="absolute inset-x-0 bottom-0 text-[10px] font-semibold text-ink/50 text-center">{d.items.length}</span>
-                        </button>
-                    );
-                })}
+                    </div>
+                ) : (
+                    <p className="text-center text-xs font-semibold text-ink/50 py-2">Tap a piece to style it or wear it more.</p>
+                )}
             </div>
 
-            {selected && <ItemDetailModal item={selected} onClose={() => setSelected(null)} />}
+            {detail && <ItemDetailModal item={detail} onClose={() => setDetail(null)} />}
         </div>
     );
 };

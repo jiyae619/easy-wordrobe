@@ -8,6 +8,7 @@ interface Pending {
     itemIds: string[];
     moodId: string;
     weather: WeatherData | null;
+    date?: Date;
     timerId: number;
 }
 
@@ -30,12 +31,12 @@ export function usePendingWear() {
         window.setTimeout(() => setNotice(null), 2200);
     }, []);
 
-    const wear = useCallback((itemIds: string[], moodId: string, weather: WeatherData | null) => {
+    const wear = useCallback((itemIds: string[], moodId: string, weather: WeatherData | null, date?: Date) => {
         if (pendingRef.current) window.clearTimeout(pendingRef.current.timerId);
         const timerId = window.setTimeout(async () => {
             pendingRef.current = null;
             setIsPending(false);
-            const saved = await logRef.current(itemIds, moodId, weather);
+            const saved = await logRef.current(itemIds, moodId, weather, date);
             if (!saved) {
                 notify('Already logged today.');
                 return;
@@ -43,7 +44,7 @@ export function usePendingWear() {
             setLogged(true);
             window.setTimeout(() => setLogged(false), 2200);
         }, UNDO_WINDOW_MS);
-        pendingRef.current = { itemIds, moodId, weather, timerId };
+        pendingRef.current = { itemIds, moodId, weather, date, timerId };
         setIsPending(true);
     }, [notify]);
 
@@ -57,7 +58,7 @@ export function usePendingWear() {
         const pending = pendingRef.current;
         if (pending) {
             window.clearTimeout(pending.timerId);
-            void logRef.current(pending.itemIds, pending.moodId, pending.weather);
+            void logRef.current(pending.itemIds, pending.moodId, pending.weather, pending.date);
             pendingRef.current = null;
         }
     }, []);

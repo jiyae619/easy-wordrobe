@@ -22,7 +22,7 @@ import type { ItemBoundingBox } from '../types';
 import { computeBehavioralAnalytics, computeSeasonalLeastWornIds, getCurrentSeason, moodIdsForStyling } from '../services/agents/agentOutputGuards';
 import { drainAgentMetricTally } from '../services/agents/agentTelemetry';
 import { getActiveProvider } from '../services/vision/providerRegistry';
-import { wornToday } from '../utils/wearLog';
+import { wornOn } from '../utils/wearLog';
 
 const WardrobeContext = createContext<WardrobeContextType | undefined>(undefined);
 
@@ -209,8 +209,8 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
 
     // --- Actions ---
 
-    const addClothingItem = useCallback(async (item: Omit<ClothingItem, 'id' | 'dateAdded'>) => {
-        if (!uid) return;
+    const addClothingItem = useCallback(async (item: Omit<ClothingItem, 'id' | 'dateAdded'>): Promise<string | undefined> => {
+        if (!uid) return undefined;
         setIsLoading(true);
         try {
             const newItem: ClothingItem = {
@@ -272,6 +272,7 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
 
             // Update local state
             setClothes(prev => [newItem, ...prev]);
+            return newItem.id;
         } catch (err) {
             const msg = (err as Error)?.message || String(err);
             const hint = (msg.includes('permission') || msg.includes('Permission') || msg.includes('insufficient'))
@@ -401,13 +402,15 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
         }
     }, [uid, clothes]);
 
-    const logOutfitWear = useCallback(async (outfitItems: string[], moodId: string, weatherData: WeatherData | null): Promise<boolean> => {
+    const logOutfitWear = useCallback(async (outfitItems: string[], moodId: string, weatherData: WeatherData | null, wornDate?: Date): Promise<boolean> => {
         if (!uid) return false;
-        // The same outfit twice in one day is a double tap (or Today + Picks), not two wears.
-        if (wornToday(outfits, outfitItems)) return false;
+        // A past day can be logged too (forgot yesterday); never a future one.
+        const date = wornDate && wornDate.getTime() < Date.now() ? wornDate : new Date();
+        // The same outfit twice on one day is a double tap, not two wears.
+        if (wornOn(outfits, outfitItems, date)) return false;
         const record: WearRecord = {
             id: crypto.randomUUID(),
-            date: new Date(),
+            date,
             outfitItems,
             mood: moodId,
             // Logging never waits on the weather: a failed forecast stores null.
@@ -417,16 +420,17 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
         try {
             // Save outfit record
             await firestoreService.addOutfit(uid, record);
-            setOutfits(prev => [record, ...prev]);
+            setOutfits(prev => [record, ...prev].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
 
-            // Update worn items
-            const now = new Date();
+            // Update worn items. lastWorn only moves forward: logging last Tuesday must not
+            // overwrite a wear from yesterday.
+            const laterOf = (prev: Date | null) => (prev && new Date(prev).getTime() > date.getTime() ? prev : date);
             for (const itemId of outfitItems) {
                 const item = clothes.find(c => c.id === itemId);
                 if (item) {
                     await firestoreService.updateClothingItem(uid, itemId, {
                         wearFrequency: item.wearFrequency + 1,
-                        lastWorn: now,
+                        lastWorn: laterOf(item.lastWorn),
                     });
                 }
             }
@@ -436,7 +440,7 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
                     return {
                         ...item,
                         wearFrequency: item.wearFrequency + 1,
-                        lastWorn: now,
+                        lastWorn: laterOf(item.lastWorn),
                     };
                 }
                 return item;

@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import type { ClothingItem } from '../types';
 import { Link } from 'react-router-dom';
 import { useWardrobe } from '../context/WardrobeContext';
-import { Lightbulb, Sparkles, Loader2 } from 'lucide-react';
+import { Lightbulb, Sparkles, Loader2, Star } from 'lucide-react';
 import { WeeklyOutfitTimeline } from '../components/insights/WeeklyOutfitTimeline';
 import { OutfitHistory } from '../components/insights/OutfitHistory';
 import { PageHeader } from '../components/common/PageHeader';
@@ -10,6 +11,8 @@ import { forgottenSubtitle, goToSubtitle } from '../copy/voice';
 import { getCurrentSeason } from '../services/agents/agentOutputGuards';
 import { ItemDetailModal } from '../components/wardrobe/ItemDetailModal';
 import { itemName } from '../utils/itemName';
+import { WeeklyRecap } from '../components/insights/WeeklyRecap';
+import type { TodayRouteState } from './Today';
 
 /** A piece needs this many wears in the window to count as a go-to. */
 const GO_TO_MIN_WEARS = 2;
@@ -18,8 +21,8 @@ const GO_TO_MIN_WEARS = 2;
 let insightsKey: string | null = null;
 
 const Insights: React.FC = () => {
-    const { clothes, outfits, insights, fetchInsights, isLoading, addTryItItem, removeTryItItem, tryItItemIds } = useWardrobe();
-    const [savedItemIds, setSavedItemIds] = useState<Set<string>>(new Set());
+    const { clothes, outfits, insights, fetchInsights, isLoading, tryItItemIds } = useWardrobe();
+    const navigate = useNavigate();
     const [selected, setSelected] = useState<ClothingItem | null>(null);
 
     // Recompute whenever a wear is logged or the closet changes, not just once per session.
@@ -65,21 +68,8 @@ const Insights: React.FC = () => {
 
     if (!insights) return loadingView;
 
-    const handleTryIt = async (itemId: string) => {
-        await addTryItItem(itemId);
-        setSavedItemIds(prev => new Set(prev).add(itemId));
-    };
-
-    const handleUnTryIt = async (itemId: string) => {
-        await removeTryItItem(itemId);
-        setSavedItemIds(prev => {
-            const next = new Set(prev);
-            next.delete(itemId);
-            return next;
-        });
-    };
-
-    const isSaved = (itemId: string) => savedItemIds.has(itemId) || tryItItemIds.includes(itemId);
+    // Straight to Today's rails with the piece locked in, so a neglected piece becomes an outfit now.
+    const styleIt = (itemId: string) => navigate('/', { state: { lockItemId: itemId } satisfies TodayRouteState });
 
     // Top nudge
     const topNudge = insights.suggestedVariations[0] || "Add more items to your wardrobe to get personalized insights!";
@@ -95,8 +85,20 @@ const Insights: React.FC = () => {
 
             {header}
 
-            {/* Weekly Outfit Timeline */}
+            <WeeklyRecap />
+
+            {/* Wear calendar: scroll back through weeks, log a forgotten day */}
             <WeeklyOutfitTimeline />
+
+            {/* Least-worn pieces, with a placeholder until there is enough history */}
+            {nextWeekItems.length === 0 && (
+                <section>
+                    <h2 className="font-display text-xl font-extrabold text-ink">Forgotten favorites</h2>
+                    <p className="text-xs text-ink/50 font-medium mt-1">
+                        Pieces you haven’t worn in 3 weeks show up here, so nothing gets left behind.
+                    </p>
+                </section>
+            )}
 
             {/* Next Week Suggestions + Nudge */}
             {nextWeekItems.length > 0 && (
@@ -140,30 +142,21 @@ const Insights: React.FC = () => {
                                     <div className="flex-1 min-w-0">
                                         <h3 className="font-bold text-sm text-ink leading-tight capitalize">
                                             {itemName(item)}
+                                            {tryItItemIds.includes(item.id) && <Star className="inline w-3 h-3 ml-1 -mt-0.5 fill-ink" aria-label="Wear more" />}
                                         </h3>
                                         <p className="text-[11px] text-ink/50 capitalize">
                                             {item.category} • Worn {item.wearFrequency}×
                                         </p>
                                     </div>
                                 </button>
-                                {/* CTA — toggleable */}
-                                {isSaved(item.id) ? (
-                                    <button
-                                        onClick={() => handleUnTryIt(item.id)}
-                                        className="flex items-center gap-1 px-3 py-1.5 bg-ink text-lime text-xs font-bold rounded-full transition-colors active:scale-[0.97]"
-                                    >
-                                        <Sparkles className="w-3 h-3" />
-                                        Will try
-                                    </button>
-                                ) : (
-                                    <button
-                                        onClick={() => handleTryIt(item.id)}
-                                        className="flex items-center gap-1 px-3 py-1.5 bg-paper border-[1.5px] border-ink text-ink text-xs font-bold rounded-full transition-colors active:scale-[0.97]"
-                                    >
-                                        <Sparkles className="w-3 h-3" />
-                                        Try it
-                                    </button>
-                                )}
+                                <button
+                                    type="button"
+                                    onClick={() => styleIt(item.id)}
+                                    className="flex-none flex items-center gap-1 px-3 h-8 bg-ink text-paper text-xs font-bold rounded-full active:scale-[0.97]"
+                                >
+                                    <Sparkles className="w-3 h-3" />
+                                    Style it
+                                </button>
                             </div>
                         ))}
                     </div>
@@ -184,7 +177,7 @@ const Insights: React.FC = () => {
                                 Wear a piece twice and it shows up here.
                             </p>
                             <Link
-                                to="/suggest"
+                                to="/"
                                 className="inline-flex items-center gap-1.5 px-4 py-2 bg-ink text-paper text-xs font-bold rounded-full transition-colors active:scale-[0.97]"
                             >
                                 <Sparkles className="w-3.5 h-3.5" />

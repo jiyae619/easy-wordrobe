@@ -271,7 +271,8 @@ export interface WardrobeContextType {
     // --- CRUD Operations (async — writes to Firestore) ---
 
     /** Add a new clothing item to the wardrobe */
-    addClothingItem: (item: Omit<ClothingItem, 'id' | 'dateAdded'>) => Promise<void>;
+    /** Resolves to the new piece's id. */
+    addClothingItem: (item: Omit<ClothingItem, 'id' | 'dateAdded'>) => Promise<string | undefined>;
 
     /** Update an existing clothing item */
     updateClothingItem: (id: string, updates: Partial<ClothingItem>) => Promise<void>;
@@ -292,7 +293,7 @@ export interface WardrobeContextType {
 
     /** Log an outfit as worn today */
     /** Resolves false when nothing was logged (same outfit already logged today, or a save error). */
-    logOutfitWear: (outfitItems: string[], moodId: string, weather: WeatherData | null) => Promise<boolean>;
+    logOutfitWear: (outfitItems: string[], moodId: string, weather: WeatherData | null, wornDate?: Date) => Promise<boolean>;
     /** Toggle a worn outfit's favorite flag (persisted; optimistic local update). */
     toggleOutfitFavorite: (id: string) => Promise<void>;
 

@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useWardrobe } from '../../context/WardrobeContext';
 import { format } from 'date-fns';
-import { Shirt, RotateCcw, Check, Heart } from 'lucide-react';
+import { Shirt, RotateCcw, Check } from 'lucide-react';
 import { MOODS } from '../../data/moods';
 import type { ClothingItem, WeatherData } from '../../types';
 import { loggedTodayKeys, outfitKey } from '../../utils/wearLog';
@@ -33,7 +33,7 @@ function moodName(id: string): string {
  * so it feeds right back into insights and the behavioral loop.
  */
 export const OutfitHistory: React.FC = () => {
-    const { outfits, clothes, logOutfitWear, toggleOutfitFavorite } = useWardrobe();
+    const { outfits, clothes, logOutfitWear } = useWardrobe();
     const [rewornId, setRewornId] = useState<string | null>(null);
     const [pendingId, setPendingId] = useState<string | null>(null);
 
@@ -41,11 +41,7 @@ export const OutfitHistory: React.FC = () => {
 
     const records = useMemo(() => {
         return [...outfits]
-            .sort((a, b) => {
-                // Favorites pinned to the top, then most-recent first.
-                if (Boolean(a.favorite) !== Boolean(b.favorite)) return a.favorite ? -1 : 1;
-                return new Date(b.date).getTime() - new Date(a.date).getTime();
-            })
+            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
             .map((record) => ({
                 record,
                 items: record.outfitItems
@@ -101,14 +97,6 @@ export const OutfitHistory: React.FC = () => {
                                 {moodName(record.mood)} · {items.length} item{items.length === 1 ? '' : 's'}
                             </p>
                         </div>
-                        <button
-                            onClick={() => toggleOutfitFavorite(record.id)}
-                            aria-label={record.favorite ? 'Remove from favorites' : 'Add to favorites'}
-                            aria-pressed={Boolean(record.favorite)}
-                            className="flex items-center justify-center w-9 h-9 rounded-full hover:bg-paper transition-colors active:scale-[0.97] flex-shrink-0"
-                        >
-                            <Heart className={`w-4 h-4 ${record.favorite ? 'text-ink fill-ink' : 'text-ink/30'}`} />
-                        </button>
                         <button
                             onClick={() => handleWearAgain(record, items)}
                             disabled={pendingId === record.id || todayKeys.has(outfitKey(items.map((i) => i.id)))}

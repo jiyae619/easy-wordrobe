@@ -313,6 +313,19 @@ body {
   transform-origin: 50% 0;
 }
 
+@keyframes hangerSway {
+  0% { transform: rotate(0); }
+  25% { transform: rotate(7deg); }
+  55% { transform: rotate(-4deg); }
+  80% { transform: rotate(2deg); }
+  100% { transform: rotate(0); }
+}
+
+.hanger-sway {
+  animation: hangerSway 0.7s ease-out;
+  transform-origin: 50% 0;
+}
+
 @keyframes dealIn {
   from { opacity: 0; transform: translateY(380px) rotate(-8deg); }
   to { opacity: 1; transform: translateY(0) rotate(0); }
@@ -326,6 +339,7 @@ body {
   .dust-tag,
   .lock-wobble,
   .piece-swing,
+  .hanger-sway,
   .deal-in,
   .animate-fade-in-up,
   .animate-scale-in,

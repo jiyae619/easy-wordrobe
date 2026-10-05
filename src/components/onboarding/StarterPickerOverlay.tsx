@@ -313,7 +313,7 @@ export const StarterPickerOverlay: React.FC = () => {
                         </p>
                         {acceptedCount > 0 ? (
                             <button
-                                onClick={() => { setPhase('idle'); navigate('/suggest'); }}
+                                onClick={() => { setPhase('idle'); navigate('/'); }}
                                 className="w-full py-3 bg-ink text-white font-bold rounded-full hover:bg-ink/90 transition-colors active:scale-[0.98]"
                             >
                                 Style my first outfit

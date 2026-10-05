@@ -1,12 +1,11 @@
-import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
-import { Rows3, Shirt, Plus, Heart, BarChart2 } from 'lucide-react';
+import { BrowserRouter as Router, Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
+import { Sparkles, Shirt, Plus, BarChart2 } from 'lucide-react';
 import { WardrobeProvider } from './context/WardrobeContext';
 import { AuthProvider } from './context/AuthContext';
 import { useState, useEffect, type ComponentType } from 'react';
 // Import pages
-import Home from './pages/Home';
+import Today from './pages/Today';
 import Wardrobe from './pages/Wardrobe';
-import Suggest from './pages/Suggest';
 import Insights from './pages/Insights';
 import Login from './pages/Login';
 import DevModelTest from './pages/DevModelTest';
@@ -78,9 +77,10 @@ const Layout = () => {
               </div>
             )}
             <Routes>
-              <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
+              <Route path="/" element={<ProtectedRoute><Today /></ProtectedRoute>} />
               <Route path="/wardrobe" element={<ProtectedRoute><Wardrobe /></ProtectedRoute>} />
-              <Route path="/suggest" element={<ProtectedRoute><Suggest /></ProtectedRoute>} />
+              {/* Picks merged into Today; keep old links working */}
+              <Route path="/suggest" element={<Navigate to={{ pathname: '/', search: location.search }} replace />} />
               <Route path="/insights" element={<ProtectedRoute><Insights /></ProtectedRoute>} />
               {import.meta.env.DEV && <Route path="/dev/model-test" element={<DevModelTest />} />}
             </Routes>
@@ -94,7 +94,7 @@ const Layout = () => {
             <div className="w-full max-w-[480px] bg-paper/95 backdrop-blur-lg border-t-[1.5px] border-ink pointer-events-auto"
               style={{ paddingBottom: safeAreaBottom }}>
               <div className="flex justify-around items-center h-[72px] px-2">
-                <NavItem to="/" icon={Rows3} label="Today" active={isActive('/')} />
+                <NavItem to="/" icon={Sparkles} label="Today" active={isActive('/')} />
                 <NavItem to="/wardrobe" icon={Shirt} label="Closet" active={isActive('/wardrobe')} />
                 {/* Scan — the one raised action */}
                 <button
@@ -106,7 +106,6 @@ const Layout = () => {
                     <Plus className="w-6 h-6" />
                   </span>
                 </button>
-                <NavItem to="/suggest" icon={Heart} label="Picks" active={isActive('/suggest')} />
                 <NavItem to="/insights" icon={BarChart2} label="Stats" active={isActive('/insights')} />
               </div>
             </div>
