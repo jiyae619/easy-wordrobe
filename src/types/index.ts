@@ -206,8 +206,8 @@ export interface WearRecord {
     outfitItems: string[];
     /** ID or name of the mood for that day */
     mood: string;
-    /** Weather conditions on that day */
-    weather: WeatherData;
+    /** Weather conditions on that day (null when the forecast was unavailable) */
+    weather: WeatherData | null;
     /** User marked this worn outfit as a favorite to re-wear (optional; absent = not favorited) */
     favorite?: boolean;
 }
@@ -291,7 +291,8 @@ export interface WardrobeContextType {
     decrementWearCount: (id: string) => Promise<void>;
 
     /** Log an outfit as worn today */
-    logOutfitWear: (outfitItems: string[], moodId: string, weather: WeatherData) => Promise<void>;
+    /** Resolves false when nothing was logged (same outfit already logged today, or a save error). */
+    logOutfitWear: (outfitItems: string[], moodId: string, weather: WeatherData | null) => Promise<boolean>;
     /** Toggle a worn outfit's favorite flag (persisted; optimistic local update). */
     toggleOutfitFavorite: (id: string) => Promise<void>;
 

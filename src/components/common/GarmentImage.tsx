@@ -1,5 +1,6 @@
 import React from 'react';
 import { type ClothingItem } from '../../types';
+import { itemName } from '../../utils/itemName';
 
 interface GarmentImageProps {
     item: ClothingItem;
@@ -14,7 +15,7 @@ interface GarmentImageProps {
 export const GarmentImage: React.FC<GarmentImageProps> = ({ item, className = '' }) => (
     <img
         src={item.thumbnailUrl || item.imageUrl}
-        alt={`${item.color} ${item.subcategory}`}
+        alt={itemName(item)}
         draggable={false}
         loading="lazy"
         decoding="async"

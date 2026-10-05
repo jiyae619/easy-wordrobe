@@ -1,10 +1,16 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Shirt, Mail, Lock, User, Eye, EyeOff, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
 import { welcomeBackLine } from '../copy/voice';
 
 type AuthMode = 'signin' | 'signup' | 'reset';
+
+/** Set after the first successful sign-in on this device, so first-time visitors aren't welcomed "back". */
+const RETURNING_KEY = 'stylemax:returning';
+const readReturning = () => {
+    try { return localStorage.getItem(RETURNING_KEY) === '1'; } catch { return false; }
+};
 
 const Login: React.FC = () => {
     const { isAuthenticated, isLoading, error, signInWithEmail, signUpWithEmail, signInWithGoogle, resetPassword, clearError } = useAuth();
@@ -15,6 +21,12 @@ const Login: React.FC = () => {
     const [showPassword, setShowPassword] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [resetSent, setResetSent] = useState(false);
+    const [returning] = useState(readReturning);
+
+    useEffect(() => {
+        if (!isAuthenticated) return;
+        try { localStorage.setItem(RETURNING_KEY, '1'); } catch { /* private mode */ }
+    }, [isAuthenticated]);
 
     // Already logged in → go to home
     if (isAuthenticated && !isLoading) {
@@ -79,12 +91,12 @@ const Login: React.FC = () => {
                     {/* Title for current mode */}
                     <div className="mb-6 animate-fade-in-up" style={{ animationDelay: '100ms' }}>
                         <h2 className="font-display text-2xl font-extrabold text-ink">
-                            {mode === 'signin' && welcomeBackLine()}
+                            {mode === 'signin' && (returning ? welcomeBackLine() : 'Welcome to Stylemax')}
                             {mode === 'signup' && 'Join Stylemax'}
                             {mode === 'reset' && 'Reset password'}
                         </h2>
                         <p className="text-sm text-ink/50 mt-0.5">
-                            {mode === 'signin' && 'Your closet missed you.'}
+                            {mode === 'signin' && (returning ? 'Your closet missed you.' : 'Sign in, or create an account below.')}
                             {mode === 'signup' && 'Let’s get your closet in order.'}
                             {mode === 'reset' && 'We’ll email you a reset link.'}
                         </p>

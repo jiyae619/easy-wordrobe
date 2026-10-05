@@ -12,6 +12,7 @@ import {
 import { AgentError, type AgentName } from "./agentErrors";
 import { nearestPaletteColor } from "../../data/colorPalette";
 import { isStockPhoto } from "../../data/starterCatalog";
+import { itemName } from '../../utils/itemName';
 
 export const VALID_MOODS = [
     "professional",
@@ -517,12 +518,12 @@ export function describeOutfitReason(
 
     const tried = suggestion.items.find((item) => tryItSet.has(item.id));
     if (tried) {
-        return `Starring the ${tried.color.toLowerCase()} ${tried.subcategory.toLowerCase()} you wanted to try.`;
+        return `Starring the ${itemName(tried).toLowerCase()} you wanted to try.`;
     }
 
     const neglected = suggestion.items.find((item) => leastWornSet.has(item.id));
     if (neglected) {
-        return `Bringing your ${neglected.color.toLowerCase()} ${neglected.subcategory.toLowerCase()} back into rotation.`;
+        return `Bringing your ${itemName(neglected).toLowerCase()} back into rotation.`;
     }
 
     if (weather) {

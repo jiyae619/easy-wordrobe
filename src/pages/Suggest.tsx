@@ -21,6 +21,7 @@ import { WearToast } from '../components/common/WearToast';
 import { MirrorCard } from '../components/picks/MirrorCard';
 import { SwipeDeck, type SwipeDeckHandle, type SwipeDir } from '../components/picks/SwipeDeck';
 import { daysIdle, buildReelOptions, itemsFromSlots, slotsFromItems, type OutfitSlots, type SlotId } from '../utils/outfitSlots';
+import { wornToday } from '../utils/wearLog';
 
 interface DeckState {
     key: string;
@@ -45,7 +46,7 @@ const Suggest: React.FC = () => {
     const { weather, isLoading: weatherLoading } = useTodayWeather();
     const readiness = getWardrobeReadiness(clothes);
     const { looks, isLoading, error, regenerate } = useStylistLooks(mood, readiness.canMakeOutfit ? weather : null);
-    const { wear, undo, isPending, logged } = usePendingWear();
+    const { wear, undo, notify, isPending, logged, notice } = usePendingWear();
     const deckRef = useRef<SwipeDeckHandle>(null);
     // Deck progress belongs to one batch of looks. Keyed on look ids, so a logged wear (which
     // refreshes item data) keeps the stack where it is, while a new batch starts it over.
@@ -107,10 +108,14 @@ const Suggest: React.FC = () => {
             return;
         }
         let worn = wornLook;
-        if (dir === 'right' && weather) {
-            setSavedText(wearSavedLine({ items, weather, moodId: mood.id, dustyDays }));
-            wear(ids, mood.id, weather);
-            worn = lookIndex;
+        if (dir === 'right') {
+            if (wornToday(outfits, ids)) {
+                notify('Already logged today.');
+            } else {
+                setSavedText(wearSavedLine({ items, weather, moodId: mood.id, dustyDays }));
+                wear(ids, mood.id, weather);
+                worn = lookIndex;
+            }
         }
         if (dir === 'left') void logSuggestionEvent('skipped', ids, mood.id);
         updateDeck({ index: lookIndex + 1, wornLook: worn });
@@ -225,7 +230,7 @@ const Suggest: React.FC = () => {
                     <button type="button" onClick={() => deckRef.current?.swipe('up')} aria-label="Tweak this look on Today’s rails" className="w-[50px] h-[50px] rounded-full border-2 border-ink bg-paper text-ink flex items-center justify-center active:scale-95">
                         <SlidersHorizontal className="w-5 h-5" />
                     </button>
-                    <button type="button" onClick={() => deckRef.current?.swipe('right')} disabled={!weather} aria-label="Wear this look" className="w-[60px] h-[60px] rounded-full border-2 border-ink bg-lime text-ink flex items-center justify-center active:scale-95 disabled:opacity-50">
+                    <button type="button" onClick={() => deckRef.current?.swipe('right')} aria-label="Wear this look" className="w-[60px] h-[60px] rounded-full border-2 border-ink bg-lime text-ink flex items-center justify-center active:scale-95 disabled:opacity-50">
                         <Check className="w-6 h-6" />
                     </button>
                 </div>
@@ -237,7 +242,7 @@ const Suggest: React.FC = () => {
                 </p>
             )}
 
-            <WearToast isPending={isPending} logged={logged} savedText={savedText} onUndo={() => { undo(); updateDeck({ wornLook: null }); }} />
+            <WearToast isPending={isPending} logged={logged} notice={notice} savedText={savedText} onUndo={() => { undo(); updateDeck({ wornLook: null }); }} />
         </div>
     );
 };

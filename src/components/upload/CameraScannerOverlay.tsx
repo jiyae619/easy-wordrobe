@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback, type ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Info, Grid3X3, Loader2, CheckCircle, Zap, X, ChevronDown, Check } from 'lucide-react';
+import { ArrowLeft, Info, Images, Loader2, CheckCircle, Zap, X, ChevronDown, Check } from 'lucide-react';
 import { awsNovaService, type DetectedClothingItem } from '../../services/awsNova';
 import { type ClothingItem, ClothingCategory, Season } from '../../types';
 import { useWardrobe } from '../../context/WardrobeContext';
@@ -368,7 +368,7 @@ export const CameraScannerOverlay: React.FC<CameraScannerOverlayProps> = ({ isOp
             setSelectedSeasons([]);
             setSelectedMoods([]);
         } else {
-            setItemName(`${item.color} ${item.subcategory}`);
+            setItemName(item.subcategory);
             setSelectedSeasons(item.season as string[]);
             setSelectedMoods(normalizeMoodIds(item.userMoods, item.aiTags));
         }
@@ -733,6 +733,7 @@ export const CameraScannerOverlay: React.FC<CameraScannerOverlayProps> = ({ isOp
             >
                 <button
                     onClick={handleClose}
+                    aria-label="Close scanner"
                     className="flex items-center justify-center w-10 h-10 text-ink hover:bg-ink/5 rounded-full transition-colors"
                 >
                     <ArrowLeft className="w-6 h-6" />
@@ -740,6 +741,7 @@ export const CameraScannerOverlay: React.FC<CameraScannerOverlayProps> = ({ isOp
                 <h2 className="font-display text-ink text-xl font-extrabold tracking-tight text-center px-2">Scan your closet</h2>
                 <button
                     onClick={() => setShowInfo(true)}
+                    aria-label="How scanning works"
                     className="flex items-center justify-center w-10 h-10 text-ink hover:bg-ink/5 rounded-full transition-colors"
                 >
                     <Info className="w-5 h-5" />
@@ -1126,9 +1128,10 @@ export const CameraScannerOverlay: React.FC<CameraScannerOverlayProps> = ({ isOp
                         {/* Gallery thumbnail */}
                         <button
                             onClick={() => fileInputRef.current?.click()}
+                            aria-label="Choose a photo from your gallery"
                             className="w-14 h-14 rounded-2xl border border-white/30 overflow-hidden bg-black/40 backdrop-blur-md flex items-center justify-center hover:border-white/60 hover:bg-white/10 transition-all"
                         >
-                            <Grid3X3 className="w-6 h-6 text-white/80" />
+                            <Images className="w-6 h-6 text-white/80" />
                         </button>
 
                         {/* Capture button */}

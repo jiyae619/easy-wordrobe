@@ -37,6 +37,7 @@ import {
 import { haptic } from '../utils/motion';
 import { useShortScreen } from '../hooks/useShortScreen';
 import { mixNote, stylistLoadingLine, wearSavedLine } from '../copy/voice';
+import { loggedTodayKeys, outfitKey } from '../utils/wearLog';
 
 const REEL: Record<SlotId, { label: string; none: string; size: number }> = {
     layer: { label: 'Layer', none: 'No layer', size: 80 },
@@ -53,9 +54,6 @@ const SPOT_WIDTH = 120;
 const SPOT_WIDTH_COMPACT = 100;
 
 const EMPTY_SLOTS: OutfitSlots = { layer: null, top: null, bottom: null, shoes: null };
-
-/** Normalized identity of an outfit, so a rail combination can be matched to an AI look. */
-const outfitKey = (ids: string[]) => [...ids].sort().join('|');
 
 const WeatherIcon: React.FC<{ condition?: string }> = ({ condition = '' }) => {
     const c = condition.toLowerCase();
@@ -79,7 +77,7 @@ const Home: React.FC = () => {
     const { weather, outlook, cheer, isLoading: weatherLoading, usingDefaultLocation } = useTodayWeather();
     const readiness = getWardrobeReadiness(clothes);
     const { looks, isLoading: looksLoading } = useStylistLooks(mood, readiness.canMakeOutfit ? weather : null);
-    const { wear, undo, isPending, logged } = usePendingWear();
+    const { wear, undo, isPending, logged, notice } = usePendingWear();
     const compact = useShortScreen();
     const spotWidth = compact ? SPOT_WIDTH_COMPACT : SPOT_WIDTH;
     const sizeFor = (slot: SlotId) => (compact ? COMPACT_SIZE[slot] : REEL[slot].size);
@@ -229,6 +227,9 @@ const Home: React.FC = () => {
     } else {
         why = mixNote({ items, weather, moodId: mood.id, tryItItemIds, dustyDays });
     }
+    const itemIds = items.map((i) => i.id);
+    const todayKeys = loggedTodayKeys(outfits);
+    const alreadyWorn = todayKeys.has(outfitKey(itemIds));
     const badge = matched ? (matched.isFallback ? 'Quick pick' : 'AI pick') : 'Your mix';
 
     // Cold-start + growth nudges (unchanged rules from the previous Home).
@@ -368,11 +369,11 @@ const Home: React.FC = () => {
                     >
                         <button
                             type="button"
-                            onClick={() => { if (weather && valid) { touched.current = true; setSavedText(wearSavedLine({ items, weather, moodId: mood.id, dustyDays })); wear(items.map((i) => i.id), mood.id, weather); } }}
-                            disabled={!weather || !valid || isPending}
+                            onClick={() => { if (valid && !alreadyWorn) { touched.current = true; setSavedText(wearSavedLine({ items, weather, moodId: mood.id, dustyDays })); wear(itemIds, mood.id, weather); } }}
+                            disabled={!valid || isPending || alreadyWorn}
                             className={`flex-1 ${compact ? 'h-12' : 'h-[56px]'} rounded-full bg-ink text-paper font-extrabold text-[15px] active:scale-[0.98] disabled:opacity-50`}
                         >
-                            {isPending ? 'Saving…' : logged ? 'Saved ✓' : 'Wear this'}
+                            {isPending ? 'Saving…' : logged ? 'Saved ✓' : alreadyWorn ? 'Worn today ✓' : todayKeys.size > 0 ? 'Also wore this' : 'Wear this'}
                         </button>
                         <button
                             type="button"
@@ -411,7 +412,7 @@ const Home: React.FC = () => {
 
             <StreakCard />
 
-            <WearToast isPending={isPending} logged={logged} onUndo={undo} savedText={savedText} />
+            <WearToast isPending={isPending} logged={logged} notice={notice} onUndo={undo} savedText={savedText} />
         </div>
     );
 };

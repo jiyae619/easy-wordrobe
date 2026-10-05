@@ -11,6 +11,7 @@ import { dustyLine, wornLine } from '../copy/voice';
 import { ClothingCategory, type ClothingItem } from '../types';
 import { computeSeasonalLeastWornIds } from '../services/agents/agentOutputGuards';
 import { daysIdle, lightness } from '../utils/outfitSlots';
+import { itemName } from '../utils/itemName';
 
 const DECKS: Array<{ category: ClothingCategory; label: string }> = [
     { category: ClothingCategory.Tops, label: 'Tops' },
@@ -190,7 +191,7 @@ const Wardrobe: React.FC = () => {
                     {focused && (
                         <div className="flex items-end gap-3">
                             <div className="min-w-0 flex-1">
-                                <p className="font-display text-[20px] font-extrabold leading-tight text-ink">{focused.color} {focused.subcategory}</p>
+                                <p className="font-display text-[20px] font-extrabold leading-tight text-ink">{itemName(focused)}</p>
                                 <p className="text-xs mt-1 text-ink/60 flex items-center gap-1.5">
                                     {dustyDays.has(focused.id) ? (
                                         <><span className="flex-none px-1.5 h-[18px] rounded-full bg-ink text-lime text-[10px] font-extrabold inline-flex items-center">DUSTY</span>{dustyLine(focused, dustyDays.get(focused.id) ?? 21)}</>
@@ -202,7 +203,7 @@ const Wardrobe: React.FC = () => {
                             <button
                                 type="button"
                                 onClick={() => setSelected(focused)}
-                                aria-label={`Details for ${focused.color} ${focused.subcategory}`}
+                                aria-label={`Details for ${itemName(focused)}`}
                                 className="flex-none w-11 h-11 rounded-full border-[1.5px] border-ink text-ink flex items-center justify-center"
                             >
                                 <Info className="w-[18px] h-[18px]" />

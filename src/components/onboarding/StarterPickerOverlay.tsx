@@ -283,7 +283,7 @@ export const StarterPickerOverlay: React.FC = () => {
                                     <Loader2 className="w-3.5 h-3.5 animate-spin" /> Saving your closet…
                                 </span>
                             ) : acceptedCount > 0 ? (
-                                <button onClick={finish} className="text-xs font-bold text-ink underline underline-offset-2">
+                                <button onClick={finish} className="h-10 px-5 rounded-full border-[1.5px] border-ink bg-lime text-ink text-sm font-bold active:scale-[0.97]">
                                     Save &amp; finish ({acceptedCount})
                                 </button>
                             ) : null}

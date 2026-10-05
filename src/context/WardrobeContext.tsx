@@ -22,6 +22,7 @@ import type { ItemBoundingBox } from '../types';
 import { computeBehavioralAnalytics, computeSeasonalLeastWornIds, getCurrentSeason, moodIdsForStyling } from '../services/agents/agentOutputGuards';
 import { drainAgentMetricTally } from '../services/agents/agentTelemetry';
 import { getActiveProvider } from '../services/vision/providerRegistry';
+import { wornToday } from '../utils/wearLog';
 
 const WardrobeContext = createContext<WardrobeContextType | undefined>(undefined);
 
@@ -400,14 +401,17 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
         }
     }, [uid, clothes]);
 
-    const logOutfitWear = useCallback(async (outfitItems: string[], moodId: string, weatherData: WeatherData) => {
-        if (!uid) return;
+    const logOutfitWear = useCallback(async (outfitItems: string[], moodId: string, weatherData: WeatherData | null): Promise<boolean> => {
+        if (!uid) return false;
+        // The same outfit twice in one day is a double tap (or Today + Picks), not two wears.
+        if (wornToday(outfits, outfitItems)) return false;
         const record: WearRecord = {
             id: crypto.randomUUID(),
             date: new Date(),
             outfitItems,
             mood: moodId,
-            weather: weatherData
+            // Logging never waits on the weather: a failed forecast stores null.
+            weather: weatherData,
         };
 
         try {
@@ -440,8 +444,22 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
         } catch (err) {
             console.error('[Wardrobe] Failed to log outfit:', err);
             setError('Failed to log outfit');
+            return false;
         }
-    }, [uid, clothes]);
+
+        // A "Will try" piece that got worn has done its job: drop it from the priority list.
+        const tried = tryItItemIds.filter((id) => outfitItems.includes(id));
+        if (tried.length > 0) {
+            try {
+                let updated = tryItItemIds;
+                for (const id of tried) updated = await firestoreService.removeTryItItem(uid, id);
+                setTryItItemIds(updated);
+            } catch (err) {
+                console.error('[Wardrobe] Failed to clear worn Try It items:', err);
+            }
+        }
+        return true;
+    }, [uid, clothes, outfits, tryItItemIds]);
 
     const toggleOutfitFavorite = useCallback(async (id: string) => {
         if (!uid) return;

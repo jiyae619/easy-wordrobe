@@ -110,6 +110,11 @@ describe('voice: says something specific', () => {
         jeansLines.forEach((l) => expect(l, l).not.toMatch(/blue slim jeans (is|leads|returns|says|brings|gets)\b/));
     });
 
+    it('counts wears with the right plural', () => {
+        const lines = ['a', 'b', 'c', 'd', 'e', 'f'].map((id) => goToSubtitle({ ...jeans, id }, 1));
+        lines.forEach((l) => expect(l, l).not.toMatch(/\b1 times\b/));
+    });
+
     it('fits the send-off to the weather when saving', () => {
         expect(wearSavedLine({ items: [tee, jeans], weather: rain, moodId: 'casual' })).toMatch(/^Saved\. .*(dry|Umbrella|Rain)/);
     });
