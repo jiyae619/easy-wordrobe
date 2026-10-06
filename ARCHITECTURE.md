@@ -1,6 +1,6 @@
 # System Architecture
 
-This document describes the full technical architecture of Stylemax: how the frontend, Firebase backend, AWS Bedrock AI services, and weather API are connected, how data flows through the system, and the key TypeScript data structures used throughout.
+This document describes the full technical architecture of Stylemax: how the frontend, Firebase backend, AI services (Google Gemini by default), and weather API are connected, how data flows through the system, and the key TypeScript data structures used throughout.
 
 For a focused explanation of the three AI agents specifically, see [AGENTS.md](AGENTS.md).
 
@@ -22,8 +22,8 @@ For a focused explanation of the three AI agents specifically, see [AGENTS.md](A
 Wardrobe AI is a **React-based mobile web application** with a **three-tier architecture**:
 
 - **Frontend**: React 19 with TypeScript, Vite, React Router
-- **Backend**: Firebase (Authentication, Firestore, Cloud Storage, Cloud Functions)
-- **AI Services**: AWS Bedrock (Nova 2 Lite), reached through an auth-checked Cloud Functions proxy (`aiProxy`) that keeps the key server-side
+- **Backend**: Firebase (Authentication, Firestore, Cloud Storage, Cloud Functions, Hosting)
+- **AI Services**: Google Gemini 3.5 Flash-Lite (default; AWS Bedrock Nova 2 Lite kept as an optional provider), reached through an auth-checked Cloud Functions proxy (`aiProxy`) that keeps the key server-side
 - **External APIs**: National Weather Service (NWS)
 
 ### Technology Stack
@@ -34,7 +34,8 @@ State Management: React Context API
 Database: Firestore (NoSQL)
 Storage: Firebase Cloud Storage
 Authentication: Firebase Auth (Email/Password + Google OAuth)
-AI Models: AWS Bedrock - Nova 2 Lite
+AI Models: Google Gemini 3.5 Flash-Lite (default) | AWS Bedrock Nova 2 Lite (optional)
+Hosting: Firebase Hosting
 Weather API: National Weather Service (free, no key required)
 ```
 
@@ -150,16 +151,17 @@ App.tsx (Layout wrapper with navigation)
 
 **Configuration:** Set via environment variables — see `.env.example` for the full list of `VITE_FIREBASE_*` keys.
 
-### AWS Bedrock (AI Services)
+### AI Services (Gemini by default)
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│           AWS BEDROCK (AI Services - us-east-2)                 │
+│           AI SERVICES (via aiProxy)                             │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│  Model: Amazon Nova 2 Lite (us.amazon.nova-2-lite-v1:0)        │
+│  Default: Google Gemini 3.5 Flash-Lite (gemini-3.5-flash-lite) │
+│  Optional: Amazon Nova 2 Lite (us.amazon.nova-2-lite-v1:0)     │
 │  Access: via aiProxy Cloud Function (key stays server-side)    │
-│  API: Converse API (multimodal)                                │
+│  API: Gemini generateContent (multimodal) / Bedrock Converse   │
 │                                                                 │
 │  ┌────────────────┐ ┌────────────────┐ ┌──────────────────┐   │
 │  │ IntakeAgent    │ │ StylistAgent   │ │ BehavioralAgent  │   │
@@ -183,23 +185,27 @@ App.tsx (Layout wrapper with navigation)
 └─────────────────────────────────────────────────────────────────┘
 ```
 
+**Choosing the provider:** `VITE_VISION_PROVIDER` (`gemini` default, or `nova-2-lite`) selects the
+provider for **all** agents — Intake, Stylist, Behavioral and the Weather cheer line
+(`src/services/vision/providerRegistry.ts`). `VITE_GEMINI_MODEL` overrides the Gemini model.
+
 **How the client reaches the models (via the AI proxy):**
 
 The browser NEVER holds a model key. It POSTs to the `aiProxy` Cloud Function
 (`VITE_AI_PROXY_URL`) with the signed-in user's Firebase ID token; the function verifies the
-token, rate-limits per user, and forwards to Bedrock/Gemini with the server-side key.
+token, rate-limits per user, and forwards to Gemini/Bedrock with the server-side key.
 
 ```
-Browser                             aiProxy (Cloud Function)         AWS Bedrock / Gemini
+Browser                             aiProxy (Cloud Function)         Gemini / AWS Bedrock
 POST {VITE_AI_PROXY_URL}            verifyIdToken(token) → uid
   Authorization: Bearer <idToken>   rate-limit(uid) [Firestore]
-  { target: "bedrock",         ──▶  forward with SERVER key      ──▶ POST .../converse
-    payload: { messages,             ◀───── raw upstream JSON ───────◀   (key in Secret Manager)
-      inferenceConfig } }       ◀──  (passed straight through)
+  { target: "gemini",          ──▶  forward with SERVER key      ──▶ POST .../{model}:generateContent
+    model, payload: {                ◀───── raw upstream JSON ───────◀   (key in Secret Manager)
+      contents, generationConfig } } ◀──  (passed straight through)
 ```
 
-Auth is a Firebase **ID token**, never an API key. The same proxy serves the Gemini vision path
-(`target: "gemini"`). Response parsing stays entirely on the client. See `functions/README.md`.
+Auth is a Firebase **ID token**, never an API key. The same proxy serves the optional Nova path
+(`target: "bedrock"`, Converse API). Response parsing stays entirely on the client. See `functions/README.md`.
 
 ---
 
@@ -318,10 +324,10 @@ User taps Camera button in Navigation
 │  • Include image + instructions          │
 └──────────────────────────────────────────┘
       │
-      │ POST /model/{modelId}/converse
+      │ POST → aiProxy → Gemini generateContent
       ▼
 ┌──────────────────────────────────────────┐
-│  AWS Bedrock (Nova 2 Lite)               │
+│  Gemini 3.5 Flash-Lite                   │
 │  • Vision + Language model               │
 │  • Analyzes: category, color, pattern    │
 │  • Returns: JSON with metadata           │
@@ -410,10 +416,10 @@ User navigates to /suggest page
 │    - Weather (temp, condition)           │
 └──────────────────────────────────────────┘
       │
-      │ POST /model/{modelId}/converse
+      │ POST → aiProxy → Gemini generateContent
       ▼
 ┌──────────────────────────────────────────┐
-│  AWS Bedrock (Nova 2 Lite)               │
+│  Gemini 3.5 Flash-Lite                   │
 │  • Generate 3 outfit combinations        │
 │  • Prioritize least-worn items           │
 │  • Return item IDs + explanation copy    │
@@ -482,16 +488,16 @@ User navigates to /insights page
 └──────────────────────────────────────────┘
       │
       ├─ cache hit (signature matches, <24h) ─▶ use cached nudges + code analytics
-      │                                          (NO Bedrock call)
+      │                                          (NO model call)  
       │ cache miss / stale
       ▼
 ┌──────────────────────────────────────────┐
 │  BehavioralAgent.generateInsights()      │
 │  • analytics computed in code            │
-│  • Bedrock writes ONLY the 3 nudges      │
+│  • Gemini writes ONLY the 3 nudges       │
 └──────────────────────────────────────────┘
       │
-      │ POST → aiProxy → Bedrock (nudge copy only)
+      │ POST → aiProxy → Gemini (nudge copy only)
       ▼
 ┌──────────────────────────────────────────┐
 │  Update WardrobeContext.insights         │
@@ -686,7 +692,8 @@ Home page loads OR Suggest page requests weather
 | Firestore | Firebase Auth | JSON + subcollections | 10K writes/day (free) |
 | Cloud Storage | Firebase Auth | Binary (JPEG/PNG) | 5GB storage (free) |
 | aiProxy (Cloud Function) | Firebase ID token | JSON | Per-user (default 30/min) |
-| AWS Bedrock (behind proxy) | Server-side key (Secret Manager) | JSON (Converse API) | 100 req/min |
+| Gemini API (behind proxy) | Server-side key (Secret Manager) | JSON (generateContent) | Per Google AI Studio tier |
+| AWS Bedrock (optional, behind proxy) | Server-side key (Secret Manager) | JSON (Converse API) | 100 req/min |
 | NWS Weather API | User-Agent header | JSON (GeoJSON) | None (public) |
 
 ### Firestore Collection Structure
@@ -716,7 +723,7 @@ Notes:
   • Wear history is loaded date-bounded (last 90 days) — getRecentOutfits(uid, days) — not the full history.
   • Only BehavioralAgent's LLM nudge copy is cached in /insights; the analytics (counts, most/least
     worn, weekly pattern) are recomputed deterministically in code on every read. The cache is keyed
-    by a signature of season + wear state and expires after 24h, so a repeat visit skips the Bedrock
+    by a signature of season + wear state and expires after 24h, so a repeat visit skips the model
     call unless something changed.
 
 Indexes:
@@ -729,7 +736,7 @@ Indexes:
 - **Firebase Auth errors** → Translate to user-friendly messages in AuthContext
 - **Firestore failures** → Retry with exponential backoff (built-in SDK)
 - **Cloud Storage quota** → Compress images before upload, show error if quota exceeded
-- **Bedrock API timeout** → Show "AI is thinking..." with 30s timeout, retry once
+- **Model API timeout** → Show "AI is thinking..." with 30s timeout, retry once
 - **NWS API failure** → Fallback to mock weather data (San Francisco, 18°C, Sunny)
 - **Geolocation denied** → Use default city coordinates (San Francisco)
 - **No internet** → Show cached data from context (no auto-refresh)
@@ -749,9 +756,9 @@ Indexes:
          │                │                │
          ↓                ↓                ↓
      ┌────────┐    ┌──────────┐    ┌────────────┐
-     │Firebase│    │   AWS    │    │    NWS     │
-     │ (Auth, │    │ Bedrock  │    │  Weather   │
-     │ Store, │    │ (Nova AI)│    │    API     │
+     │Firebase│    │  Gemini  │    │    NWS     │
+     │ (Auth, │    │ (via     │    │  Weather   │
+     │ Store, │    │ aiProxy) │    │    API     │
      │ Cloud) │    │          │    │            │
      └────────┘    └──────────┘    └────────────┘
 ```
@@ -763,11 +770,11 @@ Indexes:
 | Component | State Source | External API | Responsibility |
 |-----------|-------------|--------------|----------------|
 | **Login** | AuthContext | Firebase Auth | Email/password/Google auth UI |
-| **Home** | WardrobeContext + local | NWS API, Bedrock | Weather display, quick suggestion |
+| **Home** | WardrobeContext + local | NWS API, Gemini | Weather display, quick suggestion |
 | **Wardrobe** | WardrobeContext | None | Item browsing, filtering, detail view |
-| **Suggest** | WardrobeContext | NWS, Bedrock | Outfit suggestions by mood |
-| **Insights** | WardrobeContext | Bedrock | Analytics & behavioral nudges |
-| **CameraScannerOverlay** | Local state | Bedrock (via IntakeAgent) | Image capture & AI analysis |
+| **Suggest** | WardrobeContext | NWS, Gemini | Outfit suggestions by mood |
+| **Insights** | WardrobeContext | Gemini | Analytics & behavioral nudges |
+| **CameraScannerOverlay** | Local state | Gemini (via IntakeAgent) | Image capture & AI analysis |
 
 ---
 

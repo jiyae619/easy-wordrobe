@@ -74,8 +74,8 @@ export async function novaProvider({ base64, format, region, apiKey, timeoutMs =
   }
 }
 
-// ----- Gemini 2.5 Flash via Google AI Studio REST -----
-export async function geminiProvider({ base64, mimeType, apiKey, model = "gemini-2.5-flash", timeoutMs = 30000 }) {
+// ----- Gemini via Google AI Studio REST -----
+export async function geminiProvider({ base64, mimeType, apiKey, model = "gemini-3.5-flash-lite", timeoutMs = 30000 }) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
   const payload = {
     contents: [

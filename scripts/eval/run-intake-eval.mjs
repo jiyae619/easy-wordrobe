@@ -8,8 +8,10 @@
 // Optional:
 //   EVAL_FIXTURES_DIR=./scripts/eval/fixtures   (default)
 //   EVAL_OUTPUT=./scripts/eval/last-report.md   (default; pass "-" for stdout only)
+//                                               Gemini-only runs default to last-report-<model>.md
+//                                               so the earlier Nova-vs-Gemini report is kept.
 //   EVAL_REGION=us-east-2                       (default; matches VITE_AWS_REGION)
-//   EVAL_GEMINI_MODEL=gemini-2.5-flash          (default)
+//   EVAL_GEMINI_MODEL=gemini-3.5-flash-lite     (default)
 
 import { promises as fs } from "node:fs";
 import path from "node:path";
@@ -19,12 +21,14 @@ import { geminiProvider, novaProvider } from "./providers.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FIXTURES_DIR = process.env.EVAL_FIXTURES_DIR || path.join(__dirname, "fixtures");
-const OUTPUT = process.env.EVAL_OUTPUT || path.join(__dirname, "last-report.md");
 const REGION = process.env.EVAL_REGION || process.env.VITE_AWS_REGION || "us-east-2";
-const GEMINI_MODEL = process.env.EVAL_GEMINI_MODEL || "gemini-2.5-flash";
+const GEMINI_MODEL = process.env.EVAL_GEMINI_MODEL || "gemini-3.5-flash-lite";
 
 const NOVA_KEY = process.env.VITE_BEDROCK_API_KEY;
 const GEMINI_KEY = process.env.GEMINI_API_KEY;
+const OUTPUT =
+  process.env.EVAL_OUTPUT ||
+  path.join(__dirname, NOVA_KEY ? "last-report.md" : `last-report-${GEMINI_MODEL}.md`);
 
 if (!NOVA_KEY) console.warn("[warn] VITE_BEDROCK_API_KEY not set — Nova column will be empty");
 if (!GEMINI_KEY) console.warn("[warn] GEMINI_API_KEY not set — Gemini column will be empty");
@@ -184,7 +188,7 @@ async function main() {
 - Gemini model: \`${GEMINI_MODEL}\`
 - Run at: ${new Date().toISOString()}
 
-${summaryTable("AWS Nova 2 Lite", aggregate(novaRows))}
+${NOVA_KEY ? summaryTable("AWS Nova 2 Lite", aggregate(novaRows)) : ""}
 ${summaryTable(`Gemini ${GEMINI_MODEL}`, aggregate(geminiRows))}
 ${perFixtureTable(perFixture)}
 
