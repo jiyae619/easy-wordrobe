@@ -17,7 +17,9 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { aggregate, scoreOne } from "./score.mjs";
-import { geminiProvider, novaProvider } from "./providers.mjs";
+import { createHash } from "node:crypto";
+import { execSync } from "node:child_process";
+import { INTAKE_PROMPT, geminiProvider, novaProvider } from "./providers.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FIXTURES_DIR = process.env.EVAL_FIXTURES_DIR || path.join(__dirname, "fixtures");
@@ -85,6 +87,16 @@ async function runOne(provider, fixture) {
       errored: true,
       errorMessage: err?.message ?? String(err),
     };
+  }
+}
+
+function gitCommit() {
+  try {
+    const sha = execSync("git rev-parse --short HEAD", { stdio: ["ignore", "pipe", "ignore"] }).toString().trim();
+    const dirty = execSync("git status --porcelain -- scripts/eval/providers.mjs", { stdio: ["ignore", "pipe", "ignore"] }).toString().trim();
+    return dirty ? `${sha}+local-prompt-edits` : sha;
+  } catch {
+    return "unknown";
   }
 }
 
@@ -187,6 +199,8 @@ async function main() {
 - Nova model: \`us.amazon.nova-2-lite-v1:0\` (region \`${REGION}\`)
 - Gemini model: \`${GEMINI_MODEL}\`
 - Run at: ${new Date().toISOString()}
+- Git commit: \`${gitCommit()}\` · prompt sha256: \`${createHash("sha256").update(INTAKE_PROMPT).digest("hex").slice(0, 12)}\`
+- Prompt allows shoes: ${INTAKE_PROMPT.includes('"shoes"') ? "yes" : "NO"} · dress rule: ${INTAKE_PROMPT.includes("ALWAYS \"dresses\"") ? "yes" : "NO"}
 
 ${NOVA_KEY ? summaryTable("AWS Nova 2 Lite", aggregate(novaRows)) : ""}
 ${summaryTable(`Gemini ${GEMINI_MODEL}`, aggregate(geminiRows))}

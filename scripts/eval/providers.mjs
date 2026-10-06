@@ -2,7 +2,7 @@
 // Both providers take a base64 image + the same prompt and return
 // the same shape: { category, subcategory, color, colorHex, season, mood }.
 
-const INTAKE_PROMPT = `You are a fashion AI assistant analyzing a single clothing item for a digital wardrobe app.
+export const INTAKE_PROMPT = `You are a fashion AI assistant analyzing a single clothing item for a digital wardrobe app.
 
 Return ONLY a JSON object (no markdown, no commentary) with this exact shape:
 {
