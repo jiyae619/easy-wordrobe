@@ -100,6 +100,19 @@ function gitCommit() {
   }
 }
 
+function redact(text) {
+  let s = String(text ?? "");
+  if (GEMINI_KEY) s = s.split(GEMINI_KEY).join("<GEMINI_API_KEY>");
+  if (NOVA_KEY) s = s.split(NOVA_KEY).join("<BEDROCK_API_KEY>");
+  return s.replace(/\s+/g, " ").trim();
+}
+
+function errorsSection(errors) {
+  if (errors.size === 0) return "";
+  const lines = [...errors].map(([msg, n]) => `| ${n} | ${msg.replace(/\|/g, "\\|")} |`).join("\n");
+  return `### Gemini errors\n\n| Fixtures | Error |\n|---|---|\n${lines}\n`;
+}
+
 function fmtPct(v) {
   return v == null ? "—" : `${(v * 100).toFixed(1)}%`;
 }
@@ -146,6 +159,8 @@ async function main() {
   const novaRows = [];
   const geminiRows = [];
   const perFixture = [];
+  const geminiErrors = new Map(); // error message → fixture count
+  let consecutiveGeminiErrors = 0;
 
   for (const fix of fixtures) {
     process.stdout.write(`  • ${fix.name} … `);
@@ -191,6 +206,19 @@ async function main() {
       `nova=${novaScore.errored ? "ERR" : novaScore.categoryHit ? "✓" : "✗"} ` +
         `gemini=${geminiScore.errored ? "ERR" : geminiScore.categoryHit ? "✓" : "✗"}`
     );
+
+    if (GEMINI_KEY && geminiResult.errored) {
+      const msg = redact(geminiResult.errorMessage).slice(0, 300);
+      geminiErrors.set(msg, (geminiErrors.get(msg) ?? 0) + 1);
+      console.log(`      gemini error: ${msg}`);
+      consecutiveGeminiErrors += 1;
+      if (consecutiveGeminiErrors >= 5 && geminiRows.every((r) => r.errored)) {
+        console.error("[error] First 5 Gemini calls all failed — aborting (see error above). No report written.");
+        process.exit(1);
+      }
+    } else {
+      consecutiveGeminiErrors = 0;
+    }
   }
 
   const report = `# Intake-model A/B eval
@@ -204,6 +232,7 @@ async function main() {
 
 ${NOVA_KEY ? summaryTable("AWS Nova 2 Lite", aggregate(novaRows)) : ""}
 ${summaryTable(`Gemini ${GEMINI_MODEL}`, aggregate(geminiRows))}
+${errorsSection(geminiErrors)}
 ${perFixtureTable(perFixture)}
 
 ## How to read this
