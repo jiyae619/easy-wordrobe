@@ -20,14 +20,13 @@ firebase use --add            # select your Firebase project (the one in VITE_FI
 
 cd functions && npm install && cd ..
 
-# Store the Bedrock key as a secret (NOT in any VITE_ / .env client var):
-firebase functions:secrets:set BEDROCK_API_KEY     # paste your Bedrock bearer key when prompted
+# Store the model keys as secrets (NOT in any VITE_ / .env client var):
+firebase functions:secrets:set GEMINI_API_KEY      # Google AI Studio key (default provider)
+firebase functions:secrets:set BEDROCK_API_KEY     # Bedrock bearer key (optional Nova path)
 ```
 
-Gemini is **optional** (the default provider is Nova). To enable the Gemini path in production:
-1. `firebase functions:secrets:set GEMINI_API_KEY`
-2. In `functions/src/index.ts`, add `defineSecret("GEMINI_API_KEY")` and include it in the
-   `secrets: [...]` array, then redeploy. Until then the Gemini branch returns 502.
+Both secrets must exist for the deploy to succeed. If you don't use Nova, set `BEDROCK_API_KEY`
+to any placeholder value; the Bedrock branch is only hit when `VITE_VISION_PROVIDER=nova-2-lite`.
 
 Optional non-secret config (defaults shown) can be set as function env vars in
 `functions/.env` or via the console:
@@ -48,8 +47,8 @@ firebase deploy --only functions
 The deploy prints the function URL, e.g.
 `https://aiproxy-abc123-uc.a.run.app` (or `https://us-central1-<project>.cloudfunctions.net/aiProxy`).
 
-**Copy that URL into the frontend env** as `VITE_AI_PROXY_URL` (Amplify → Environment variables,
-and your local `.env`), then rebuild the frontend. Without it, the app shows a clear
+**Copy that URL into the frontend env** as `VITE_AI_PROXY_URL` (your local `.env` /
+`.env.production`), then rebuild the frontend. Without it, the app shows a clear
 "AI service not configured" error instead of calling any model.
 
 ## Guardrails

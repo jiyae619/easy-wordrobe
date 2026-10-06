@@ -106,7 +106,7 @@ http("aiproxy", async (req, res) => {
 
     if (body.target === "gemini") {
       if (!GEMINI_API_KEY) { res.status(502).json({ error: "Gemini is not configured on the server" }); return; }
-      const model = typeof body.model === "string" && body.model ? body.model : "gemini-2.5-flash";
+      const model = typeof body.model === "string" && body.model ? body.model : "gemini-3.5-flash-lite";
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
       const up = await forward(
         url,

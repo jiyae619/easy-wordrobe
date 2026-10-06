@@ -1,6 +1,7 @@
 import { sanitizeUiCopy } from './agentOutputGuards';
 import { type WeatherData, type WeatherOutlookPeriod } from "../../types";
-import { callBedrockConverseAPI } from "../bedrockClient";
+import { getTextProvider } from "../vision/providerRegistry";
+import { createAgentTraceId } from "./agentTelemetry";
 
 export const WeatherAgent = {
     generateWeatherCheer: async (
@@ -27,12 +28,10 @@ RULES:
 `;
 
         try {
-            const payload = {
-                messages: [{ role: "user", content: [{ text: prompt }] }],
-                inferenceConfig: { maxTokens: 120, temperature: 0.85 },
-            };
-
-            const jsonStr = await callBedrockConverseAPI(payload);
+            const jsonStr = await getTextProvider().callText(
+                { prompt, maxTokens: 120, temperature: 0.85 },
+                { agent: "bedrock", traceId: createAgentTraceId("bedrock") },
+            );
             const parsed = JSON.parse(jsonStr) as { cheerLine?: string };
             return sanitizeUiCopy(parsed.cheerLine || "");
         } catch (error) {

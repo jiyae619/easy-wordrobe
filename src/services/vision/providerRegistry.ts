@@ -11,8 +11,11 @@ export type TextProvider = VisionProvider & { callText: NonNullable<VisionProvid
  */
 const PROVIDERS: VisionProvider[] = [novaProvider, geminiProvider];
 
+/** Old env values that still resolve to a current provider id. */
+const LEGACY_IDS: Record<string, string> = { "gemini-2.5-flash": "gemini" };
+
 const DEFAULT_ID =
-    (import.meta.env.VITE_VISION_PROVIDER as string | undefined) ?? "nova-2-lite";
+    (import.meta.env.VITE_VISION_PROVIDER as string | undefined) ?? "gemini";
 
 /** Return all registered providers (regardless of configuration). Used by the dev UI. */
 export function listProviders(): VisionProvider[] {
@@ -26,6 +29,7 @@ export function listConfiguredProviders(): VisionProvider[] {
 
 /** Look up a provider by ID; throws if unknown. */
 export function getProviderById(id: string): VisionProvider {
+    id = LEGACY_IDS[id] ?? id;
     const provider = PROVIDERS.find((p) => p.id === id);
     if (!provider) {
         throw new Error(`Unknown vision provider id: ${id}. Known: ${PROVIDERS.map((p) => p.id).join(", ")}`);
@@ -35,7 +39,7 @@ export function getProviderById(id: string): VisionProvider {
 
 /**
  * The provider the IntakeAgent uses by default in production code paths.
- * Controlled via `VITE_VISION_PROVIDER`; falls back to Nova.
+ * Controlled via `VITE_VISION_PROVIDER`; defaults to Gemini.
  * If the configured default lacks credentials, falls back to the first configured one
  * to avoid breaking dev environments that only set one key.
  */

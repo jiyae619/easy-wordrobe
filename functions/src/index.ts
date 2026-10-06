@@ -16,12 +16,10 @@ import { getFirestore, FieldValue } from "firebase-admin/firestore";
 
 initializeApp();
 
-// Required secret (set with `firebase functions:secrets:set BEDROCK_API_KEY`).
+// Required secrets (set with `firebase functions:secrets:set <NAME>`).
+// Gemini is the default provider; Bedrock is kept for the optional Nova path.
+const GEMINI_API_KEY = defineSecret("GEMINI_API_KEY");
 const BEDROCK_API_KEY = defineSecret("BEDROCK_API_KEY");
-// Gemini is OPTIONAL (default provider is Nova). To enable the Gemini path in production:
-//   1) firebase functions:secrets:set GEMINI_API_KEY
-//   2) add `defineSecret("GEMINI_API_KEY")` here and include it in the `secrets: [...]` array below.
-// Until then process.env.GEMINI_API_KEY is undefined and the Gemini branch returns 502.
 
 // Non-secret config (override via env / `firebase functions:config` or .env for functions).
 const AWS_REGION = defineString("AWS_REGION", { default: "us-east-2" });
@@ -86,7 +84,7 @@ async function forward(
 
 export const aiProxy = onRequest(
   {
-    secrets: [BEDROCK_API_KEY],
+    secrets: [GEMINI_API_KEY, BEDROCK_API_KEY],
     timeoutSeconds: 60,
     memory: "256MiB",
     maxInstances: 10,
@@ -145,12 +143,12 @@ export const aiProxy = onRequest(
       }
 
       if (body.target === "gemini") {
-        const key = process.env.GEMINI_API_KEY;
+        const key = GEMINI_API_KEY.value();
         if (!key) {
           res.status(502).json({ error: "Gemini is not configured on the server" });
           return;
         }
-        const model = typeof body.model === "string" && body.model ? body.model : "gemini-2.5-flash";
+        const model = typeof body.model === "string" && body.model ? body.model : "gemini-3.5-flash-lite";
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
         const upstream = await forward(
           url,

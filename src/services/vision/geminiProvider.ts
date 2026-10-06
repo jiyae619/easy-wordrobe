@@ -4,7 +4,7 @@ import { extractJsonFromText } from "../bedrockClient";
 import { AI_PROXY_URL, getProxyIdToken } from "../aiProxyClient";
 import type { TextRequest, VisionCallOptions, VisionProvider, VisionRequest } from "./VisionProvider";
 
-const GEMINI_MODEL = import.meta.env.VITE_GEMINI_MODEL || "gemini-2.5-flash";
+const GEMINI_MODEL = import.meta.env.VITE_GEMINI_MODEL || "gemini-3.5-flash-lite";
 
 const DEFAULT_TIMEOUT_MS = 30000;
 const DEFAULT_MAX_RETRIES = 1;
@@ -105,7 +105,7 @@ async function sendGemini(payload: unknown, options: VisionCallOptions): Promise
 }
 
 export const geminiProvider: VisionProvider = {
-    id: "gemini-2.5-flash",
+    id: "gemini",
     label: `Google ${GEMINI_MODEL}`,
 
     isConfigured(): boolean {
