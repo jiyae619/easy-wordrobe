@@ -14,6 +14,8 @@ Return ONLY a JSON object (no markdown, no commentary) with this exact shape:
   "mood": ["professional" | "casual" | "sporty" | "creative" | "romantic", ...]
 }
 
+A one-piece garment that covers the torso and continues into a skirt (slip dress, sundress, shirt dress, wrap dress, any dress) is ALWAYS "dresses", never "tops", even if it is thin-strapped, short, or shown folded or on a hanger.
+
 If multiple items are visible, describe the most prominent one only.`;
 
 function stripFence(text) {
