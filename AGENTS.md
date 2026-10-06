@@ -79,7 +79,7 @@ Stylemax uses **three specialized AI agents**, all powered by **Google Gemini 3.
 
 * Multimodal input via Gemini `generateContent`: `inline_data` image part + text part in the same message (`responseMimeType: application/json`).
 
-* Model choice: Gemini 2.5 Flash scored on par with Nova 2 Lite on the 200-photo intake eval (`scripts/eval/last-report.md`); 3.5 Flash-Lite is its cheaper, newer successor with no announced shutdown date.
+* Model choice: on the 190 photos shared by both intake evals (`scripts/eval/last-report.md`, `scripts/eval/last-report-gemini-3.5-flash-lite.md`), Gemini 3.5 Flash-Lite ties Nova 2 Lite on category accuracy (90.0%), is ~1.5× faster than Gemini 2.5 Flash, and has no announced shutdown date. Known weak spot: it labels some slip dresses / sundresses as non-dresses.
 
 * Detects clothing **and shoes** (category one of tops / bottoms / outerwear / dresses / shoes); bags, hats, and other accessories are intentionally excluded.
 

@@ -6,7 +6,7 @@ const INTAKE_PROMPT = `You are a fashion AI assistant analyzing a single clothin
 
 Return ONLY a JSON object (no markdown, no commentary) with this exact shape:
 {
-  "category": "tops" | "bottoms" | "outerwear" | "dresses",
+  "category": "tops" | "bottoms" | "outerwear" | "dresses" | "shoes",
   "subcategory": "specific descriptive label, e.g. Crew Neck T-Shirt",
   "color": "dominant color name in plain English",
   "colorHex": "#RRGGBB",
