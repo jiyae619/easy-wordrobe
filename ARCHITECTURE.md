@@ -90,34 +90,33 @@ App.tsx (Layout wrapper with navigation)
 ├── Router (React Router)
 │   ├── /login → Login page
 │   │   └── LoginForm
-│   ├── / → Home = "Today" (ProtectedRoute)
+│   ├── / → Today (ProtectedRoute) — the stylist
 │   │   ├── Weather pill (useTodayWeather) + MoodChips (useMood)
-│   │   ├── HangerReel ×4 (layer / top / bottom-or-dress / shoes-shelf) — lock + Spin
-│   │   └── StreakCard + closet-growth nudge
-│   ├── /wardrobe → Wardrobe = "Closet" (ProtectedRoute)
-│   │   ├── CardFan (the selected category dealt as a fanned hand of cards)
-│   │   ├── Deck piles (one per category) — tap to deal
-│   │   └── ItemDetailModal (tap the raised card) · "Style it" → Today with the piece locked
-│   ├── CameraScannerOverlay (global)
-│   │   └── ImageUpload
-│   ├── BulkUploadOverlay (global) — up to 10 photos → analyze → auto-save
-│   ├── /suggest → Suggest = "Picks" (ProtectedRoute)
-│   │   ├── MoodChips
-│   │   └── SwipeDeck of MirrorCard (3 looks: right wear · left skip · up tweak)
-│   └── /insights → Insights (ProtectedRoute)
-│       ├── WeeklyTimeline
-│       ├── WearFrequencyChart
-│       ├── ColorDistribution
-│       ├── NudgeCard
-│       ├── WeeklyOutfitTimeline
+│   │   ├── LooksDeck: SwipeDeck of MirrorCard (3 AI looks: right wear · left skip · up tweak)
+│   │   ├── OutfitBuilder ("Tweak"): HangerReel ×4 (layer / top / bottom-or-dress / shoes) — lock + Spin;
+│   │   │   also logs a past day when opened from the Style Log calendar
+│   │   └── FirstWeekChecklist (then closet-growth nudge) + StreakCard
+│   ├── /wardrobe → Wardrobe = "Closet" (ProtectedRoute) — bird's-eye view
+│   │   ├── ClosetRail ×5 (Layers / Tops / Bottoms / Dresses / Shoes), natively scrolling
+│   │   └── Picked-piece bar: Info (ItemDetailModal) · Wear more · Style it → Today with the piece locked
+│   ├── CameraScannerOverlay (global) — one photo, several pieces: AI-filled review,
+│   │   "Wear more" toggle, "Add all", then "Style it" on the new piece
+│   ├── BulkUploadOverlay (global) — several gallery photos → one AI-filled review list → Add all
+│   ├── /suggest → redirects to / (Picks merged into Today)
+│   └── /insights → Insights = "Style Log" (ProtectedRoute)
+│       ├── WeeklyOutfitTimeline (scrollable weeks + logging streak bar; tap a day to log a forgotten outfit:
+│       │   a recent look, the rails, or OutfitPhotoLog from photos; "From photos" takes a batch
+│       │   and puts each photo on the day it was taken, read from its EXIF date)
+│       ├── Forgotten gems (least worn) · Style it
+│       ├── Your go-tos (2+ wears)
 │       └── OutfitHistory (browse past wears + one-tap re-wear)
 │
 └── Navigation (fixed bottom mobile nav)
-    ├── Home icon
-    ├── Wardrobe icon
-    ├── Camera (scan) button → opens CameraScannerOverlay
-    ├── Suggest icon
-    └── Insights icon
+    ├── Today
+    ├── Closet
+    ├── Scan (+) → opens CameraScannerOverlay
+    ├── Style Log
+    └── You (account menu: profile, settings, sign out)
 ```
 
 ---
@@ -279,7 +278,7 @@ User visits app
       │ Redirect
       ▼
 ┌──────────────────────────────────────────┐
-│  Home Page (/)                           │
+│  Today (/)                               │
 │  • Protected Route                       │
 │  • Load user data from Firestore         │
 └──────────────────────────────────────────┘
@@ -361,11 +360,11 @@ User taps Camera button in Navigation
 ### Flow 3: Outfit Suggestion (Mood + Weather → AI → Suggestions)
 
 ```
-User navigates to /suggest page
+User opens Today (/)
       │
       ▼
 ┌──────────────────────────────────────────┐
-│  Suggest Page loads                      │
+│  Today loads                             │
 │  • Display mood selector                 │
 │  • Load wardrobe from context            │
 └──────────────────────────────────────────┘
@@ -429,7 +428,7 @@ User navigates to /suggest page
 │  • Cache per (items, mood, weather)       │
 └──────────────────────────────────────────┘
       │
-      │ 3 MirrorCards on Picks / Spin targets on Today
+      │ 3 MirrorCards on Today / Spin targets in Tweak mode
       ▼
 ┌──────────────────────────────────────────┐
 │  User reviews suggestions                │
@@ -514,7 +513,7 @@ User navigates to /insights page
 ### Flow 5: Weather Integration
 
 ```
-Home page loads OR Suggest page requests weather
+Today loads and requests weather
       │
       ▼
 ┌──────────────────────────────────────────┐

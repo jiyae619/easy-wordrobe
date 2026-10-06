@@ -1,9 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import { useWardrobe } from '../../context/WardrobeContext';
 import { format } from 'date-fns';
-import { Shirt, RotateCcw, Check, Heart } from 'lucide-react';
+import { Shirt, RotateCcw, Check } from 'lucide-react';
 import { MOODS } from '../../data/moods';
 import type { ClothingItem, WeatherData } from '../../types';
+import { loggedTodayKeys, outfitKey } from '../../utils/wearLog';
 
 const HISTORY_LIMIT = 20;
 const WEATHER_CACHE_KEY = 'home-weather-cache-v1'; // mirrors Home.tsx
@@ -32,7 +33,7 @@ function moodName(id: string): string {
  * so it feeds right back into insights and the behavioral loop.
  */
 export const OutfitHistory: React.FC = () => {
-    const { outfits, clothes, logOutfitWear, toggleOutfitFavorite } = useWardrobe();
+    const { outfits, clothes, logOutfitWear } = useWardrobe();
     const [rewornId, setRewornId] = useState<string | null>(null);
     const [pendingId, setPendingId] = useState<string | null>(null);
 
@@ -40,11 +41,7 @@ export const OutfitHistory: React.FC = () => {
 
     const records = useMemo(() => {
         return [...outfits]
-            .sort((a, b) => {
-                // Favorites pinned to the top, then most-recent first.
-                if (Boolean(a.favorite) !== Boolean(b.favorite)) return a.favorite ? -1 : 1;
-                return new Date(b.date).getTime() - new Date(a.date).getTime();
-            })
+            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
             .map((record) => ({
                 record,
                 items: record.outfitItems
@@ -56,6 +53,7 @@ export const OutfitHistory: React.FC = () => {
     }, [outfits, itemsById]);
 
     if (records.length === 0) return null;
+    const todayKeys = loggedTodayKeys(outfits);
 
     const handleWearAgain = async (record: (typeof records)[number]['record'], items: ClothingItem[]) => {
         if (pendingId) return;
@@ -63,9 +61,11 @@ export const OutfitHistory: React.FC = () => {
         try {
             const weather = getCachedWeather() ?? record.weather;
             // Re-wear only the items that still exist in the wardrobe.
-            await logOutfitWear(items.map((i) => i.id), record.mood, weather);
-            setRewornId(record.id);
-            window.setTimeout(() => setRewornId(null), 2000);
+            const saved = await logOutfitWear(items.map((i) => i.id), record.mood, weather);
+            if (saved) {
+                setRewornId(record.id);
+                window.setTimeout(() => setRewornId(null), 2000);
+            }
         } finally {
             setPendingId(null);
         }
@@ -92,26 +92,20 @@ export const OutfitHistory: React.FC = () => {
                             ))}
                         </div>
                         <div className="flex-1 min-w-0">
-                            <p className="text-sm font-bold text-ink">{format(new Date(record.date), 'EEE, MMM d')}</p>
+                            <p className="text-sm font-bold text-ink whitespace-nowrap">{format(new Date(record.date), 'EEE, MMM d')}</p>
                             <p className="text-[11px] text-ink/50 capitalize">
                                 {moodName(record.mood)} · {items.length} item{items.length === 1 ? '' : 's'}
                             </p>
                         </div>
                         <button
-                            onClick={() => toggleOutfitFavorite(record.id)}
-                            aria-label={record.favorite ? 'Remove from favorites' : 'Add to favorites'}
-                            aria-pressed={Boolean(record.favorite)}
-                            className="flex items-center justify-center w-9 h-9 rounded-full hover:bg-paper transition-colors active:scale-[0.97] flex-shrink-0"
-                        >
-                            <Heart className={`w-4 h-4 ${record.favorite ? 'text-ink fill-ink' : 'text-ink/30'}`} />
-                        </button>
-                        <button
                             onClick={() => handleWearAgain(record, items)}
-                            disabled={pendingId === record.id}
+                            disabled={pendingId === record.id || todayKeys.has(outfitKey(items.map((i) => i.id)))}
                             className="flex items-center gap-1 px-3 py-1.5 bg-paper border-[1.5px] border-ink text-ink text-xs font-bold rounded-full transition-colors active:scale-[0.97] disabled:opacity-50 flex-shrink-0"
                         >
                             {rewornId === record.id ? (
                                 <><Check className="w-3 h-3" /> Logged</>
+                            ) : todayKeys.has(outfitKey(items.map((i) => i.id))) ? (
+                                <><Check className="w-3 h-3" /> Worn today</>
                             ) : (
                                 <><RotateCcw className="w-3 h-3" /> Wear again</>
                             )}

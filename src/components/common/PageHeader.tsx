@@ -10,10 +10,9 @@ interface PageHeaderProps {
 
 /**
  * The one header layout every tab uses: eyebrow above, big title, optional meta row below.
- * Right padding leaves room for the account avatar pinned top-right by the layout.
  */
 export const PageHeader: React.FC<PageHeaderProps> = ({ eyebrow, title, children }) => (
-    <header className="pr-12 min-h-[64px]">
+    <header className="min-h-[64px]">
         <p className="text-xs font-bold text-ink/60 leading-5">{eyebrow}</p>
         <h1 className="font-display text-[32px] font-extrabold leading-none tracking-tight text-ink mt-1">{title}</h1>
         {children && <div className="mt-2.5">{children}</div>}

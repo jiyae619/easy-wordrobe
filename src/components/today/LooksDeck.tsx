@@ -1,26 +1,24 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import React, { useMemo, useRef, useState } from 'react';
 import { X, Check, Loader2, RefreshCw, Sparkles, SlidersHorizontal } from 'lucide-react';
-import { useWardrobe } from '../context/WardrobeContext';
-import { type ClothingItem, type OutfitSuggestion } from '../types';
+import { useWardrobe } from '../../context/WardrobeContext';
+import { type ClothingItem, type OutfitSuggestion } from '../../types';
 import {
     computeSeasonalLeastWornIds,
     computeWearScore,
     computeWeatherMatch,
     describeOutfitReason,
     getWardrobeReadiness,
-} from '../services/agents/agentOutputGuards';
-import { useMood } from '../hooks/useMood';
-import { useTodayWeather } from '../hooks/useTodayWeather';
-import { useStylistLooks } from '../hooks/useStylistLooks';
-import { usePendingWear } from '../hooks/usePendingWear';
-import { MoodChips } from '../components/common/MoodChips';
-import { picksDoneLine, stylistLoadingLine, wearSavedLine } from '../copy/voice';
-import { PageHeader } from '../components/common/PageHeader';
-import { WearToast } from '../components/common/WearToast';
-import { MirrorCard } from '../components/picks/MirrorCard';
-import { SwipeDeck, type SwipeDeckHandle, type SwipeDir } from '../components/picks/SwipeDeck';
-import { daysIdle, buildReelOptions, itemsFromSlots, slotsFromItems, type OutfitSlots, type SlotId } from '../utils/outfitSlots';
+} from '../../services/agents/agentOutputGuards';
+import { useMood } from '../../hooks/useMood';
+import { useTodayWeather } from '../../hooks/useTodayWeather';
+import { useStylistLooks } from '../../hooks/useStylistLooks';
+import { usePendingWear } from '../../hooks/usePendingWear';
+import { picksDoneLine, stylistLoadingLine, wearSavedLine } from '../../copy/voice';
+import { WearToast } from '../common/WearToast';
+import { MirrorCard } from '../picks/MirrorCard';
+import { SwipeDeck, type SwipeDeckHandle, type SwipeDir } from '../picks/SwipeDeck';
+import { daysIdle, buildReelOptions, itemsFromSlots, slotsFromItems, type OutfitSlots, type SlotId } from '../../utils/outfitSlots';
+import { wornToday } from '../../utils/wearLog';
 
 interface DeckState {
     key: string;
@@ -32,20 +30,23 @@ interface DeckState {
 
 const freshDeck = (key: string): DeckState => ({ key, index: 0, overrides: {}, wornLook: null });
 
+interface LooksDeckProps {
+    /** Open a look in Tweak mode (the rails), or start from scratch when no slots are given. */
+    onTweak: (slots?: OutfitSlots) => void;
+}
+
 /**
- * Picks — the stylist's 3 looks as a stack of mirror cards. Swipe right to wear (4s undo), left to
- * skip (logged as a rejection signal for the Stylist), up to tweak the look on Today's rails. Tap a
- * piece in the mirror to swap it for another of the same kind.
+ * Today's default view: the stylist's 3 looks as a stack of mirror cards. Swipe right to wear (4s
+ * undo), left to skip (logged as a rejection signal for the Stylist), up to tweak the look on the
+ * rails. Tap a piece in the mirror to swap it for another of the same kind.
  */
-const Suggest: React.FC = () => {
+export const LooksDeck: React.FC<LooksDeckProps> = ({ onTweak }) => {
     const { clothes, outfits, tryItItemIds, logSuggestionEvent } = useWardrobe();
-    const navigate = useNavigate();
-    const [searchParams] = useSearchParams();
-    const [mood, setMood] = useMood();
+    const [mood] = useMood();
     const { weather, isLoading: weatherLoading } = useTodayWeather();
     const readiness = getWardrobeReadiness(clothes);
     const { looks, isLoading, error, regenerate } = useStylistLooks(mood, readiness.canMakeOutfit ? weather : null);
-    const { wear, undo, isPending, logged } = usePendingWear();
+    const { wear, undo, notify, isPending, logged, notice } = usePendingWear();
     const deckRef = useRef<SwipeDeckHandle>(null);
     // Deck progress belongs to one batch of looks. Keyed on look ids, so a logged wear (which
     // refreshes item data) keeps the stack where it is, while a new batch starts it over.
@@ -54,12 +55,6 @@ const Suggest: React.FC = () => {
     const current = deck.key === looksKey ? deck : freshDeck(looksKey);
     const { index, overrides, wornLook } = current;
     const updateDeck = (patch: Partial<DeckState>) => setDeck({ ...current, ...patch });
-
-    // Deep links like /suggest?mood=romantic still work.
-    const moodParam = searchParams.get('mood');
-    useEffect(() => {
-        if (moodParam) setMood(moodParam);
-    }, [moodParam, setMood]);
 
     const options = useMemo(() => buildReelOptions(clothes), [clothes]);
     const leastWornIds = useMemo(() => computeSeasonalLeastWornIds(clothes, outfits), [clothes, outfits]);
@@ -103,14 +98,18 @@ const Suggest: React.FC = () => {
         const items = effective(look).items;
         const ids = items.map((i) => i.id);
         if (dir === 'up') {
-            navigate('/', { state: { slots: slotsFromItems(items) } });
+            onTweak(slotsFromItems(items));
             return;
         }
         let worn = wornLook;
-        if (dir === 'right' && weather) {
-            setSavedText(wearSavedLine({ items, weather, moodId: mood.id, dustyDays }));
-            wear(ids, mood.id, weather);
-            worn = lookIndex;
+        if (dir === 'right') {
+            if (wornToday(outfits, ids)) {
+                notify('Already logged today.');
+            } else {
+                setSavedText(wearSavedLine({ items, weather, moodId: mood.id, dustyDays }));
+                wear(ids, mood.id, weather);
+                worn = lookIndex;
+            }
         }
         if (dir === 'left') void logSuggestionEvent('skipped', ids, mood.id);
         updateDeck({ index: lookIndex + 1, wornLook: worn });
@@ -195,7 +194,7 @@ const Suggest: React.FC = () => {
                 <button type="button" onClick={() => void showDifferent()} disabled={isLoading} className="h-12 px-5 rounded-full bg-ink text-paper text-sm font-bold inline-flex items-center gap-2 disabled:opacity-60">
                     {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />} Show me more
                 </button>
-                <button type="button" onClick={() => navigate('/')} className="h-11 px-5 rounded-full border-[1.5px] border-ink text-sm font-bold">
+                <button type="button" onClick={() => onTweak()} className="h-11 px-5 rounded-full border-[1.5px] border-ink text-sm font-bold">
                     Build my own
                 </button>
             </div>
@@ -208,13 +207,6 @@ const Suggest: React.FC = () => {
 
     return (
         <div className="space-y-4">
-            <PageHeader
-                title="Picks"
-                eyebrow={`3 AI looks · ${mood.name}${weather ? ` · ${Math.round(weather.temperature)}° ${weather.condition.toLowerCase()}` : ''}`}
-            />
-
-            <MoodChips value={mood.id} onChange={setMood} />
-
             <div className="relative h-[clamp(320px,calc(100dvh-380px),560px)]">{body}</div>
 
             {deckActive && (
@@ -222,10 +214,10 @@ const Suggest: React.FC = () => {
                     <button type="button" onClick={() => deckRef.current?.swipe('left')} aria-label="Skip this look" className="w-[60px] h-[60px] rounded-full border-2 border-ink bg-white text-ink flex items-center justify-center active:scale-95">
                         <X className="w-6 h-6" />
                     </button>
-                    <button type="button" onClick={() => deckRef.current?.swipe('up')} aria-label="Tweak this look on Today’s rails" className="w-[50px] h-[50px] rounded-full border-2 border-ink bg-paper text-ink flex items-center justify-center active:scale-95">
+                    <button type="button" onClick={() => deckRef.current?.swipe('up')} aria-label="Tweak this look" className="w-[50px] h-[50px] rounded-full border-2 border-ink bg-paper text-ink flex items-center justify-center active:scale-95">
                         <SlidersHorizontal className="w-5 h-5" />
                     </button>
-                    <button type="button" onClick={() => deckRef.current?.swipe('right')} disabled={!weather} aria-label="Wear this look" className="w-[60px] h-[60px] rounded-full border-2 border-ink bg-lime text-ink flex items-center justify-center active:scale-95 disabled:opacity-50">
+                    <button type="button" onClick={() => deckRef.current?.swipe('right')} aria-label="Wear this look" className="w-[60px] h-[60px] rounded-full border-2 border-ink bg-lime text-ink flex items-center justify-center active:scale-95 disabled:opacity-50">
                         <Check className="w-6 h-6" />
                     </button>
                 </div>
@@ -237,9 +229,7 @@ const Suggest: React.FC = () => {
                 </p>
             )}
 
-            <WearToast isPending={isPending} logged={logged} savedText={savedText} onUndo={() => { undo(); updateDeck({ wornLook: null }); }} />
+            <WearToast isPending={isPending} logged={logged} notice={notice} savedText={savedText} onUndo={() => { undo(); updateDeck({ wornLook: null }); }} />
         </div>
     );
 };
-
-export default Suggest;

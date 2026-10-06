@@ -6,7 +6,7 @@ Interactive prototypes (9 phone screens, all built with real catalog photos): **
 
 All three keep the current agent contracts unchanged. Only the presentation layer changes.
 
-> **Chosen direction (implemented):** B · Mix Reels as the structure, with A's hanger rails as Today's outfit builder, B2's card decks as the Closet, and A3's mirror as the card face inside B3's swipe stack. Tabs: **Today** (one hanger rail per outfit slot · lock + Spin) · **Closet** (category decks dealt as a fanned hand · "Style it" sends a piece to Today locked) · (+ Scan) · **Picks** (mirror cards: right = wear, left = skip, up = tweak on Today) · **Stats**.
+> **Chosen direction (implemented):** B · Mix Reels as the structure, with A's hanger rails and A3's mirror inside B3's swipe stack. After a UX test run the tabs were simplified to three: **Today** (the stylist: 3 mirror cards to swipe; "Tweak" opens one hanger rail per outfit slot with lock + Spin) · **Closet** (bird's-eye view: every category on its own rail, stacked; tap a piece for Info, Wear more or Style it) · (+ Scan: several photos or several pieces per photo, one AI-filled review) · **Style Log** (a scrollable wear calendar with the streak bar where a forgotten day can be logged, least and most worn) · **You** (account).
 
 | | A · The Walk-in | B · Mix Reels | C · Orbit |
 |---|---|---|---|
@@ -22,7 +22,7 @@ All three keep the current agent contracts unchanged. Only the presentation laye
 ## How each maps onto today's app
 
 - **Rotation / neglect signal**, from `computeSeasonalLeastWornIds`: shown as a swinging dust tag (A), a `26d` badge plus a "Dusty first" sort (B), or items drifting out of orbit (C).
-- **"Will try"** (`tryItItemIds`): "Will try this week" (A2), "Bring back into orbit" (C2).
+- **"Wear more"** (`tryItItemIds`): tagged when scanning or in the Closet; cleared once the piece is worn. Concepts: "Will try this week" (A2), "Bring back into orbit" (C2).
 - **Skip / wear signals**: B3's swipe directions map directly. Right calls `logOutfitWear`, left logs a skip to `suggestionEvents`, and up saves the look for later. A3 and C3 use explicit buttons.
 - **StylistAgent output** (3 outfits with tone hype / editorial / warm): rendered as 3 rack tags (A), 3 swipe cards (B), or 3 constellations (C). Scores stay code-computed.
 - **B1 "Spin"** is new: send the locked item IDs as hard constraints and let StylistAgent fill the other slots. This is a small prompt and validation change; the outfit-shape rules stay the same.
@@ -51,6 +51,13 @@ Whering "Dress Me" and Combyne "Swipe" (reel builders) · Whering daily swipe ·
 
 Short, warm and a little playful. No slang, no em dashes.
 
-- **AI writes:** outfit notes (StylistAgent), the weather cheer (WeatherAgent, also shown on Today while the stylist works) and the Stats tips (BehavioralAgent). All of it passes through `sanitizeUiCopy`, which turns dashes into commas.
+- **AI writes:** outfit notes (StylistAgent), the weather cheer (WeatherAgent, also shown on Today while the stylist works) and the Style Log tips (BehavioralAgent). All of it passes through `sanitizeUiCopy`, which turns dashes into commas.
 - **Code writes everything else** from real context in `src/copy/voice.ts`: weather, mood, the pieces on screen (names, colours, categories), days unworn, wear counts, streaks, time of day and weekday. Each line comes from a small pool, picked with a seed of today's date plus the context: stable while you use the app, different tomorrow or when the context changes. No model call, so it is instant and free.
 - Lines never put an article or a singular verb on a piece name, because names can be plural ("Slim Jeans"). `src/copy/__tests__/voice.test.ts` checks this, plus no dashes, no unfilled placeholders and a 72 character cap.
+
+## First-session value
+
+- **Style it after a scan:** the finish screen offers a look built around the new piece, so the first minute ends with an outfit, not a list.
+- **First-week checklist** on Today: add 5 pieces, wear a first look, log 3 days. Each step says what it gives back.
+- **Log forgotten days from photos:** pick outfit photos (one day, or a batch from "From photos"). Each photo lands on the day it was taken (EXIF date, else the file date, else the day tapped; every day can be changed). The AI spots each piece, matches it to the closet or adds it as new (the same new piece across days is added once), and every day is logged.
+- **Streak bar** under the Style Log calendar: the logging streak with a bar to the next milestone (3 days, a week, two weeks, a month).

@@ -10,6 +10,7 @@ import { getTextProvider } from "../vision/providerRegistry";
 import { getAgentFailureReason } from "./agentErrors";
 import { createAgentTraceId, recordAgentMetric } from "./agentTelemetry";
 import { clampSentences, computeWearScore, computeWeatherMatch, mapStylistSuggestions, moodIdsForStyling, parseAgentJson, sanitizeUiCopy } from "./agentOutputGuards";
+import { itemName } from '../../utils/itemName';
 
 export type BehavioralContext = {
     /** Items flagged by BehavioralAgent as unworn for 3+ weeks in the current season */
@@ -147,7 +148,7 @@ Output strictly as a JSON array of objects, with NO markdown formatting around i
 // ==========================================
 
 function buildFallbackExplanation(items: ClothingItem[], mood: FashionMood, tone: 'hype' | 'editorial' | 'warm'): string {
-    const names = items.map(i => `${i.color} ${i.subcategory}`).join(', ');
+    const names = items.map(i => itemName(i)).join(', ');
     const moodName = mood.name.toLowerCase();
     switch (tone) {
         case 'hype':
