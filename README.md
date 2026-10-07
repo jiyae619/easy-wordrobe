@@ -2,7 +2,7 @@
 
 > Turn closet chaos into curated confidence. Stylemax is a mobile-first AI app that photographs your clothes, understands your mood and the weather, and suggests outfits from your actual wardrobe — powered by a three-agent Google Gemini pipeline.
 
-**Live Demo:** https://&lt;project-id&gt;.web.app (Firebase Hosting)
+**Live Demo:** https://easy-wardrobe-f10c6.web.app
 **AI Agent Deep Dive:** [AGENTS.md](AGENTS.md)  
 **System Architecture:** [ARCHITECTURE.md](ARCHITECTURE.md)
 
