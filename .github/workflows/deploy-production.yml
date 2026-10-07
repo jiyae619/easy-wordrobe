@@ -1,0 +1,83 @@
+# Deploys the app to Firebase whenever the `production` branch changes.
+#
+# One-time setup (GitHub → Settings → Secrets and variables → Actions):
+#   Secret   FIREBASE_SERVICE_ACCOUNT   JSON key of a Google service account (see README → Deploy)
+#   Variable FIREBASE_PROJECT_ID        e.g. easy-wardrobe-f10c6
+#   Variables VITE_FIREBASE_API_KEY, VITE_FIREBASE_AUTH_DOMAIN, VITE_FIREBASE_PROJECT_ID,
+#             VITE_FIREBASE_STORAGE_BUCKET, VITE_FIREBASE_MESSAGING_SENDER_ID,
+#             VITE_FIREBASE_APP_ID, VITE_AI_PROXY_URL   (same values as .env.production)
+#
+# Hosting is deployed on every push. The aiProxy function is deployed only when
+# something under functions/ changed (or when run manually with "deploy functions").
+name: Deploy to Firebase (production)
+
+on:
+  push:
+    branches: [production]
+  workflow_dispatch:
+    inputs:
+      deploy_functions:
+        description: "Also deploy the aiProxy function"
+        type: boolean
+        default: false
+
+concurrency:
+  group: firebase-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      VITE_FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}
+      VITE_FIREBASE_AUTH_DOMAIN: ${{ vars.VITE_FIREBASE_AUTH_DOMAIN }}
+      VITE_FIREBASE_PROJECT_ID: ${{ vars.VITE_FIREBASE_PROJECT_ID }}
+      VITE_FIREBASE_STORAGE_BUCKET: ${{ vars.VITE_FIREBASE_STORAGE_BUCKET }}
+      VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ vars.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+      VITE_FIREBASE_APP_ID: ${{ vars.VITE_FIREBASE_APP_ID }}
+      VITE_AI_PROXY_URL: ${{ vars.VITE_AI_PROXY_URL }}
+      FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Check configuration
+        run: |
+          missing=0
+          for v in FIREBASE_PROJECT_ID VITE_FIREBASE_API_KEY VITE_FIREBASE_AUTH_DOMAIN VITE_FIREBASE_PROJECT_ID \
+                   VITE_FIREBASE_STORAGE_BUCKET VITE_FIREBASE_MESSAGING_SENDER_ID VITE_FIREBASE_APP_ID VITE_AI_PROXY_URL; do
+            if [ -z "${!v}" ]; then echo "::error::Repository variable $v is not set"; missing=1; fi
+          done
+          if [ -z "${{ secrets.FIREBASE_SERVICE_ACCOUNT != '' && 'set' || '' }}" ]; then
+            echo "::error::Repository secret FIREBASE_SERVICE_ACCOUNT is not set"; missing=1
+          fi
+          exit $missing
+
+      - name: Decide what to deploy
+        id: targets
+        run: |
+          if [ "${{ inputs.deploy_functions }}" = "true" ] || ! git diff --quiet HEAD^ HEAD -- functions/ 2>/dev/null; then
+            echo "only=hosting,functions" >> "$GITHUB_OUTPUT"
+          else
+            echo "only=hosting" >> "$GITHUB_OUTPUT"
+          fi
+
+      - run: npm ci
+
+      - name: Install function dependencies
+        if: contains(steps.targets.outputs.only, 'functions')
+        run: npm ci --prefix functions
+
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
+      # firebase.json runs `npm run build` before uploading hosting, using the VITE_* env above.
+      - name: Deploy (${{ steps.targets.outputs.only }})
+        run: npx --yes firebase-tools@latest deploy --only "${{ steps.targets.outputs.only }}" --project "$FIREBASE_PROJECT_ID" --non-interactive

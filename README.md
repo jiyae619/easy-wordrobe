@@ -155,6 +155,26 @@ firebase deploy --only hosting      # → https://<project-id>.web.app
 firebase deploy --only functions    # AI proxy, see functions/README.md
 ```
 
+#### Automatic deploys from the `production` branch
+
+`.github/workflows/deploy-production.yml` deploys on every push to `production`: Hosting always, and the
+`aiProxy` function only when `functions/` changed (or when run manually from the Actions tab with
+"Also deploy the aiProxy function").
+
+One-time setup:
+
+1. **Service account:** Google Cloud Console → IAM & Admin → Service Accounts → *Create*. Grant
+   **Firebase Admin**, **Cloud Functions Admin**, **Service Account User** and **Secret Manager Viewer**.
+   Then open it → *Keys* → *Add key* → JSON, and download the file.
+2. **GitHub → Settings → Secrets and variables → Actions:**
+   - *Secrets* tab: `FIREBASE_SERVICE_ACCOUNT` = the full contents of that JSON file. Delete the
+     downloaded file afterwards.
+   - *Variables* tab: `FIREBASE_PROJECT_ID`, plus the same `VITE_*` values as `.env.production`.
+3. Create the branch from `master` and push:
+   `git checkout master && git pull && git checkout -b production && git push -u origin production`
+
+To ship afterwards: merge into `master`, then `git checkout production && git merge master && git push`.
+
 ---
 
 ## Want to explore without your own wardrobe?
