@@ -23,7 +23,7 @@ Wardrobe AI is a **React-based mobile web application** with a **three-tier arch
 
 - **Frontend**: React 19 with TypeScript, Vite, React Router
 - **Backend**: Firebase (Authentication, Firestore, Cloud Storage, Cloud Functions, Hosting)
-- **AI Services**: Google Gemini 3.5 Flash-Lite (default; AWS Bedrock Nova 2 Lite kept as an optional provider), reached through an auth-checked Cloud Functions proxy (`aiProxy`) that keeps the key server-side
+- **AI Services**: Google Gemini 3.5 Flash-Lite, reached through an auth-checked Cloud Functions proxy (`aiProxy`) that keeps the key server-side
 - **External APIs**: National Weather Service (NWS)
 
 ### Technology Stack
@@ -34,7 +34,7 @@ State Management: React Context API
 Database: Firestore (NoSQL)
 Storage: Firebase Cloud Storage
 Authentication: Firebase Auth (Email/Password + Google OAuth)
-AI Models: Google Gemini 3.5 Flash-Lite (default) | AWS Bedrock Nova 2 Lite (optional)
+AI Models: Google Gemini 3.5 Flash-Lite
 Hosting: Firebase Hosting
 Weather API: National Weather Service (free, no key required)
 ```
@@ -159,9 +159,8 @@ App.tsx (Layout wrapper with navigation)
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
 │  Default: Google Gemini 3.5 Flash-Lite (gemini-3.5-flash-lite) │
-│  Optional: Amazon Nova 2 Lite (us.amazon.nova-2-lite-v1:0)     │
 │  Access: via aiProxy Cloud Function (key stays server-side)    │
-│  API: Gemini generateContent (multimodal) / Bedrock Converse   │
+│  API: Gemini generateContent (multimodal)                      │
 │                                                                 │
 │  ┌────────────────┐ ┌────────────────┐ ┌──────────────────┐   │
 │  │ IntakeAgent    │ │ StylistAgent   │ │ BehavioralAgent  │   │
@@ -185,18 +184,18 @@ App.tsx (Layout wrapper with navigation)
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-**Choosing the provider:** `VITE_VISION_PROVIDER` (`gemini` default, or `nova-2-lite`) selects the
-provider for **all** agents — Intake, Stylist, Behavioral and the Weather cheer line
+**Choosing the provider:** `VITE_VISION_PROVIDER` (`gemini` default; `nova-2-lite` is legacy and no
+longer served by the proxy) selects the provider for **all** agents — Intake, Stylist, Behavioral and the Weather cheer line
 (`src/services/vision/providerRegistry.ts`). `VITE_GEMINI_MODEL` overrides the Gemini model.
 
 **How the client reaches the models (via the AI proxy):**
 
 The browser NEVER holds a model key. It POSTs to the `aiProxy` Cloud Function
 (`VITE_AI_PROXY_URL`) with the signed-in user's Firebase ID token; the function verifies the
-token, rate-limits per user, and forwards to Gemini/Bedrock with the server-side key.
+token, rate-limits per user, and forwards to Gemini with the server-side key.
 
 ```
-Browser                             aiProxy (Cloud Function)         Gemini / AWS Bedrock
+Browser                             aiProxy (Cloud Function)         Gemini
 POST {VITE_AI_PROXY_URL}            verifyIdToken(token) → uid
   Authorization: Bearer <idToken>   rate-limit(uid) [Firestore]
   { target: "gemini",          ──▶  forward with SERVER key      ──▶ POST .../{model}:generateContent
@@ -204,8 +203,7 @@ POST {VITE_AI_PROXY_URL}            verifyIdToken(token) → uid
       contents, generationConfig } } ◀──  (passed straight through)
 ```
 
-Auth is a Firebase **ID token**, never an API key. The same proxy serves the optional Nova path
-(`target: "bedrock"`, Converse API). Response parsing stays entirely on the client. See `functions/README.md`.
+Auth is a Firebase **ID token**, never an API key. Response parsing stays entirely on the client. See `functions/README.md`.
 
 ---
 
@@ -693,7 +691,6 @@ Home page loads OR Suggest page requests weather
 | Cloud Storage | Firebase Auth | Binary (JPEG/PNG) | 5GB storage (free) |
 | aiProxy (Cloud Function) | Firebase ID token | JSON | Per-user (default 30/min) |
 | Gemini API (behind proxy) | Server-side key (Secret Manager) | JSON (generateContent) | Per Google AI Studio tier |
-| AWS Bedrock (optional, behind proxy) | Server-side key (Secret Manager) | JSON (Converse API) | 100 req/min |
 | NWS Weather API | User-Agent header | JSON (GeoJSON) | None (public) |
 
 ### Firestore Collection Structure

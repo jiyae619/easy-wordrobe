@@ -1,6 +1,6 @@
 # AI Agents — How Stylemax Thinks
 
-Stylemax uses **three specialized AI agents**, all powered by **Google Gemini 3.5 Flash-Lite** (`gemini-3.5-flash-lite`) through the `aiProxy` Cloud Function. Amazon Nova 2 Lite (AWS Bedrock) remains an optional provider: `VITE_VISION_PROVIDER` (`gemini` | `nova-2-lite`) switches **all** agents at once (`src/services/vision/providerRegistry.ts`). Each agent has a single, focused responsibility, its own optimized prompt, and its own temperature setting.
+Stylemax uses **three specialized AI agents**, all powered by **Google Gemini 3.5 Flash-Lite** (`gemini-3.5-flash-lite`) through the `aiProxy` Cloud Function. `VITE_VISION_PROVIDER` selects the provider for **all** agents at once (`src/services/vision/providerRegistry.ts`). The legacy Amazon Nova 2 Lite adapter is still in the client, but the proxy no longer serves AWS Bedrock. Each agent has a single, focused responsibility, its own optimized prompt, and its own temperature setting.
 
 > **Important:** The agents do **not** run in a fixed sequential pipeline. They operate as a **dependency graph** — IntakeAgent and BehavioralAgent run independently, and StylistAgent consumes output from BehavioralAgent when generating outfits.
 

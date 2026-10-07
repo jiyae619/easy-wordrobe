@@ -1,6 +1,6 @@
 # Stylemax — AI Fashion Companion
 
-> Turn closet chaos into curated confidence. Stylemax is a mobile-first AI app that photographs your clothes, understands your mood and the weather, and suggests outfits from your actual wardrobe — powered by a three-agent Amazon Nova pipeline.
+> Turn closet chaos into curated confidence. Stylemax is a mobile-first AI app that photographs your clothes, understands your mood and the weather, and suggests outfits from your actual wardrobe — powered by a three-agent Google Gemini pipeline.
 
 **Live Demo:** https://&lt;project-id&gt;.web.app (Firebase Hosting)
 **AI Agent Deep Dive:** [AGENTS.md](AGENTS.md)  
@@ -16,7 +16,7 @@ Most people wear only ~20% of their wardrobe regularly. Every morning, 65% of wo
 
 ## How It Works
 
-Stylemax uses **three specialized AI agents**, all powered by Amazon Nova 2 Lite via AWS Bedrock:
+Stylemax uses **three specialized AI agents**, all powered by Google Gemini 3.5 Flash-Lite via the `aiProxy` Cloud Function:
 
 ```
 User uploads photo
@@ -60,7 +60,7 @@ See [AGENTS.md](AGENTS.md) for a detailed breakdown of each agent's inputs, outp
 |-------|-----------|
 | Frontend | React 19, TypeScript, Vite, Tailwind CSS 4, React Router 7 |
 | State | React Context API |
-| AI | Google Gemini 3.5 Flash-Lite (default) or AWS Bedrock Nova 2 Lite, via the `aiProxy` Cloud Function |
+| AI | Google Gemini 3.5 Flash-Lite, via the `aiProxy` Cloud Function |
 | Auth | Firebase Authentication (Email + Google OAuth) |
 | Database | Cloud Firestore |
 | Storage | Firebase Cloud Storage |

@@ -1,12 +1,12 @@
 # StyleMax AI Proxy (Firebase Cloud Functions)
 
-`aiProxy` is an authenticated forwarder that keeps the Bedrock / Gemini API keys **off the client**.
+`aiProxy` is an authenticated forwarder that keeps the Gemini API key **off the client**.
 The browser sends a **Firebase ID token** (not an API key); the function verifies it, enforces a
 per-user rate limit, and forwards the request to the upstream model with the real key held in
 Secret Manager.
 
 ```
-browser ──(Firebase ID token + Converse payload)──▶ aiProxy ──(server-side key)──▶ Bedrock / Gemini
+browser ──(Firebase ID token + generateContent payload)──▶ aiProxy ──(server-side key)──▶ Gemini
 ```
 
 ## One-time setup
@@ -20,20 +20,16 @@ firebase use --add            # select your Firebase project (the one in VITE_FI
 
 cd functions && npm install && cd ..
 
-# Store the model keys as secrets (NOT in any VITE_ / .env client var):
-firebase functions:secrets:set GEMINI_API_KEY      # Google AI Studio key (default provider)
-firebase functions:secrets:set BEDROCK_API_KEY     # Bedrock bearer key (optional Nova path)
+# Store the model key as a secret (NOT in any VITE_ / .env client var):
+firebase functions:secrets:set GEMINI_API_KEY      # Google AI Studio key
 ```
 
-Both secrets must exist for the deploy to succeed. If you don't use Nova, set `BEDROCK_API_KEY`
-to any placeholder value; the Bedrock branch is only hit when `VITE_VISION_PROVIDER=nova-2-lite`.
+The proxy no longer forwards to AWS Bedrock (the AWS account is gone), so no Bedrock secret is needed.
 
 Optional non-secret config (defaults shown) can be set as function env vars in
 `functions/.env` or via the console:
 
 ```
-AWS_REGION=us-east-2
-NOVA_MODEL_ID=us.amazon.nova-2-lite-v1:0
 ALLOWED_ORIGINS=*          # tighten to your app origin(s), comma-separated, in production
 RATE_LIMIT_PER_MIN=30      # max AI calls per user per rolling minute
 ```

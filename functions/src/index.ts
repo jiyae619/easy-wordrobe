@@ -1,7 +1,7 @@
 /**
  * StyleMax AI proxy.
  *
- * A thin, authenticated forwarder that keeps the Bedrock / Gemini API keys OFF the client.
+ * A thin, authenticated forwarder that keeps the Gemini API key OFF the client.
  * The browser sends a Firebase ID token (not an API key); this function verifies it,
  * enforces a per-user rate limit, and forwards the request to the upstream model with the
  * real key held server-side in Secret Manager. Response bodies are passed straight back so
@@ -16,14 +16,10 @@ import { getFirestore, FieldValue } from "firebase-admin/firestore";
 
 initializeApp();
 
-// Required secrets (set with `firebase functions:secrets:set <NAME>`).
-// Gemini is the default provider; Bedrock is kept for the optional Nova path.
+// Required secret (set with `firebase functions:secrets:set GEMINI_API_KEY`).
 const GEMINI_API_KEY = defineSecret("GEMINI_API_KEY");
-const BEDROCK_API_KEY = defineSecret("BEDROCK_API_KEY");
 
 // Non-secret config (override via env / `firebase functions:config` or .env for functions).
-const AWS_REGION = defineString("AWS_REGION", { default: "us-east-2" });
-const NOVA_MODEL_ID = defineString("NOVA_MODEL_ID", { default: "us.amazon.nova-2-lite-v1:0" });
 // Comma-separated allowed browser origins, or "*" (safe here: every request also needs a valid
 // Firebase ID token, and we use a Bearer token rather than cookies).
 const ALLOWED_ORIGINS = defineString("ALLOWED_ORIGINS", { default: "*" });
@@ -84,7 +80,7 @@ async function forward(
 
 export const aiProxy = onRequest(
   {
-    secrets: [GEMINI_API_KEY, BEDROCK_API_KEY],
+    secrets: [GEMINI_API_KEY],
     timeoutSeconds: 60,
     memory: "256MiB",
     maxInstances: 10,
@@ -129,19 +125,6 @@ export const aiProxy = onRequest(
     // --- 3. Route + forward to the upstream model ---
     const body = (req.body ?? {}) as { target?: string; payload?: unknown; model?: string };
     try {
-      if (body.target === "bedrock") {
-        const url = `https://bedrock-runtime.${AWS_REGION.value()}.amazonaws.com/model/${encodeURIComponent(
-          NOVA_MODEL_ID.value(),
-        )}/converse`;
-        const upstream = await forward(
-          url,
-          { "Content-Type": "application/json", Authorization: `Bearer ${BEDROCK_API_KEY.value()}` },
-          JSON.stringify(body.payload ?? {}),
-        );
-        res.status(upstream.status).type("application/json").send(upstream.text);
-        return;
-      }
-
       if (body.target === "gemini") {
         const key = GEMINI_API_KEY.value();
         if (!key) {
@@ -159,7 +142,7 @@ export const aiProxy = onRequest(
         return;
       }
 
-      res.status(400).json({ error: "Unknown target. Expected 'bedrock' or 'gemini'." });
+      res.status(400).json({ error: "Unknown target. Expected 'gemini'." });
     } catch (err) {
       const timedOut = err instanceof DOMException && err.name === "AbortError";
       logger.error("Upstream forward failed", { target: body.target, timedOut, err });
