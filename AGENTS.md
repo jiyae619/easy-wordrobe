@@ -1,6 +1,6 @@
 # AI Agents — How Stylemax Thinks
 
-Stylemax uses **three specialized AI agents**, all powered by **Amazon Nova 2 Lite** via AWS Bedrock's Converse API. Each agent has a single, focused responsibility, its own optimized prompt, and its own temperature setting.
+Stylemax uses **three specialized AI agents**, all powered by **Google Gemini 3.5 Flash-Lite** (`gemini-3.5-flash-lite`) through the `aiProxy` Cloud Function. `VITE_VISION_PROVIDER` selects the provider for **all** agents at once (`src/services/vision/providerRegistry.ts`). The legacy Amazon Nova 2 Lite adapter is still in the client, but the proxy no longer serves AWS Bedrock. Each agent has a single, focused responsibility, its own optimized prompt, and its own temperature setting.
 
 > **Important:** The agents do **not** run in a fixed sequential pipeline. They operate as a **dependency graph** — IntakeAgent and BehavioralAgent run independently, and StylistAgent consumes output from BehavioralAgent when generating outfits.
 
@@ -52,7 +52,7 @@ Stylemax uses **three specialized AI agents**, all powered by **Amazon Nova 2 Li
 
 **Trigger:** Every time a user uploads or photographs a clothing item.
 
-**What it does:** Sends the base64-encoded image to Nova with a structured prompt asking for clothing metadata. The model responds with a JSON object that becomes the `ClothingItem` record stored in Firestore.
+**What it does:** Sends the base64-encoded image to Gemini with a structured prompt asking for clothing metadata. The model responds with a JSON object that becomes the `ClothingItem` record stored in Firestore.
 
 **Input:**
 
@@ -77,7 +77,9 @@ Stylemax uses **three specialized AI agents**, all powered by **Amazon Nova 2 Li
 
 * Temperature **0.2** — very low, for consistent and repeatable categorization. Fashion categorization needs precision, not creativity.
 
-* Multimodal input via Converse API: image block + text block in the same message.
+* Multimodal input via Gemini `generateContent`: `inline_data` image part + text part in the same message (`responseMimeType: application/json`).
+
+* Model choice: on the 190 photos shared by both intake evals (`scripts/eval/last-report.md`, `scripts/eval/last-report-gemini-3.5-flash-lite.md`), Gemini 3.5 Flash-Lite (with the one-piece-dress rule) has the best category accuracy of the three models (92.1% vs Nova 90.0%, Gemini 2.5 Flash 88.4%), gets 27/27 shoes, and has no announced shutdown date. Known weak spot: slip dresses (3/10) are still often labeled as tops.
 
 * Detects clothing **and shoes** (category one of tops / bottoms / outerwear / dresses / shoes); bags, hats, and other accessories are intentionally excluded.
 
@@ -93,7 +95,7 @@ Stylemax uses **three specialized AI agents**, all powered by **Amazon Nova 2 Li
 
 **Trigger:** When Today or Picks needs looks for the selected mood and today's weather. One batch is fetched per (wardrobe items, mood, weather) and shared by both pages through a session cache (`useStylistLooks`): Picks shows it as a swipe stack, and Today's **Spin** lands the hanger rails on it (respecting locked pieces), then falls back to code-assembled combinations once the batch is used up.
 
-**What it does:** Receives the user's entire wardrobe inventory (as a condensed JSON array), the current weather conditions, the selected mood, and a `BehavioralContext` from BehavioralAgent. Nova reasons about which combinations work together — considering color coordination, seasonal appropriateness, weather practicality, and wear-history priorities — and returns three distinct outfits with explanations.
+**What it does:** Receives the user's entire wardrobe inventory (as a condensed JSON array), the current weather conditions, the selected mood, and a `BehavioralContext` from BehavioralAgent. Gemini reasons about which combinations work together — considering color coordination, seasonal appropriateness, weather practicality, and wear-history priorities — and returns three distinct outfits with explanations.
 
 **Input:**
 
@@ -149,7 +151,7 @@ Items the user **repeatedly skips and has never worn** (3+ times, from `suggesti
 
 * Temperature **0.75** — balanced toward creativity. Outfit combinations need novelty, but can't be random.
 
-* Wardrobe JSON is trimmed to only the fields Nova needs (no `imageUrl`, no `userNotes`) to minimize input token cost.
+* Wardrobe JSON is trimmed to only the fields the model needs (no `imageUrl`, no `userNotes`) to minimize input token cost.
 
 * Outfit structure is enforced in the prompt AND re-validated in code: each outfit is EITHER bottoms-based (1 bottom + ≥1 top layer) OR dress-based (1 dress + optional outerwear), with an optional single "shoes" item added to either shape. Anything else is dropped.
 
@@ -165,9 +167,9 @@ Items the user **repeatedly skips and has never worn** (3+ times, from `suggesti
 
 **File:** `src/services/agents/BehavioralAgent.ts`
 
-**Trigger:** When a user navigates to the Insights page. The generated **nudge copy is cached in Firestore** (`/insights/latest`) keyed by a signature of season + wear state, so a repeat visit skips the Bedrock call unless the wear data changed or the cache is >24h old. The analytics (counts, most/least worn, weekly pattern) are always recomputed in code, so charts are never stale even on a cache hit.
+**Trigger:** When a user navigates to the Insights page. The generated **nudge copy is cached in Firestore** (`/insights/latest`) keyed by a signature of season + wear state, so a repeat visit skips the model call unless the wear data changed or the cache is >24h old. The analytics (counts, most/least worn, weekly pattern) are always recomputed in code, so charts are never stale even on a cache hit.
 
-**What it does:** Analyzes the user's 21-day (3-week) wear history against their full wardrobe composition, filtered to the current season. Nova identifies patterns — overused items, neglected items, color biases, day-of-week habits — and generates three personalized behavioral nudges alongside analytics data.
+**What it does:** Analyzes the user's 21-day (3-week) wear history against their full wardrobe composition, filtered to the current season. Gemini identifies patterns — overused items, neglected items, color biases, day-of-week habits — and generates three personalized behavioral nudges alongside analytics data.
 
 **Its output also feeds into StylistAgent** — the `leastWornItems` list becomes `leastWornItemIds` in the `BehavioralContext`, and any items the user marks "Will try" become `tryItItemIds`. This creates a feedback loop where insights directly influence the next outfit suggestion.
 
@@ -231,7 +233,7 @@ The single-agent approach would collapse all three responsibilities into one meg
 | Cost        | Pays for full capability even for simple intake                 | Each agent only uses what it needs           |
 | Temperature | One temperature for tasks that need different creativity levels | Per-agent temperature tuning                 |
 
-The tradeoff is latency — each Bedrock call adds 2–5 seconds. For intake (one-time per item) this is acceptable. For outfit generation and insights, the app shows a loading state with skeleton cards.
+The tradeoff is latency — each model call adds 2–5 seconds. For intake (one-time per item) this is acceptable. For outfit generation and insights, the app shows a loading state with skeleton cards.
 
 ***
 
@@ -265,9 +267,9 @@ This creates a **virtuous cycle**: BehavioralAgent surfaces neglected items → 
 
 ## Error Handling & Fallbacks
 
-* **Malformed JSON from Nova** — `bedrockClient.ts` strips markdown code fences and attempts `JSON.parse`. If it fails, the agent throws a typed error and the calling page displays a user-facing error banner.
+* **Malformed JSON from the model** — the provider adapter (`geminiProvider.ts`, via `extractJsonFromText` in `bedrockClient.ts`) strips markdown code fences and attempts `JSON.parse`. If it fails, the agent throws a typed error and the calling page displays a user-facing error banner.
 
-* **Bedrock API timeout** — 30-second timeout with one automatic retry. If both fail, IntakeAgent falls back to a default placeholder item (flagged `usedFallback`); StylistAgent returns code-assembled fallback outfits flagged `isFallback: true` (rendered as "quick picks — AI stylist unavailable") with **real, computed** scores (never fabricated numbers); BehavioralAgent returns computed analytics with pre-written nudge copy.
+* **Model API timeout** — 30-second timeout with one automatic retry. If both fail, IntakeAgent falls back to a default placeholder item (flagged `usedFallback`); StylistAgent returns code-assembled fallback outfits flagged `isFallback: true` (rendered as "quick picks — AI stylist unavailable") with **real, computed** scores (never fabricated numbers); BehavioralAgent returns computed analytics with pre-written nudge copy.
 
 * **Item ID hallucination (StylistAgent)** — After parsing, each returned item ID is validated against `context.clothes`. Any ID not found is silently dropped; if the surviving items can't form a valid bottoms-based or dress-based outfit, that outfit is discarded.
 

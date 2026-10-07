@@ -1,8 +1,8 @@
 # Stylemax — AI Fashion Companion
 
-> Turn closet chaos into curated confidence. Stylemax is a mobile-first AI app that photographs your clothes, understands your mood and the weather, and suggests outfits from your actual wardrobe — powered by a three-agent Amazon Nova pipeline.
+> Turn closet chaos into curated confidence. Stylemax is a mobile-first AI app that photographs your clothes, understands your mood and the weather, and suggests outfits from your actual wardrobe — powered by a three-agent Google Gemini pipeline.
 
-**Live Demo:** (https://master.d358bvbeytobdo.amplifyapp.com/)
+**Live Demo:** https://&lt;project-id&gt;.web.app (Firebase Hosting)
 **AI Agent Deep Dive:** [AGENTS.md](AGENTS.md)  
 **System Architecture:** [ARCHITECTURE.md](ARCHITECTURE.md)
 
@@ -16,7 +16,7 @@ Most people wear only ~20% of their wardrobe regularly. Every morning, 65% of wo
 
 ## How It Works
 
-Stylemax uses **three specialized AI agents**, all powered by Amazon Nova 2 Lite via AWS Bedrock:
+Stylemax uses **three specialized AI agents**, all powered by Google Gemini 3.5 Flash-Lite via the `aiProxy` Cloud Function:
 
 ```
 User uploads photo
@@ -60,12 +60,24 @@ See [AGENTS.md](AGENTS.md) for a detailed breakdown of each agent's inputs, outp
 |-------|-----------|
 | Frontend | React 19, TypeScript, Vite, Tailwind CSS 4, React Router 7 |
 | State | React Context API |
-| AI | AWS Bedrock — Amazon Nova 2 Lite (`us.amazon.nova-2-lite-v1:0`) |
+| AI | Google Gemini 3.5 Flash-Lite, via the `aiProxy` Cloud Function |
 | Auth | Firebase Authentication (Email + Google OAuth) |
 | Database | Cloud Firestore |
 | Storage | Firebase Cloud Storage |
 | Weather | National Weather Service API (free, no key required) |
-| Deployment | AWS Amplify |
+| Deployment | Firebase Hosting |
+
+---
+
+## Project History
+
+Stylemax was originally built for an **AWS hackathon**: the frontend was hosted on **AWS Amplify** and all three agents ran on **Amazon Nova 2 Lite via AWS Bedrock**.
+
+After the AWS account was suspended (Oct 2026), the app moved to **Firebase Hosting** and **Google Gemini 3.5 Flash-Lite**. Firebase Auth, Firestore, Storage and the `aiProxy` Cloud Function were already on Google, so they didn't change.
+
+- The hackathon version is preserved on the branch [`aws-hackathon`](https://github.com/jiyae619/easy-wordrobe/tree/aws-hackathon) (Amplify config `amplify.yml` / `customHttp.yml`, Bedrock proxy route).
+- The Nova adapter (`src/services/vision/novaProvider.ts`, `bedrockClient.ts`) is kept in the client for reference.
+- The original Nova vs Gemini 2.5 Flash intake benchmark is kept in `scripts/eval/last-report.md`.
 
 ---
 
@@ -89,7 +101,7 @@ src/
 ### Prerequisites
 
 - Node.js 18+
-- AWS Bedrock access (us-east-2) with Amazon Nova 2 Lite enabled
+- A Gemini API key (Google AI Studio), stored as a Cloud Functions secret
 - Firebase project (Auth, Firestore, Cloud Storage)
 
 ### Install
@@ -109,8 +121,9 @@ cp .env.example .env
 ```
 
 ```env
-VITE_AWS_REGION=us-east-2
-VITE_BEDROCK_API_KEY=your-bedrock-api-key
+VITE_AI_PROXY_URL=https://your-aiproxy-url
+VITE_VISION_PROVIDER=gemini
+VITE_GEMINI_MODEL=gemini-3.5-flash-lite
 
 VITE_FIREBASE_API_KEY=your-firebase-api-key
 VITE_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
@@ -129,6 +142,17 @@ npm run dev        # http://localhost:5173
 npm run build      # production build
 npm run preview    # preview production build
 npm run lint       # ESLint
+```
+
+### Deploy (Firebase Hosting)
+
+Vite bakes `VITE_*` values in at build time, so put the production values in `.env.production`
+(gitignored) first. `firebase.json` runs the build before upload.
+
+```bash
+firebase use --add                  # once: pick the project in VITE_FIREBASE_PROJECT_ID
+firebase deploy --only hosting      # → https://<project-id>.web.app
+firebase deploy --only functions    # AI proxy, see functions/README.md
 ```
 
 ---

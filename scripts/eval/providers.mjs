@@ -2,17 +2,19 @@
 // Both providers take a base64 image + the same prompt and return
 // the same shape: { category, subcategory, color, colorHex, season, mood }.
 
-const INTAKE_PROMPT = `You are a fashion AI assistant analyzing a single clothing item for a digital wardrobe app.
+export const INTAKE_PROMPT = `You are a fashion AI assistant analyzing a single clothing item for a digital wardrobe app.
 
 Return ONLY a JSON object (no markdown, no commentary) with this exact shape:
 {
-  "category": "tops" | "bottoms" | "outerwear" | "dresses",
+  "category": "tops" | "bottoms" | "outerwear" | "dresses" | "shoes",
   "subcategory": "specific descriptive label, e.g. Crew Neck T-Shirt",
   "color": "dominant color name in plain English",
   "colorHex": "#RRGGBB",
   "season": ["spring" | "summer" | "fall" | "winter", ...],
   "mood": ["professional" | "casual" | "sporty" | "creative" | "romantic", ...]
 }
+
+A one-piece garment that covers the torso and continues into a skirt (slip dress, sundress, shirt dress, wrap dress, any dress) is ALWAYS "dresses", never "tops", even if it is thin-strapped, short, or shown folded or on a hanger.
 
 If multiple items are visible, describe the most prominent one only.`;
 
@@ -74,8 +76,8 @@ export async function novaProvider({ base64, format, region, apiKey, timeoutMs =
   }
 }
 
-// ----- Gemini 2.5 Flash via Google AI Studio REST -----
-export async function geminiProvider({ base64, mimeType, apiKey, model = "gemini-2.5-flash", timeoutMs = 30000 }) {
+// ----- Gemini via Google AI Studio REST -----
+export async function geminiProvider({ base64, mimeType, apiKey, model = "gemini-3.5-flash-lite", timeoutMs = 30000 }) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
   const payload = {
     contents: [

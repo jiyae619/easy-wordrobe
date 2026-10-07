@@ -3,30 +3,49 @@
 // two vision models and prints a side-by-side scorecard.
 //
 // Usage:
-//   VITE_BEDROCK_API_KEY=... GEMINI_API_KEY=... node scripts/eval/run-intake-eval.mjs
+//   GEMINI_API_KEY=... node scripts/eval/run-intake-eval.mjs
+//   (or put GEMINI_API_KEY=... in the repo's .env.local — it is loaded automatically)
 //
 // Optional:
 //   EVAL_FIXTURES_DIR=./scripts/eval/fixtures   (default)
-//   EVAL_OUTPUT=./scripts/eval/last-report.md   (default; pass "-" for stdout only)
+//   EVAL_NOVA=1                                 include Nova (needs VITE_BEDROCK_API_KEY)
+//   EVAL_OUTPUT=./scripts/eval/last-report.md   (default with EVAL_NOVA=1; pass "-" for stdout only)
+//                                               Gemini-only runs default to last-report-<model>.md
+//                                               so the earlier Nova-vs-Gemini report is kept.
 //   EVAL_REGION=us-east-2                       (default; matches VITE_AWS_REGION)
-//   EVAL_GEMINI_MODEL=gemini-2.5-flash          (default)
+//   EVAL_GEMINI_MODEL=gemini-3.5-flash-lite     (default)
 
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { aggregate, scoreOne } from "./score.mjs";
-import { geminiProvider, novaProvider } from "./providers.mjs";
+import { createHash } from "node:crypto";
+import { execSync } from "node:child_process";
+import { INTAKE_PROMPT, geminiProvider, novaProvider } from "./providers.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// Pick up keys from the repo's gitignored env files (shell exports still win).
+for (const file of [".env.local", ".env"]) {
+  try {
+    process.loadEnvFile(path.join(__dirname, "..", "..", file));
+  } catch {
+    // missing file (or Node < 20.12) — rely on the shell environment
+  }
+}
 const FIXTURES_DIR = process.env.EVAL_FIXTURES_DIR || path.join(__dirname, "fixtures");
-const OUTPUT = process.env.EVAL_OUTPUT || path.join(__dirname, "last-report.md");
 const REGION = process.env.EVAL_REGION || process.env.VITE_AWS_REGION || "us-east-2";
-const GEMINI_MODEL = process.env.EVAL_GEMINI_MODEL || "gemini-2.5-flash";
+const GEMINI_MODEL = process.env.EVAL_GEMINI_MODEL || "gemini-3.5-flash-lite";
 
-const NOVA_KEY = process.env.VITE_BEDROCK_API_KEY;
+// Nova is opt-in (EVAL_NOVA=1): a leftover Bedrock key in .env.local must not turn a Gemini-only
+// run into an A/B run that overwrites the Nova baseline report.
+const NOVA_KEY = process.env.EVAL_NOVA === "1" ? process.env.VITE_BEDROCK_API_KEY : undefined;
 const GEMINI_KEY = process.env.GEMINI_API_KEY;
+const OUTPUT =
+  process.env.EVAL_OUTPUT ||
+  path.join(__dirname, NOVA_KEY ? "last-report.md" : `last-report-${GEMINI_MODEL}.md`);
 
-if (!NOVA_KEY) console.warn("[warn] VITE_BEDROCK_API_KEY not set — Nova column will be empty");
+if (!NOVA_KEY) console.log("[info] Gemini-only run (set EVAL_NOVA=1 with VITE_BEDROCK_API_KEY to include Nova)");
 if (!GEMINI_KEY) console.warn("[warn] GEMINI_API_KEY not set — Gemini column will be empty");
 if (!NOVA_KEY && !GEMINI_KEY) {
   console.error("[error] Need at least one of VITE_BEDROCK_API_KEY or GEMINI_API_KEY");
@@ -84,6 +103,29 @@ async function runOne(provider, fixture) {
   }
 }
 
+function gitCommit() {
+  try {
+    const sha = execSync("git rev-parse --short HEAD", { stdio: ["ignore", "pipe", "ignore"] }).toString().trim();
+    const dirty = execSync("git status --porcelain -- scripts/eval/providers.mjs", { stdio: ["ignore", "pipe", "ignore"] }).toString().trim();
+    return dirty ? `${sha}+local-prompt-edits` : sha;
+  } catch {
+    return "unknown";
+  }
+}
+
+function redact(text) {
+  let s = String(text ?? "");
+  if (GEMINI_KEY) s = s.split(GEMINI_KEY).join("<GEMINI_API_KEY>");
+  if (NOVA_KEY) s = s.split(NOVA_KEY).join("<BEDROCK_API_KEY>");
+  return s.replace(/\s+/g, " ").trim();
+}
+
+function errorsSection(errors) {
+  if (errors.size === 0) return "";
+  const lines = [...errors].map(([msg, n]) => `| ${n} | ${msg.replace(/\|/g, "\\|")} |`).join("\n");
+  return `### Gemini errors\n\n| Fixtures | Error |\n|---|---|\n${lines}\n`;
+}
+
 function fmtPct(v) {
   return v == null ? "—" : `${(v * 100).toFixed(1)}%`;
 }
@@ -130,6 +172,8 @@ async function main() {
   const novaRows = [];
   const geminiRows = [];
   const perFixture = [];
+  const geminiErrors = new Map(); // error message → fixture count
+  let consecutiveGeminiErrors = 0;
 
   for (const fix of fixtures) {
     process.stdout.write(`  • ${fix.name} … `);
@@ -175,6 +219,19 @@ async function main() {
       `nova=${novaScore.errored ? "ERR" : novaScore.categoryHit ? "✓" : "✗"} ` +
         `gemini=${geminiScore.errored ? "ERR" : geminiScore.categoryHit ? "✓" : "✗"}`
     );
+
+    if (GEMINI_KEY && geminiResult.errored) {
+      const msg = redact(geminiResult.errorMessage).slice(0, 300);
+      geminiErrors.set(msg, (geminiErrors.get(msg) ?? 0) + 1);
+      console.log(`      gemini error: ${msg}`);
+      consecutiveGeminiErrors += 1;
+      if (consecutiveGeminiErrors >= 5 && geminiRows.every((r) => r.errored)) {
+        console.error("[error] First 5 Gemini calls all failed — aborting (see error above). No report written.");
+        process.exit(1);
+      }
+    } else {
+      consecutiveGeminiErrors = 0;
+    }
   }
 
   const report = `# Intake-model A/B eval
@@ -183,9 +240,12 @@ async function main() {
 - Nova model: \`us.amazon.nova-2-lite-v1:0\` (region \`${REGION}\`)
 - Gemini model: \`${GEMINI_MODEL}\`
 - Run at: ${new Date().toISOString()}
+- Git commit: \`${gitCommit()}\` · prompt sha256: \`${createHash("sha256").update(INTAKE_PROMPT).digest("hex").slice(0, 12)}\`
+- Prompt allows shoes: ${INTAKE_PROMPT.includes('"shoes"') ? "yes" : "NO"} · dress rule: ${INTAKE_PROMPT.includes("ALWAYS \"dresses\"") ? "yes" : "NO"}
 
-${summaryTable("AWS Nova 2 Lite", aggregate(novaRows))}
+${NOVA_KEY ? summaryTable("AWS Nova 2 Lite", aggregate(novaRows)) : ""}
 ${summaryTable(`Gemini ${GEMINI_MODEL}`, aggregate(geminiRows))}
+${errorsSection(geminiErrors)}
 ${perFixtureTable(perFixture)}
 
 ## How to read this

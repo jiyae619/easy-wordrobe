@@ -5,7 +5,7 @@
  * to reproduce symptoms and collect exact network/console failure signatures.
  *
  * Usage:
- * 1. Open production URL (e.g. https://main.xxxxx.amplifyapp.com)
+ * 1. Open production URL (e.g. https://<project-id>.web.app)
  * 2. Open DevTools → Console
  * 3. Paste this script and press Enter
  * 4. Follow the prompts to run each step

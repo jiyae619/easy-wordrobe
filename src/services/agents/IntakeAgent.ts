@@ -74,6 +74,7 @@ If the image is safe, identify up to 3 distinct clothing items visible in the im
 
 FIELD RULES:
 - "category": must be exactly one of: "tops", "bottoms", "outerwear", "dresses", "shoes"
+  A one-piece garment that covers the torso and continues into a skirt (slip dress, sundress, shirt dress, wrap dress, any dress) is ALWAYS "dresses", never "tops", even if it is thin-strapped, short, or shown folded or on a hanger.
 - "subcategory": a specific descriptive label, e.g. "Slim-Fit Chinos", "Oversized Hoodie", "Wrap Dress"
 - "color": the dominant color name in plain English, e.g. "Olive Green", "Cream", "Burgundy"
 - "colorHex": a valid 6-digit hex code matching the color, e.g. "#6B7C45"

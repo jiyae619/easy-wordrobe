@@ -15,13 +15,10 @@ import { getFirestore, FieldValue } from "firebase-admin/firestore";
 
 initializeApp();
 
-const AWS_REGION = process.env.AWS_REGION || "us-east-2";
-const NOVA_MODEL_ID = process.env.NOVA_MODEL_ID || "us.amazon.nova-2-lite-v1:0";
 const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS || "*";
 const RATE_LIMIT_PER_MIN = Number.parseInt(process.env.RATE_LIMIT_PER_MIN || "30", 10) || 30;
 // From Secret Manager references (console → Security → Reference a secret → expose as env var):
-const BEDROCK_API_KEY = process.env.BEDROCK_API_KEY;
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY; // optional
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 const UPSTREAM_TIMEOUT_MS = 30_000;
 const RATE_WINDOW_MS = 60_000;
@@ -92,21 +89,9 @@ http("aiproxy", async (req, res) => {
 
   const body = req.body || {};
   try {
-    if (body.target === "bedrock") {
-      if (!BEDROCK_API_KEY) { res.status(502).json({ error: "Bedrock not configured on server" }); return; }
-      const url = `https://bedrock-runtime.${AWS_REGION}.amazonaws.com/model/${encodeURIComponent(NOVA_MODEL_ID)}/converse`;
-      const up = await forward(
-        url,
-        { "Content-Type": "application/json", Authorization: `Bearer ${BEDROCK_API_KEY}` },
-        JSON.stringify(body.payload || {}),
-      );
-      res.status(up.status).type("application/json").send(up.text);
-      return;
-    }
-
     if (body.target === "gemini") {
       if (!GEMINI_API_KEY) { res.status(502).json({ error: "Gemini is not configured on the server" }); return; }
-      const model = typeof body.model === "string" && body.model ? body.model : "gemini-2.5-flash";
+      const model = typeof body.model === "string" && body.model ? body.model : "gemini-3.5-flash-lite";
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
       const up = await forward(
         url,
@@ -117,7 +102,7 @@ http("aiproxy", async (req, res) => {
       return;
     }
 
-    res.status(400).json({ error: "Unknown target. Expected 'bedrock' or 'gemini'." });
+    res.status(400).json({ error: "Unknown target. Expected 'gemini'." });
   } catch (err) {
     const timedOut = err && err.name === "AbortError";
     console.error("Upstream forward failed", err);
