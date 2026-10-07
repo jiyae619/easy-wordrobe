@@ -8,7 +8,8 @@
 //
 // Optional:
 //   EVAL_FIXTURES_DIR=./scripts/eval/fixtures   (default)
-//   EVAL_OUTPUT=./scripts/eval/last-report.md   (default; pass "-" for stdout only)
+//   EVAL_NOVA=1                                 include Nova (needs VITE_BEDROCK_API_KEY)
+//   EVAL_OUTPUT=./scripts/eval/last-report.md   (default with EVAL_NOVA=1; pass "-" for stdout only)
 //                                               Gemini-only runs default to last-report-<model>.md
 //                                               so the earlier Nova-vs-Gemini report is kept.
 //   EVAL_REGION=us-east-2                       (default; matches VITE_AWS_REGION)
@@ -36,13 +37,15 @@ const FIXTURES_DIR = process.env.EVAL_FIXTURES_DIR || path.join(__dirname, "fixt
 const REGION = process.env.EVAL_REGION || process.env.VITE_AWS_REGION || "us-east-2";
 const GEMINI_MODEL = process.env.EVAL_GEMINI_MODEL || "gemini-3.5-flash-lite";
 
-const NOVA_KEY = process.env.VITE_BEDROCK_API_KEY;
+// Nova is opt-in (EVAL_NOVA=1): a leftover Bedrock key in .env.local must not turn a Gemini-only
+// run into an A/B run that overwrites the Nova baseline report.
+const NOVA_KEY = process.env.EVAL_NOVA === "1" ? process.env.VITE_BEDROCK_API_KEY : undefined;
 const GEMINI_KEY = process.env.GEMINI_API_KEY;
 const OUTPUT =
   process.env.EVAL_OUTPUT ||
   path.join(__dirname, NOVA_KEY ? "last-report.md" : `last-report-${GEMINI_MODEL}.md`);
 
-if (!NOVA_KEY) console.warn("[warn] VITE_BEDROCK_API_KEY not set — Nova column will be empty");
+if (!NOVA_KEY) console.log("[info] Gemini-only run (set EVAL_NOVA=1 with VITE_BEDROCK_API_KEY to include Nova)");
 if (!GEMINI_KEY) console.warn("[warn] GEMINI_API_KEY not set — Gemini column will be empty");
 if (!NOVA_KEY && !GEMINI_KEY) {
   console.error("[error] Need at least one of VITE_BEDROCK_API_KEY or GEMINI_API_KEY");
