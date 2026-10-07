@@ -283,7 +283,7 @@ export const StarterPickerOverlay: React.FC = () => {
                                     <Loader2 className="w-3.5 h-3.5 animate-spin" /> Saving your closet…
                                 </span>
                             ) : acceptedCount > 0 ? (
-                                <button onClick={finish} className="text-xs font-bold text-ink underline underline-offset-2">
+                                <button onClick={finish} className="h-10 px-5 rounded-full border-[1.5px] border-ink bg-lime text-ink text-sm font-bold active:scale-[0.97]">
                                     Save &amp; finish ({acceptedCount})
                                 </button>
                             ) : null}
@@ -313,7 +313,7 @@ export const StarterPickerOverlay: React.FC = () => {
                         </p>
                         {acceptedCount > 0 ? (
                             <button
-                                onClick={() => { setPhase('idle'); navigate('/suggest'); }}
+                                onClick={() => { setPhase('idle'); navigate('/'); }}
                                 className="w-full py-3 bg-ink text-white font-bold rounded-full hover:bg-ink/90 transition-colors active:scale-[0.98]"
                             >
                                 Style my first outfit

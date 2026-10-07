@@ -2,6 +2,7 @@ import React from 'react';
 import { type ClothingItem, type OutfitSuggestion } from '../../types';
 import { GarmentImage } from '../common/GarmentImage';
 import { slotsFromItems, isDress, type SlotId } from '../../utils/outfitSlots';
+import { itemName } from '../../utils/itemName';
 
 interface MirrorCardProps {
     look: OutfitSuggestion;
@@ -76,7 +77,7 @@ export const MirrorCard: React.FC<MirrorCardProps> = ({ look, index, total, reas
                                     type="button"
                                     disabled={!swappable}
                                     onClick={() => onSwap?.(slot)}
-                                    aria-label={swappable ? `Swap the ${item.color} ${item.subcategory}` : `${item.color} ${item.subcategory}`}
+                                    aria-label={swappable ? `Swap the ${itemName(item)}` : itemName(item)}
                                     className="absolute aspect-square p-0 border-0 bg-transparent disabled:cursor-default"
                                     style={{ left: `${p.left}%`, top: `${p.top}%`, width: `${p.width}%`, zIndex: p.z, transform: `rotate(${p.tilt}deg)` }}
                                 >

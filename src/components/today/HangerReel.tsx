@@ -4,6 +4,7 @@ import { type ClothingItem } from '../../types';
 import { GarmentImage } from '../common/GarmentImage';
 import { clamp, haptic, prefersReducedMotion } from '../../utils/motion';
 import { wrapIndex } from '../../utils/outfitSlots';
+import { itemName } from '../../utils/itemName';
 
 export interface HangerReelHandle {
     /** Spin the rail to an option index like a slot machine (several turns, ease-out landing). */
@@ -257,7 +258,7 @@ export const HangerReel = forwardRef<HangerReelHandle, HangerReelProps>(function
                 ref={viewRef}
                 role="group"
                 aria-roledescription="rail"
-                aria-label={`${label}: ${current ? `${current.color} ${current.subcategory}` : noneLabel}`}
+                aria-label={`${label}: ${current ? itemName(current) : noneLabel}`}
                 tabIndex={0}
                 onKeyDown={(e) => {
                     if (e.key === 'ArrowRight') step(1);

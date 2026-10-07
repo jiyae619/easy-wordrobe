@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import {
     type ClothingItem,
     type ColorCorrection,
@@ -22,6 +22,7 @@ import type { ItemBoundingBox } from '../types';
 import { computeBehavioralAnalytics, computeSeasonalLeastWornIds, getCurrentSeason, moodIdsForStyling } from '../services/agents/agentOutputGuards';
 import { drainAgentMetricTally } from '../services/agents/agentTelemetry';
 import { getActiveProvider } from '../services/vision/providerRegistry';
+import { wornOn } from '../utils/wearLog';
 
 const WardrobeContext = createContext<WardrobeContextType | undefined>(undefined);
 
@@ -56,6 +57,11 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
 
     // --- State ---
     const [clothes, setClothes] = useState<ClothingItem[]>([]);
+    // The latest closet, updated the moment a piece is added or worn. Several wears logged in one go
+    // (a batch of photos from different days) must each see the previous one's counts, which the
+    // render-time `clothes` can't guarantee between awaits.
+    const clothesRef = useRef<ClothingItem[]>([]);
+    useEffect(() => { clothesRef.current = clothes; }, [clothes]);
     const [outfits, setOutfits] = useState<WearRecord[]>([]);
     const [bookmarkedItems, setBookmarkedItems] = useState<string[]>([]);
     const [tryItItemIds, setTryItItemIds] = useState<string[]>([]);
@@ -208,8 +214,8 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
 
     // --- Actions ---
 
-    const addClothingItem = useCallback(async (item: Omit<ClothingItem, 'id' | 'dateAdded'>) => {
-        if (!uid) return;
+    const addClothingItem = useCallback(async (item: Omit<ClothingItem, 'id' | 'dateAdded'>): Promise<string | undefined> => {
+        if (!uid) return undefined;
         setIsLoading(true);
         try {
             const newItem: ClothingItem = {
@@ -270,7 +276,9 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
             }
 
             // Update local state
+            clothesRef.current = [newItem, ...clothesRef.current];
             setClothes(prev => [newItem, ...prev]);
+            return newItem.id;
         } catch (err) {
             const msg = (err as Error)?.message || String(err);
             const hint = (msg.includes('permission') || msg.includes('Permission') || msg.includes('insufficient'))
@@ -400,48 +408,65 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
         }
     }, [uid, clothes]);
 
-    const logOutfitWear = useCallback(async (outfitItems: string[], moodId: string, weatherData: WeatherData) => {
-        if (!uid) return;
+    const logOutfitWear = useCallback(async (outfitItems: string[], moodId: string, weatherData: WeatherData | null, wornDate?: Date): Promise<boolean> => {
+        if (!uid) return false;
+        // A past day can be logged too (forgot yesterday); never a future one.
+        const date = wornDate && wornDate.getTime() < Date.now() ? wornDate : new Date();
+        // The same outfit twice on one day is a double tap, not two wears.
+        if (wornOn(outfits, outfitItems, date)) return false;
         const record: WearRecord = {
             id: crypto.randomUUID(),
-            date: new Date(),
+            date,
             outfitItems,
             mood: moodId,
-            weather: weatherData
+            // Logging never waits on the weather: a failed forecast stores null.
+            weather: weatherData,
         };
 
         try {
             // Save outfit record
             await firestoreService.addOutfit(uid, record);
-            setOutfits(prev => [record, ...prev]);
+            setOutfits(prev => [record, ...prev].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
 
-            // Update worn items
-            const now = new Date();
-            for (const itemId of outfitItems) {
-                const item = clothes.find(c => c.id === itemId);
-                if (item) {
-                    await firestoreService.updateClothingItem(uid, itemId, {
-                        wearFrequency: item.wearFrequency + 1,
-                        lastWorn: now,
-                    });
-                }
+            // Update worn items. lastWorn only moves forward: logging last Tuesday must not
+            // overwrite a wear from yesterday.
+            // Counts come from the live closet (clothesRef), so back-to-back logs build on each other
+            // and a piece added a moment ago is counted too.
+            const laterOf = (prev: Date | null) => (prev && new Date(prev).getTime() > date.getTime() ? prev : date);
+            const wear = (item: ClothingItem): ClothingItem => ({ ...item, wearFrequency: item.wearFrequency + 1, lastWorn: laterOf(item.lastWorn) });
+            const updated = clothesRef.current.filter((c) => outfitItems.includes(c.id)).map(wear);
+            const byId = new Map(updated.map((c) => [c.id, c]));
+            clothesRef.current = clothesRef.current.map((c) => byId.get(c.id) ?? c);
+            for (const item of updated) {
+                await firestoreService.updateClothingItem(uid, item.id, {
+                    wearFrequency: item.wearFrequency,
+                    lastWorn: item.lastWorn,
+                });
             }
 
             setClothes(prev => prev.map(item => {
-                if (outfitItems.includes(item.id)) {
-                    return {
-                        ...item,
-                        wearFrequency: item.wearFrequency + 1,
-                        lastWorn: now,
-                    };
-                }
-                return item;
+                const next = byId.get(item.id);
+                return next ? { ...item, wearFrequency: next.wearFrequency, lastWorn: next.lastWorn } : item;
             }));
         } catch (err) {
             console.error('[Wardrobe] Failed to log outfit:', err);
             setError('Failed to log outfit');
+            return false;
         }
-    }, [uid, clothes]);
+
+        // A "Will try" piece that got worn has done its job: drop it from the priority list.
+        const tried = tryItItemIds.filter((id) => outfitItems.includes(id));
+        if (tried.length > 0) {
+            try {
+                let updated = tryItItemIds;
+                for (const id of tried) updated = await firestoreService.removeTryItItem(uid, id);
+                setTryItItemIds(updated);
+            } catch (err) {
+                console.error('[Wardrobe] Failed to clear worn Try It items:', err);
+            }
+        }
+        return true;
+    }, [uid, outfits, tryItItemIds]);
 
     const toggleOutfitFavorite = useCallback(async (id: string) => {
         if (!uid) return;

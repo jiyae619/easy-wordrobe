@@ -3,6 +3,7 @@ import { type ClothingItem } from '../../types';
 import { Plus } from 'lucide-react';
 import { GarmentImage } from '../common/GarmentImage';
 import { clamp, haptic, prefersReducedMotion } from '../../utils/motion';
+import { itemName } from '../../utils/itemName';
 
 interface CardFanProps {
     /** Deck name, shown on the deck's back card at the start of the hand. */
@@ -223,7 +224,7 @@ export const CardFan: React.FC<CardFanProps> = memo(function CardFan({ label, it
                         ref={register(i)}
                         type="button"
                         onClick={() => onCardClick(i)}
-                        aria-label={isFocus ? `Open ${item.color} ${item.subcategory}` : `Show ${item.color} ${item.subcategory}`}
+                        aria-label={isFocus ? `Open ${itemName(item)}` : `Show ${itemName(item)}`}
                         className={cardClass}
                         style={cardStyle}
                     >

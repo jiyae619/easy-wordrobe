@@ -10,6 +10,7 @@
 
 import type { ClothingItem, WeatherData } from '../types';
 import { ClothingCategory } from '../types';
+import { itemName } from '../utils/itemName';
 
 type WeatherLike = Pick<WeatherData, 'temperature' | 'condition'>;
 export type WeatherKind = 'storm' | 'snow' | 'rain' | 'wind' | 'hot' | 'warm' | 'mild' | 'cool' | 'cold';
@@ -51,7 +52,7 @@ export function pick(pool: string[], ...context: Array<string | number | null | 
 const fill = (line: string, vars: Record<string, string | number>) =>
     line.replace(/\{(\w+)\}/g, (_, k: string) => String(vars[k] ?? ''));
 
-const label = (item: ClothingItem) => `${item.color} ${item.subcategory}`.toLowerCase();
+const label = (item: ClothingItem) => itemName(item).toLowerCase();
 
 const NEUTRALS = /black|white|grey|gray|beige|cream|ivory|navy|brown|tan|camel|khaki|charcoal|taupe|stone/i;
 
@@ -253,5 +254,5 @@ export function forgottenSubtitle(count: number, season: string): string {
 
 export function goToSubtitle(top: ClothingItem | undefined, count: number): string {
     if (!top) return 'Most worn in the last 3 weeks.';
-    return fill(pick(['Leading the pack: your {n}.', 'On repeat lately: your {n}, {c} times.', 'Most worn lately: your {n}.'], top.id, count), { n: label(top), c: count });
+    return fill(pick(['Leading the pack: your {n}.', 'On repeat lately: your {n}, {c}.', 'Most worn lately: your {n}.'], top.id, count), { n: label(top), c: `${count} ${count === 1 ? 'time' : 'times'}` });
 }

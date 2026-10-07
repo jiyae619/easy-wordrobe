@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { X, Trash2, Calendar, Hash, Sparkles, Check, Camera, Loader2 } from 'lucide-react';
+import { X, Trash2, Sparkles, Camera, Loader2, Pencil } from 'lucide-react';
 import { type ClothingItem, ClothingCategory } from '../../types';
 import { useWardrobe } from '../../context/WardrobeContext';
 import { format, differenceInDays } from 'date-fns';
@@ -7,7 +7,6 @@ import { awsNovaService } from '../../services/awsNova';
 import { COLOR_PALETTE } from '../../data/colorPalette';
 import { isStockPhoto } from '../../data/starterCatalog';
 import { compressImage } from '../../utils/imageUtils';
-import { wornLine } from '../../copy/voice';
 
 interface ItemDetailModalProps {
     item: ClothingItem;
@@ -128,6 +127,18 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({ item, onClose 
         }
     };
 
+    const lastWornLabel = (() => {
+        if (!item.lastWorn) return 'Not yet';
+        const days = differenceInDays(new Date(), new Date(item.lastWorn));
+        return days === 0 ? 'Today' : days === 1 ? 'Yesterday' : `${days}d ago`;
+    })();
+    const stats = [
+        { label: 'Worn', value: `${item.wearFrequency}×` },
+        { label: 'Last worn', value: lastWornLabel },
+        { label: 'Added', value: format(new Date(item.dateAdded), 'MMM d') },
+    ];
+    const fieldLabel = 'text-[10px] font-bold text-ink/45 uppercase tracking-wider mb-1.5';
+
     return (
         <div
             className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
@@ -138,16 +149,14 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({ item, onClose 
                 className="w-full max-w-md bg-paper rounded-[28px] border-[1.5px] border-ink overflow-hidden shadow-2xl flex flex-col"
                 style={{ maxHeight: 'min(85vh, 640px)', animation: 'scaleIn 0.25s ease-out' }}
             >
-                {/* Image Header — fixed height, clipped */}
-                <div className="relative flex-shrink-0 overflow-hidden bg-ink/5 flex items-center justify-center" style={{ height: '220px' }}>
+                {/* Photo */}
+                <div className="relative flex-shrink-0 overflow-hidden bg-white flex items-center justify-center" style={{ height: '190px' }}>
                     <img
                         src={displayImage}
                         alt={item.subcategory}
-                        style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', padding: '8px' }}
+                        style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', padding: '12px' }}
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
 
-                    {/* Stock-photo provenance + one-tap replacement with the user's own shot */}
                     <input
                         ref={photoInputRef}
                         type="file"
@@ -156,98 +165,65 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({ item, onClose 
                         onChange={handleReplacePhoto}
                     />
                     {showStockBadge && (
-                        <>
-                            <span className="absolute top-3 left-3 h-[30px] px-2.5 inline-flex items-center bg-black/50 backdrop-blur-md text-white text-[10px] font-semibold rounded-full">
-                                Stock photo
-                            </span>
-                            <button
-                                onClick={() => photoInputRef.current?.click()}
-                                disabled={isReplacingPhoto}
-                                className="absolute top-3 left-[104px] inline-flex items-center gap-1.5 h-[30px] px-3 bg-lime border-[1.5px] border-ink text-ink text-xs font-bold rounded-full hover:bg-lime/90 transition-colors active:scale-[0.97] disabled:opacity-60"
-                            >
-                                {isReplacingPhoto ? (
-                                    <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Uploading…</>
-                                ) : (
-                                    <><Camera className="w-3.5 h-3.5" /> Use my photo</>
-                                )}
-                            </button>
-                        </>
+                        <button
+                            onClick={() => photoInputRef.current?.click()}
+                            disabled={isReplacingPhoto}
+                            className="absolute top-3 left-3 inline-flex items-center gap-1.5 h-8 px-3 bg-lime border-[1.5px] border-ink text-ink text-[11px] font-bold rounded-full active:scale-[0.97] disabled:opacity-60"
+                        >
+                            {isReplacingPhoto ? (
+                                <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Uploading…</>
+                            ) : (
+                                <><Camera className="w-3.5 h-3.5" /> Stock photo · Use mine</>
+                            )}
+                        </button>
                     )}
 
                     <button
                         onClick={onClose}
-                        className="absolute top-3 right-3 p-2 bg-black/50 backdrop-blur-md text-white rounded-full hover:bg-black/70 transition-colors"
+                        aria-label="Close"
+                        className="absolute top-3 right-3 w-8 h-8 inline-flex items-center justify-center bg-ink/80 text-white rounded-full hover:bg-ink transition-colors"
                     >
-                        <X className="w-5 h-5" />
+                        <X className="w-4 h-4" />
                     </button>
-
-                    <div className="absolute bottom-4 left-5 right-5 text-white">
-                        <div className="flex items-center gap-2 mb-1">
-                            <span className="px-2 py-0.5 bg-ink backdrop-blur-sm rounded-md text-[10px] font-bold uppercase tracking-wider">
-                                {displayCategory}
-                            </span>
-                            <span className="text-xs opacity-80">Added {format(new Date(item.dateAdded), 'MMM d, yyyy')}</span>
-                        </div>
-                        <h2 className="font-display text-2xl font-extrabold tracking-tight">{displayName}</h2>
-                    </div>
                 </div>
 
-                {/* Scrollable Content */}
-                <div className="flex-1 overflow-y-auto bg-paper">
-                    <div className="p-5 space-y-5">
-                        {/* Key Stats */}
-                        <div className="grid grid-cols-2 gap-3">
-                            <div className="p-3 bg-paper rounded-xl border border-ink/10 flex items-center gap-3">
-                                <div className="w-9 h-9 bg-white rounded-lg shadow-sm flex items-center justify-center flex-shrink-0">
-                                    <Hash className="w-4 h-4 text-ink" />
-                                </div>
-                                <div>
-                                    <p className="text-[10px] font-bold text-ink/50 uppercase tracking-wider">Times worn</p>
-                                    <p className="font-display text-xl font-extrabold text-ink">{item.wearFrequency}</p>
-                                </div>
-                            </div>
-                            <div className="p-3 bg-paper rounded-xl border border-ink/10 flex items-center gap-3">
-                                <div className="w-9 h-9 bg-white rounded-lg shadow-sm flex items-center justify-center flex-shrink-0">
-                                    <Calendar className="w-4 h-4 text-ink" />
-                                </div>
-                                <div>
-                                    <p className="text-[10px] font-bold text-ink/50 uppercase tracking-wider">Last worn</p>
-                                    <p className="text-sm font-bold text-ink">
-                                        {item.lastWorn
-                                            ? (() => {
-                                                const days = differenceInDays(new Date(), new Date(item.lastWorn));
-                                                return days === 0 ? 'Today' : days === 1 ? 'Yesterday' : `${days} days ago`;
-                                            })()
-                                            : 'Not yet'}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                        <p className="-mt-2 text-sm font-semibold text-ink/60">{wornLine(item)}</p>
-
-                        {/* Name (subcategory) — editable in case scan got it wrong */}
-                        <div>
-                            <p className="text-[10px] font-bold text-ink/50 uppercase tracking-wider mb-2">Name</p>
+                {/* Content */}
+                <div className="flex-1 overflow-y-auto">
+                    <div className="px-5 pt-3.5 pb-5 space-y-3.5">
+                        {/* Name: tap to fix it if the scan got it wrong */}
+                        <label className="flex items-center gap-2 border-b border-transparent focus-within:border-ink/30">
                             <input
                                 type="text"
+                                aria-label="Name"
                                 value={displayName}
                                 onChange={(e) => setDisplayName(e.target.value)}
                                 onBlur={handleRename}
-                                className="w-full rounded-xl border border-ink/10 bg-paper p-3 text-sm font-bold text-ink focus:ring-2 focus:ring-lime focus:border-ink outline-none"
+                                onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+                                className="min-w-0 flex-1 bg-transparent font-display text-[22px] font-extrabold leading-tight tracking-tight text-ink outline-none"
                             />
+                            <Pencil className="w-3.5 h-3.5 text-ink/35 flex-shrink-0" />
+                        </label>
+
+                        {/* Stats */}
+                        <div className="grid grid-cols-3 rounded-2xl bg-white border border-ink/10 divide-x divide-ink/10">
+                            {stats.map((s) => (
+                                <div key={s.label} className="px-3 py-2.5">
+                                    <p className="text-[10px] font-semibold text-ink/45">{s.label}</p>
+                                    <p className="text-sm font-bold text-ink">{s.value}</p>
+                                </div>
+                            ))}
                         </div>
 
-                        {/* Category — editable */}
                         <div>
-                            <p className="text-[10px] font-bold text-ink/50 uppercase tracking-wider mb-2">Category</p>
-                            <div className="grid grid-cols-4 gap-2">
+                            <p className={fieldLabel}>Category</p>
+                            <div className="flex flex-wrap gap-1">
                                 {Object.values(ClothingCategory).map((cat) => {
                                     const selected = displayCategory === cat;
                                     return (
                                         <button
                                             key={cat}
                                             onClick={() => handleCategory(cat)}
-                                            className={`py-2 rounded-lg text-xs font-bold capitalize border transition-colors ${selected ? 'border-ink bg-paper text-ink' : 'border-ink/10 bg-white text-ink hover:bg-ink/5'}`}
+                                            className={`h-7 px-2.5 rounded-full text-[11px] font-semibold capitalize border transition-colors ${selected ? 'border-ink bg-ink text-lime' : 'border-ink/10 bg-white text-ink hover:bg-ink/5'}`}
                                         >
                                             {cat}
                                         </button>
@@ -256,78 +232,70 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({ item, onClose 
                             </div>
                         </div>
 
-                        {/* Color — user calibration: shows the snapped palette name (no hex), logs each correction as eval data */}
+                        {/* Color: shows the snapped palette name; each correction is logged as eval data */}
                         <div>
-                            <p className="text-[10px] font-bold text-ink/50 uppercase tracking-wider mb-2">Color</p>
-                            <div className="flex items-center gap-3 p-3 bg-paper rounded-xl border border-ink/10">
-                                <span className="w-8 h-8 rounded-lg border border-black/10 flex-shrink-0" style={{ backgroundColor: displayColor.hex }} />
-                                <span className="text-sm font-bold text-ink flex-1">{displayColor.name}</span>
+                            <p className={fieldLabel}>Color</p>
+                            <div className="flex items-center gap-2.5 h-10 px-3 bg-white rounded-xl border border-ink/10">
+                                <span className="w-5 h-5 rounded-md border border-black/10 flex-shrink-0" style={{ backgroundColor: displayColor.hex }} />
+                                <span className="text-sm font-semibold text-ink flex-1">{displayColor.name}</span>
                                 <button
                                     onClick={() => setColorSheetOpen((o) => !o)}
-                                    className="text-xs font-bold text-ink bg-white border border-ink/10 rounded-lg px-3 py-1.5 hover:bg-ink/10 transition-colors"
+                                    className="text-xs font-bold text-ink/60 hover:text-ink"
                                 >
-                                    {colorSheetOpen ? 'Close' : 'Edit'}
+                                    {colorSheetOpen ? 'Close' : 'Change'}
                                 </button>
                             </div>
                             {colorSheetOpen && (
-                                <div className="mt-3">
-                                    <p className="text-xs text-ink/50 mb-2">Pick the right color:</p>
-                                    <div className="grid grid-cols-4 gap-2">
-                                        {COLOR_PALETTE.map((c) => {
-                                            const selected = displayColor.name === c.name;
-                                            return (
-                                                <button
-                                                    key={c.name}
-                                                    onClick={() => handlePickColor(c)}
-                                                    className={`flex flex-col items-center gap-1 p-1.5 rounded-lg border transition-colors ${selected ? 'border-ink bg-paper' : 'border-transparent hover:bg-ink/5'}`}
-                                                >
-                                                    <span className="w-7 h-7 rounded-lg border border-black/10" style={{ backgroundColor: c.hex }} />
-                                                    <span className="text-[10px] font-semibold text-ink">{c.name}</span>
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
+                                <div className="mt-2 grid grid-cols-4 gap-1.5">
+                                    {COLOR_PALETTE.map((c) => {
+                                        const selected = displayColor.name === c.name;
+                                        return (
+                                            <button
+                                                key={c.name}
+                                                onClick={() => handlePickColor(c)}
+                                                className={`flex flex-col items-center gap-1 p-1.5 rounded-lg border transition-colors ${selected ? 'border-ink bg-white' : 'border-transparent hover:bg-ink/5'}`}
+                                            >
+                                                <span className="w-6 h-6 rounded-md border border-black/10" style={{ backgroundColor: c.hex }} />
+                                                <span className="text-[10px] font-semibold text-ink">{c.name}</span>
+                                            </button>
+                                        );
+                                    })}
                                 </div>
                             )}
                         </div>
 
                         {item.subcategory.toLowerCase() === 'unknown' && (
-                            <div className="rounded-xl border border-amber-300 bg-amber-50 p-3">
-                                <p className="text-xs font-bold uppercase tracking-wide text-amber-800 mb-2">
-                                    Needs a look
-                                </p>
-                                <p className="text-sm text-amber-900 mb-3">
+                            <div className="rounded-xl border border-ink/15 bg-lime/40 p-3">
+                                <p className="text-xs text-ink mb-2.5">
                                     We couldn’t sort this piece yet. A fresh look helps your outfits.
                                 </p>
                                 <button
                                     onClick={handleReanalyze}
                                     disabled={isReanalyzing}
-                                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-amber-600 text-white rounded-lg text-sm font-semibold hover:bg-amber-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                                    className="inline-flex items-center gap-1.5 h-8 px-3 bg-ink text-white rounded-full text-xs font-bold disabled:opacity-60 disabled:cursor-not-allowed"
                                 >
-                                    <Sparkles className="w-4 h-4" />
+                                    <Sparkles className="w-3.5 h-3.5" />
                                     {isReanalyzing ? 'Taking a fresh look…' : 'Take a fresh look'}
                                 </button>
                             </div>
                         )}
-
                     </div>
                 </div>
 
-                {/* Actions — fixed at bottom */}
-                <div className="flex-shrink-0 bg-white border-t border-ink/10 p-4 flex gap-3">
+                {/* Actions */}
+                <div className="flex-shrink-0 border-t border-ink/10 px-4 py-3 flex items-center gap-2">
                     <button
                         onClick={handleDelete}
-                        className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 bg-red-50 text-red-600 rounded-xl font-bold text-sm hover:bg-red-100 transition-colors active:scale-[0.98]"
+                        className="inline-flex items-center gap-1.5 h-11 px-3 text-red-600 rounded-full font-semibold text-sm hover:bg-red-50 transition-colors"
                     >
                         <Trash2 className="w-4 h-4" />
                         Remove
                     </button>
                     <button
                         onClick={onClose}
-                        className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 bg-ink text-white rounded-full font-bold text-sm hover:bg-ink/90 transition-colors active:scale-[0.98]"
+                        className="flex-1 h-11 bg-ink text-white rounded-full font-bold text-sm hover:bg-ink/90 transition-colors active:scale-[0.98]"
                     >
-                        <Check className="w-4 h-4" />
-                        Confirm
+                        Done
                     </button>
                 </div>
             </div>

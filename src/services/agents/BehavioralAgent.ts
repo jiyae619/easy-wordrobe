@@ -6,6 +6,7 @@ import {
 import { getTextProvider } from "../vision/providerRegistry";
 import { getAgentFailureReason } from "./agentErrors";
 import { createAgentTraceId, recordAgentMetric } from "./agentTelemetry";
+import { itemName } from '../../utils/itemName';
 import {
     computeBehavioralAnalytics,
     getCurrentSeason,
@@ -16,9 +17,9 @@ import {
 
 function buildFallbackNudges(unwornItems: ClothingItem[]): string[] {
     const item = unwornItems[0];
-    const itemLabel = item ? `your ${item.color} ${item.subcategory}` : 'something from the back of your closet';
+    const itemLabel = item ? `your ${itemName(item)}` : 'something from the back of your closet';
     const item2 = unwornItems[1];
-    const item2Label = item2 ? `that ${item2.color} ${item2.subcategory}` : 'another forgotten piece';
+    const item2Label = item2 ? `that ${itemName(item2)}` : 'another forgotten piece';
 
     const hypePools = [
         `${itemLabel.charAt(0).toUpperCase() + itemLabel.slice(1)} is ready when you are. Today works.`,
