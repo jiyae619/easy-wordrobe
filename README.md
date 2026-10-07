@@ -69,6 +69,18 @@ See [AGENTS.md](AGENTS.md) for a detailed breakdown of each agent's inputs, outp
 
 ---
 
+## Project History
+
+Stylemax was originally built for an **AWS hackathon**: the frontend was hosted on **AWS Amplify** and all three agents ran on **Amazon Nova 2 Lite via AWS Bedrock**.
+
+After the AWS account was suspended (Oct 2026), the app moved to **Firebase Hosting** and **Google Gemini 3.5 Flash-Lite**. Firebase Auth, Firestore, Storage and the `aiProxy` Cloud Function were already on Google, so they didn't change.
+
+- The hackathon version is preserved on the branch [`aws-hackathon`](https://github.com/jiyae619/easy-wordrobe/tree/aws-hackathon) (Amplify config `amplify.yml` / `customHttp.yml`, Bedrock proxy route).
+- The Nova adapter (`src/services/vision/novaProvider.ts`, `bedrockClient.ts`) is kept in the client for reference.
+- The original Nova vs Gemini 2.5 Flash intake benchmark is kept in `scripts/eval/last-report.md`.
+
+---
+
 ## Project Structure
 
 ```

@@ -4,6 +4,8 @@ This document describes the full technical architecture of Stylemax: how the fro
 
 For a focused explanation of the three AI agents specifically, see [AGENTS.md](AGENTS.md).
 
+> **History:** Stylemax was first built for an AWS hackathon on AWS Amplify (hosting) and Amazon Nova 2 Lite via AWS Bedrock (AI). It now runs on Firebase Hosting and Google Gemini. The AWS version is preserved on the branch `aws-hackathon`. See [README → Project History](README.md#project-history).
+
 ---
 
 ## Table of Contents
