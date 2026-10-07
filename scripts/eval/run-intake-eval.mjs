@@ -3,7 +3,8 @@
 // two vision models and prints a side-by-side scorecard.
 //
 // Usage:
-//   VITE_BEDROCK_API_KEY=... GEMINI_API_KEY=... node scripts/eval/run-intake-eval.mjs
+//   GEMINI_API_KEY=... node scripts/eval/run-intake-eval.mjs
+//   (or put GEMINI_API_KEY=... in the repo's .env.local — it is loaded automatically)
 //
 // Optional:
 //   EVAL_FIXTURES_DIR=./scripts/eval/fixtures   (default)
@@ -22,6 +23,15 @@ import { execSync } from "node:child_process";
 import { INTAKE_PROMPT, geminiProvider, novaProvider } from "./providers.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// Pick up keys from the repo's gitignored env files (shell exports still win).
+for (const file of [".env.local", ".env"]) {
+  try {
+    process.loadEnvFile(path.join(__dirname, "..", "..", file));
+  } catch {
+    // missing file (or Node < 20.12) — rely on the shell environment
+  }
+}
 const FIXTURES_DIR = process.env.EVAL_FIXTURES_DIR || path.join(__dirname, "fixtures");
 const REGION = process.env.EVAL_REGION || process.env.VITE_AWS_REGION || "us-east-2";
 const GEMINI_MODEL = process.env.EVAL_GEMINI_MODEL || "gemini-3.5-flash-lite";
