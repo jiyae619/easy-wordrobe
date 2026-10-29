@@ -91,6 +91,8 @@ export const SUBCATEGORIES = {
         { slug: "blazer", phrase: "tailored blazer", keywords: ["blazer", "jacket", "suit"], moods: ["professional"], seasons: ["spring", "fall", "winter"] },
         { slug: "puffer-parka", phrase: "puffer parka", keywords: ["parka", "puffer", "down jacket"], moods: ["casual"], seasons: ["winter"] },
         { slug: "cardigan", phrase: "knit cardigan", keywords: ["cardigan", "knit"], moods: ["casual", "romantic"], seasons: ["fall", "winter"] },
+        { slug: "rain-jacket", phrase: "hooded waterproof rain jacket with a full zip", keywords: ["rain jacket", "raincoat", "waterproof"], moods: ["casual"], seasons: ["spring", "fall", "winter"] },
+        { slug: "trench-coat", phrase: "classic belted trench coat", keywords: ["trench", "trench coat", "coat"], moods: ["professional", "casual"], seasons: ["spring", "fall"] },
     ],
     dresses: [
         { slug: "wrap-dress", phrase: "wrap dress", keywords: ["wrap dress", "wrap", "dress"], moods: ["romantic", "professional"], seasons: ["spring", "summer"] },
