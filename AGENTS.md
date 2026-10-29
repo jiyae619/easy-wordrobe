@@ -103,10 +103,12 @@ Stylemax uses **three specialized AI agents**, all powered by **Google Gemini 3.
 
 **Mood rules (`src/data/moodStyles.ts`):** a curated table, built from established dress conventions (business / business-casual dress codes, smart casual, athleisure, the romantic style vocabulary), that says for each mood what to reach for, silhouettes and fabrics, colors, and what breaks the mood, plus keyword lists matched against item subcategories. `src/services/agents/moodFit.ts` turns it into a score per piece (0–1): neutral 0.5, +0.3 if the user tagged the piece with this mood, +0.35 / +0.15 for a textbook / suitable garment type, −0.45 for a clashing one (which beats a tag), small color and category nudges. Pieces under 0.35 are **off-mood** and never reach the prompt (unless a group would be too thin to build looks, in which case the best of that group is kept); 0.7+ is "high".
 
+**Weather rules (`src/data/weatherStyles.ts`):** the weather twin of the mood table, built from wet-weather dressing guides and clothing-insulation (clo) rankings. `readWeather` reduces the reading to a temperature band on "feels like" (cold ≤5 / cool ≤15 / mild ≤24 / hot >24 °C) plus rain, snow and wind (≥30 km/h). Each active rule scores a piece by keyword (`src/services/agents/weatherFit.ts`): +0.3 made for it, +0.15 works, −0.15 mildly wrong; any "avoid" term caps the piece at 0.2, so a warm band can't rescue it. Rain rules out leather, suede, knits, canvas, silk and open shoes; heat rules out puffers, wool coats and fleece; cold rules out shorts, sandals, sundresses and linen. Pieces under 0.35 are **off-weather** and never reach the prompt (same thin-group top-up as mood). Every look, AI or code-built, then gets what the weather requires (`applyWeatherNeeds`): a weatherproof layer (rain jacket, trench, shell, parka) in rain or wind, some outer layer when cold or cool, and boots in place of other shoes in rain, each only if the closet has one. The prompt gets a `WEATHER NOW` block with the reading, each active rule and the allowed raincoat / boot aliases. The card's Weather score is `50 × season share + 100 × mean weather fit` (capped at 100), so a neutral outfit scores exactly as before. IntakeAgent names the material in `subcategory` when visible ("Leather Biker Jacket", "Waterproof Rain Jacket") so these keywords can match.
+
 **Input:**
 
 ```text
-wardrobe:          ClothingItem[]    (alias id, category, subcategory, color, season, fit) — off-mood pieces removed
+wardrobe:          ClothingItem[]    (alias id, category, subcategory, color, season, fit) — off-mood and off-weather pieces removed
 weather:           WeatherData|null  (temperature, feelsLike, condition)
 mood:              FashionMood       (id, name) + its MoodStyle brief
 userProfile?:      { gender, height, weight }
@@ -140,7 +142,7 @@ These are merged into a `priorityIds` set and injected into the prompt as rule 4
 
 1. **Mood fit** (highest) — every outfit must read as the mood; anchored on a "high" fit piece; consistent formality. Enforced in code too (off-mood pieces are filtered out, looks re-ranked by `moodMatch`).
 
-2. **Weather + seasonal fit** — appropriate for current temperature and conditions
+2. **Weather** — the `WEATHER NOW` rules (band, rain, snow, wind). Enforced in code too: off-weather pieces filtered out, required layers and boots added.
 
 3. **Composition** — the strict bottoms-based / dress-based rules below
 

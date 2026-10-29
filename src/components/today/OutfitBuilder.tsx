@@ -3,6 +3,7 @@ import { format } from 'date-fns';
 import { ArrowLeft, Dices, X } from 'lucide-react';
 import { useWardrobe } from '../../context/WardrobeContext';
 import { computeSeasonalLeastWornIds, computeWearScore, computeWeatherMatch } from '../../services/agents/agentOutputGuards';
+import { readWeather } from '../../services/agents/weatherFit';
 import { useMood } from '../../hooks/useMood';
 import { useTodayWeather } from '../../hooks/useTodayWeather';
 import { useStylistLooks } from '../../hooks/useStylistLooks';
@@ -205,7 +206,7 @@ export const OutfitBuilder: React.FC<OutfitBuilderProps> = ({ seed, logDate = nu
     const valid = isValidOutfit(items);
     const bottomIsDress = isDress(items.find((i) => i.id === slots.bottom));
     const matched = looks.find((l) => outfitKey(l.items.map((i) => i.id)) === outfitKey(itemIds));
-    const weatherScore = weather && items.length ? computeWeatherMatch(items, weather.temperature) : null;
+    const weatherScore = weather && items.length ? computeWeatherMatch(items, weather.temperature, readWeather(weather)) : null;
     const rotationScore = items.length ? computeWearScore(items, clothes) : null;
     const dayKeys = loggedKeysOn(outfits, logDate ?? new Date());
     const alreadyWorn = dayKeys.has(outfitKey(itemIds));

@@ -7,10 +7,11 @@ import {
     computeWearScore,
     computeWeatherMatch,
     getWardrobeReadiness,
-    seasonForTemperature,
 } from '../services/agents/agentOutputGuards';
 import { useTodayWeather } from './useTodayWeather';
 import { computeMoodMatch } from '../services/agents/moodFit';
+import { readWeather } from '../services/agents/weatherFit';
+import type { WeatherConditions } from '../data/weatherStyles';
 import { buildCodeLooks } from '../services/agents/StylistAgent';
 import type { ClothingItem, FashionMood, OutfitSuggestion, WeatherData } from '../types';
 
@@ -58,10 +59,10 @@ function fingerprint(text: string): string {
  * Cloudy" 19°) re-ran the model and reset the swipe stack. The prompt still gets the exact weather.
  * No weather at all (location off, no city) is its own bucket: looks still generate.
  */
-export function weatherCacheBucket(weather: Pick<WeatherData, 'temperature' | 'condition'> | null): string {
-    if (!weather) return 'noweather';
-    const wet = /rain|shower|drizzle|thunder|storm|snow|sleet|flurr|ice|blizzard/.test(weather.condition.toLowerCase());
-    return `${wet ? 'wet' : 'dry'}-${seasonForTemperature(weather.temperature)}`;
+export function weatherCacheBucket(weather: Pick<WeatherData, 'temperature' | 'condition'> & Partial<Pick<WeatherData, 'feelsLike' | 'windSpeed'>> | null): string {
+    const c = readWeather(weather);
+    if (!c) return 'noweather';
+    return [c.band, c.wet ? 'wet' : 'dry', ...(c.snow ? ['snow'] : []), ...(c.windy ? ['windy'] : [])].join('-');
 }
 
 function readMemory(key: string): StoredLook[] | null {
@@ -112,7 +113,7 @@ function toStored(looks: OutfitSuggestion[]): StoredLook[] {
     return looks.map((l) => ({ id: l.id, itemIds: l.items.map((i) => i.id), explanation: l.explanation, isFallback: l.isFallback }));
 }
 
-function hydrate(stored: StoredLook[], clothes: ClothingItem[], mood: FashionMood, temperature: number | null): OutfitSuggestion[] {
+function hydrate(stored: StoredLook[], clothes: ClothingItem[], mood: FashionMood, temperature: number | null, conditions: WeatherConditions | null): OutfitSuggestion[] {
     const byId = new Map(clothes.map((c) => [c.id, c]));
     return stored
         .map((s) => {
@@ -123,7 +124,7 @@ function hydrate(stored: StoredLook[], clothes: ClothingItem[], mood: FashionMoo
                 mood,
                 explanation: s.explanation,
                 isFallback: s.isFallback,
-                weatherMatch: computeWeatherMatch(items, temperature),
+                weatherMatch: computeWeatherMatch(items, temperature, conditions),
                 wearScore: computeWearScore(items, clothes),
                 moodMatch: computeMoodMatch(items, mood.id),
             };
@@ -242,9 +243,12 @@ export function useStylistLooks(mood: FashionMood, weather: WeatherData | null):
 
     const current = stored && stored.key === key ? stored.looks : null;
     const temperature = weather ? weather.temperature : null;
+    const bucket = weatherCacheBucket(weather);
+    // Re-derived from the bucket so the memo below only re-scores when the weather rules change.
+    const conditions = useMemo(() => readWeather(weather), [bucket]); // eslint-disable-line react-hooks/exhaustive-deps
     const looks = useMemo(
-        () => (current ? hydrate(current, clothes, mood, temperature) : []),
-        [current, clothes, mood, temperature],
+        () => (current ? hydrate(current, clothes, mood, temperature, conditions) : []),
+        [current, clothes, mood, temperature, conditions],
     );
 
     // Pure code (no model, no network): ~1ms for a typical closet. Recomputed only while waiting.

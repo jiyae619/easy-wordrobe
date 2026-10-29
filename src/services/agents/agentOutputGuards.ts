@@ -10,6 +10,8 @@ import {
     type WearRecord,
 } from "../../types";
 import { AgentError, type AgentName } from "./agentErrors";
+import { outfitWeatherFit } from "./weatherFit";
+import type { WeatherConditions } from "../../data/weatherStyles";
 import { nearestPaletteColor } from "../../data/colorPalette";
 import { isStockPhoto } from "../../data/starterCatalog";
 import { itemName } from '../../utils/itemName';
@@ -145,17 +147,19 @@ export function seasonForTemperature(temperatureC: number): Season {
 }
 
 /**
- * Weather appropriateness (0-100), computed from item seasons vs. the current temperature.
- * 100 when every item suits the temperature's season, 50 when none do. Never read from the model.
- * With no weather (location off, lookup failed) it scores against the calendar season instead.
+ * Weather appropriateness (0-100), computed in code, never read from the model: 50 x the share of
+ * items tagged for the temperature's season, plus 100 x the outfit's mean weather fit against
+ * today's rules (weatherFit.ts: rain, wind, snow, warmth). A neutral outfit (fit 0.5) scores
+ * 50-100 by season alone; leather in the rain pulls it down, a raincoat and boots push it up.
+ * With no weather (location off, lookup failed) it scores seasons against the calendar season.
  */
-export function computeWeatherMatch(items: ClothingItem[], temperatureC: number | null): number {
+export function computeWeatherMatch(items: ClothingItem[], temperatureC: number | null, conditions: WeatherConditions | null = null): number {
     if (items.length === 0) return 0;
     const target = temperatureC === null || !Number.isFinite(temperatureC)
         ? getCurrentSeason()
         : seasonForTemperature(temperatureC);
     const matching = items.filter((item) => item.season.includes(target)).length;
-    return clamp(Math.round(50 + 50 * (matching / items.length)), 0, 100);
+    return clamp(Math.round(50 * (matching / items.length) + 100 * outfitWeatherFit(items, conditions)), 0, 100);
 }
 
 /**

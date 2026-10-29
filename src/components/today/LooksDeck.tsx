@@ -11,6 +11,7 @@ import {
 import { useMood } from '../../hooks/useMood';
 import { useTodayWeather } from '../../hooks/useTodayWeather';
 import { useStylistLooks } from '../../hooks/useStylistLooks';
+import { readWeather } from '../../services/agents/weatherFit';
 import { usePendingWear } from '../../hooks/usePendingWear';
 import { picksDoneLine, wearSavedLine } from '../../copy/voice';
 import { WearToast } from '../common/WearToast';
@@ -82,7 +83,7 @@ export const LooksDeck: React.FC<LooksDeckProps> = ({ onTweak }) => {
         return {
             ...look,
             items,
-            weatherMatch: weather ? computeWeatherMatch(items, weather.temperature) : look.weatherMatch,
+            weatherMatch: weather ? computeWeatherMatch(items, weather.temperature, readWeather(weather)) : look.weatherMatch,
             wearScore: computeWearScore(items, clothes),
         };
     };

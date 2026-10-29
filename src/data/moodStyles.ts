@@ -6,6 +6,10 @@ import { ClothingCategory } from '../types';
  * "romantic" style vocabulary of soft fabrics and feminine silhouettes) rather than from live
  * trend data: it is free, instant, deterministic and testable, so it can sit on Today's hot path.
  *
+ * Sources: business-casual dress-code guides (what to wear and avoid at work), romantic-style guides
+ * (soft, flowing fabrics, defined waists, florals and ruffles, delicate shoes) and athleisure guides
+ * (joggers, leggings, hoodies, technical and stretch fabrics, sneakers).
+ *
  * It is used twice:
  *  - the prose fields brief the StylistAgent (the prompt used to get only the mood's name);
  *  - the keyword lists drive the code-side mood-fit score (services/agents/moodFit.ts), which
@@ -45,11 +49,11 @@ export const MOOD_STYLES: Record<string, MoodStyle> = {
         reachFor: 'blazers, button-down or oxford shirts, blouses, fine knits, turtlenecks; tailored trousers, chinos, pencil or midi skirts; sheath, shirt or wrap dresses; loafers, oxfords, pumps, ankle boots; a wool coat or trench',
         shape: 'clean lines, structured shoulders, pressed fabrics (wool, cotton poplin, silk, fine knit), knee length or longer',
         colors: 'navy, black, grey, white, cream, beige, camel and brown, with at most one muted accent',
-        avoid: 'hoodies and sweatshirts, athletic wear, graphic tees, crop or tank tops, shorts, ripped or distressed denim, sporty sneakers, flip flops, slip dresses and sundresses',
+        avoid: 'hoodies and sweatshirts, athletic wear, t-shirts and graphic tees, crop or tank tops, shorts, jeans, sneakers, sandals and flip flops, hiking boots, slip dresses and sundresses',
         keywords: {
-            strong: ['blazer', 'suit', 'trouser', 'tailored', 'slack', 'pencil', 'button-down', 'button-up', 'oxford', 'dress shirt', 'blouse', 'turtleneck', 'sheath', 'shirt dress', 'loafer', 'pump', 'derby', 'brogue', 'trench', 'wool coat', 'vest', 'waistcoat'],
+            strong: ['blazer', 'suit', 'sport coat', 'trouser', 'dress pant', 'khaki', 'tailored', 'slack', 'pencil', 'button-down', 'button-up', 'oxford', 'dress shirt', 'blouse', 'turtleneck', 'sheath', 'shirt dress', 'loafer', 'pump', 'derby', 'brogue', 'trench', 'wool coat', 'vest', 'waistcoat'],
             good: ['shirt', 'chino', 'cardigan', 'sweater', 'knit', 'pullover', 'midi', 'wrap dress', 'wrap', 'pleated skirt', 'skirt', 'ankle boot', 'mule', 'coat', 'polo', 'heel', 'flat'],
-            avoid: ['hoodie', 'sweatshirt', 'jogger', 'legging', 'sweatpant', 'track', 'tracksuit', 'athletic', 'running', 'gym', 'graphic', 'crop', 'tank', 'cami', 'shorts', 'ripped', 'distressed', 'cargo', 'flip-flop', 'slide', 'sneaker', 'trainer', 'slip dress', 'sundress', 'mini', 'denim jacket', 'puffer', 'windbreaker', 'fleece'],
+            avoid: ['hoodie', 'sweatshirt', 'jogger', 'legging', 'sweatpant', 'track', 'tracksuit', 'athletic', 'running', 'gym', 'graphic', 'tshirt', 'tee', 'crop', 'tank', 'cami', 'shorts', 'jean', 'ripped', 'distressed', 'cargo', 'flip-flop', 'slide', 'sandal', 'hiking', 'sneaker', 'trainer', 'slip dress', 'sundress', 'mini', 'denim jacket', 'puffer', 'windbreaker', 'fleece'],
         },
         colorAffinity: { good: ['Black', 'Navy', 'Grey', 'White', 'Cream', 'Beige', 'Brown'], avoid: ['Yellow', 'Orange'] },
     },
@@ -73,8 +77,8 @@ export const MOOD_STYLES: Record<string, MoodStyle> = {
         colors: 'black, grey, white and navy with a bright or color block accent',
         avoid: 'tailoring (blazers, trousers, pencil skirts), silk, satin and lace, blouses, heels, loafers and dress shoes, formal dresses and wool coats',
         keywords: {
-            strong: ['hoodie', 'sweatshirt', 'jogger', 'legging', 'track', 'tracksuit', 'sweatpant', 'athletic', 'running', 'sneaker', 'trainer', 'windbreaker', 'sports bra', 'bike short', 'performance', 'gym', 'tennis', 'zip-up', 'quarter-zip', 'fleece', 'anorak'],
-            good: ['tee', 'tshirt', 'tank', 'shorts', 'puffer', 'parka', 'polo', 'sweater', 'pullover', 'jacket', 'cap', 'denim shorts'],
+            strong: ['hoodie', 'sweatshirt', 'jogger', 'legging', 'track', 'tracksuit', 'sweatpant', 'athletic', 'running', 'sneaker', 'trainer', 'windbreaker', 'sports bra', 'bike short', 'performance', 'gym', 'tennis', 'zip-up', 'quarter-zip', 'fleece', 'anorak', 'nylon', 'spandex', 'yoga'],
+            good: ['tee', 'tshirt', 'tank', 'crop', 'shorts', 'puffer', 'parka', 'polo', 'sweater', 'pullover', 'jacket', 'cap', 'denim shorts'],
             avoid: ['blazer', 'suit', 'trouser', 'tailored', 'slack', 'pencil', 'silk', 'satin', 'lace', 'blouse', 'heel', 'pump', 'stiletto', 'loafer', 'oxford', 'derby', 'brogue', 'dress shoe', 'gown', 'cocktail', 'wool coat', 'trench', 'slip dress', 'wrap dress', 'sheath', 'button-down', 'button-up', 'pleated', 'midi', 'maxi', 'chiffon', 'ruffle'],
         },
         colorAffinity: { good: ['Black', 'Grey', 'White', 'Navy', 'Red', 'Blue', 'Teal', 'Green', 'Orange', 'Yellow'], avoid: ['Brown', 'Beige'] },
@@ -85,11 +89,11 @@ export const MOOD_STYLES: Record<string, MoodStyle> = {
         reachFor: 'blouses (silk, lace, ruffles, puff sleeves), camisoles, soft knits and cardigans; pleated, midi, A-line or slip skirts, flowing trousers; wrap, slip, midi or floral dresses and sundresses; ballet flats, Mary Janes, heels, strappy sandals, sleek ankle boots',
         shape: 'fluid drape, waist definition, midi and maxi lengths; silk, satin, lace, chiffon, cashmere',
         colors: 'blush and pink, cream, ivory, white, lavender, burgundy and red, soft neutrals; black for evening',
-        avoid: 'hoodies and sweatshirts, athletic wear, cargo and utility pieces, puffers, parkas and windbreakers, graphic tees, chunky trainers',
+        avoid: 'hoodies and sweatshirts, athletic wear, cargo and utility pieces, puffers, parkas and windbreakers, graphic tees, sneakers and trainers',
         keywords: {
-            strong: ['blouse', 'silk', 'satin', 'lace', 'chiffon', 'ruffle', 'puff sleeve', 'wrap dress', 'slip dress', 'slip skirt', 'sundress', 'midi', 'maxi', 'floral', 'pleated', 'a-line', 'tulle', 'off-shoulder', 'camisole', 'cami', 'mary jane', 'ballet', 'heel', 'kitten heel', 'bow', 'corset', 'peplum'],
+            strong: ['blouse', 'silk', 'satin', 'lace', 'chiffon', 'ruffle', 'puff sleeve', 'wrap dress', 'slip dress', 'slip skirt', 'sundress', 'midi', 'maxi', 'floral', 'pleated', 'a-line', 'tulle', 'off-shoulder', 'camisole', 'cami', 'mary jane', 'ballet', 'heel', 'kitten heel', 'bow', 'corset', 'peplum', 'tiered', 'empire', 'eyelet', 'embroidered', 'gingham', 'velvet', 'smocked'],
             good: ['skirt', 'dress', 'cardigan', 'cashmere', 'mohair', 'knit', 'sweater', 'wrap', 'sandal', 'ankle boot', 'flat', 'trench', 'wool coat', 'coat', 'shirt'],
-            avoid: ['hoodie', 'sweatshirt', 'jogger', 'legging', 'sweatpant', 'track', 'tracksuit', 'athletic', 'running', 'gym', 'cargo', 'puffer', 'parka', 'windbreaker', 'fleece', 'graphic', 'utility', 'combat', 'chunky', 'trainer', 'anorak'],
+            avoid: ['hoodie', 'sweatshirt', 'jogger', 'legging', 'sweatpant', 'track', 'tracksuit', 'athletic', 'running', 'gym', 'cargo', 'puffer', 'parka', 'windbreaker', 'fleece', 'graphic', 'utility', 'combat', 'chunky', 'sneaker', 'trainer', 'anorak'],
         },
         colorAffinity: { good: ['Pink', 'Cream', 'White', 'Red', 'Purple', 'Beige'], avoid: ['Olive', 'Orange'] },
     },

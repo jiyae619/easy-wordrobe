@@ -10,6 +10,7 @@ import { getAgentFailureReason } from "./agentErrors";
 import { createAgentTraceId, recordAgentMetric } from "./agentTelemetry";
 import { StylistAliases, clampSentences, getCurrentSeason, computeWearScore, computeWeatherMatch, mapStylistSuggestions, parseAgentJson, sanitizeUiCopy } from "./agentOutputGuards";
 import { assembleMoodLooks, computeMoodMatch, moodFitTier, selectMoodCandidates } from "./moodFit";
+import { applyWeatherNeeds, readWeather, weatherBrief, weatherNeeds } from "./weatherFit";
 import { getMoodStyle } from "../../data/moodStyles";
 import { itemName } from '../../utils/itemName';
 
@@ -52,10 +53,14 @@ export const StylistAgent = {
         console.log("[Stylist Agent] Generating outfits...");
         const traceId = createAgentTraceId("stylist");
 
-        // 1. Mood fit first, in code: pieces that clash with the mood (a hoodie for Professional,
-        // a blazer for Sporty) never reach the model, so they cannot end up in a look. Kept pieces
-        // carry a "fit" label and come best-first. (moodFit.ts, rules in data/moodStyles.ts)
-        const { items: candidates, fit } = selectMoodCandidates(clothes, mood.id);
+        // 1. Mood and weather fit first, in code: pieces that clash with the mood (a hoodie for
+        // Professional) or break today's weather (leather or knits in the rain, a puffer at 28 °C)
+        // never reach the model, so they cannot end up in a look. Kept pieces carry a mood "fit"
+        // label and come best-first. (moodFit.ts / weatherFit.ts, rules in data/moodStyles.ts and
+        // data/weatherStyles.ts)
+        const conditions = readWeather(weather);
+        const { items: candidates, fit } = selectMoodCandidates(clothes, mood.id, conditions);
+        const needs = weatherNeeds(candidates, conditions);
 
         // 2. Wardrobe JSON with only the fields the model needs. Items go to the model under short
         // aliases ("i1", "i2", ...) instead of their 20-36 character ids: every id costs ~15-25
@@ -95,8 +100,8 @@ export const StylistAgent = {
         const avoidRule = avoidAliases.length > 0
             ? `\n6. The user keeps skipping ${JSON.stringify(avoidAliases)}: use at most one of them across all 3 outfits, ideally none.`
             : '';
-        const weatherLine = weather
-            ? `Weather now: ${weather.temperature}°C (feels like ${weather.feelsLike}°C), ${weather.condition}.`
+        const weatherLine = weather && conditions
+            ? weatherBrief(weather, conditions, needs, (ids) => aliases.toAliases(ids))
             : `Weather: unknown. Dress for a typical ${getCurrentSeason()} day and favor easy layers.`;
 
         // Mood leads the prompt and the ranking: it used to be a name in passing, ranked below the
@@ -113,7 +118,7 @@ ${JSON.stringify(wardrobeContext)}
 
 CHOOSE IN THIS ORDER OF IMPORTANCE:
 1. Mood: every outfit must read as ${mood.name} at a glance. Anchor each outfit on at least one "high" piece and keep formality consistent inside an outfit (no gym pieces with tailoring, no evening pieces with athletic wear).
-2. Weather: dress for the temperature and conditions (layer when cool, breathable when hot, closed shoes in rain).
+2. Weather: follow every WEATHER NOW rule above (layers, weatherproof outer layer, boots).
 3. Composition (strict). Each outfit is ONE of:
    - Bottoms-based: EXACTLY 1 "bottoms" item and at least 1 top layer from "tops" or "outerwear"; extra outerwear layers are optional. Never 2 bottoms.
    - Dress-based: EXACTLY 1 "dresses" item, optional outerwear. Never a dress with bottoms.
@@ -155,9 +160,20 @@ Output strictly a JSON array of 3 objects, no markdown:
                 throw new Error("No valid outfits with one-bottom rule.");
             }
 
-            // Wear score is measured against the whole closet; best mood match leads the stack.
+            // The weather requirements are re-checked in code (the model can miss one): a look in the
+            // rain gets the raincoat and boots, a cold one a coat. Wear score is measured against the
+            // whole closet; best mood match leads the stack.
             return mapped.suggestions
-                .map((s) => ({ ...s, wearScore: computeWearScore(s.items, clothes), moodMatch: computeMoodMatch(s.items, mood.id) }))
+                .map((s, i) => {
+                    const items = applyWeatherNeeds(s.items, candidates, conditions, i);
+                    return {
+                        ...s,
+                        items,
+                        weatherMatch: computeWeatherMatch(items, weather?.temperature ?? null, conditions),
+                        wearScore: computeWearScore(items, clothes),
+                        moodMatch: computeMoodMatch(items, mood.id),
+                    };
+                })
                 .sort((a, b) => b.moodMatch - a.moodMatch);
 
         } catch (error) {
@@ -207,8 +223,10 @@ export function buildCodeLooks(
 ): OutfitSuggestion[] {
     const tryItIds = behavioralContext?.tryItItemIds ?? [];
     const temperatureC = weather?.temperature ?? null;
+    const conditions = readWeather(weather);
     const looks = assembleMoodLooks(clothes, mood.id, {
         temperatureC,
+        weather: conditions,
         priorityIds: [...tryItIds, ...(behavioralContext?.leastWornItemIds ?? [])],
         avoidIds: (behavioralContext?.deprioritizeItemIds ?? []).filter((id) => !tryItIds.includes(id)),
         variant: options.variant ?? 0,
@@ -218,7 +236,7 @@ export function buildCodeLooks(
         id: options.variant ? uuidv4() : `code-${mood.id}-${items.map((item) => item.id).join('+')}`,
         items,
         mood,
-        weatherMatch: computeWeatherMatch(items, temperatureC),
+        weatherMatch: computeWeatherMatch(items, temperatureC, conditions),
         wearScore: computeWearScore(items, clothes),
         moodMatch: computeMoodMatch(items, mood.id),
         explanation: clampSentences(sanitizeUiCopy(buildFallbackExplanation(items, mood, tones[(i + (options.variant ?? 0)) % 3])), 2),

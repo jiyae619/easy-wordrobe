@@ -1,6 +1,9 @@
 import { ClothingCategory, type ClothingItem } from '../../types';
 import { getMoodStyle, type MoodStyle } from '../../data/moodStyles';
 import { getCurrentSeason, moodIdsForStyling, seasonForTemperature } from './agentOutputGuards';
+import { matchesAny, normalizeText } from './styleText';
+import { OFF_WEATHER_THRESHOLD, applyWeatherNeeds, itemWeatherFit } from './weatherFit';
+import type { WeatherConditions } from '../../data/weatherStyles';
 
 /**
  * Code-side mood fit: how well a piece suits a mood, from its subcategory, color and the user's own
@@ -15,26 +18,6 @@ export const OFF_MOOD_THRESHOLD = 0.35;
 export const HIGH_FIT_THRESHOLD = 0.7;
 
 const NEUTRAL_COLORS = new Set(['black', 'grey', 'white', 'cream', 'beige', 'brown', 'navy']);
-
-/** Lowercase, hyphens to spaces, every spelling of t-shirt to "tshirt" (so "shirt" won't match it). */
-function normalizeText(text: string): string {
-    return ` ${text.toLowerCase().replace(/[-_/]+/g, ' ').replace(/\bt\s?shirts?\b/g, 'tshirt').replace(/\s+/g, ' ').trim()} `;
-}
-
-const patternCache = new Map<string, RegExp>();
-function termPattern(term: string): RegExp {
-    let pattern = patternCache.get(term);
-    if (!pattern) {
-        const escaped = normalizeText(term).trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        pattern = new RegExp(`\\b${escaped}(?:s|es)?\\b`);
-        patternCache.set(term, pattern);
-    }
-    return pattern;
-}
-
-function matchesAny(text: string, terms: string[]): boolean {
-    return terms.some((term) => termPattern(term).test(text));
-}
 
 function clamp01(value: number): number {
     return Math.min(1, Math.max(0, value));
@@ -87,15 +70,24 @@ export function computeMoodMatch(items: FitInput[], moodId: string): number {
 const isTopLayer = (c: ClothingItem) => c.category === ClothingCategory.Tops || c.category === ClothingCategory.Outerwear;
 
 /**
- * The pieces the Stylist may use for a mood: everything that is not off-mood, topped up with the
- * best-fitting pieces of any group that would otherwise be too thin to build 3 looks (at least 2
- * top layers + 2 bottoms, or 2 dresses), so a small or one-note closet still gets looks.
+ * The pieces the Stylist may use for a mood in today's weather: everything that is neither off-mood
+ * nor off-weather (weatherFit.ts), topped up with the best-fitting pieces of any group that would
+ * otherwise be too thin to build 3 looks (at least 2 top layers + 2 bottoms, or 2 dresses), so a
+ * small or one-note closet still gets looks. Sorted best combined fit first (mood counts double).
  */
-export function selectMoodCandidates(clothes: ClothingItem[], moodId: string): { items: ClothingItem[]; fit: Map<string, number> } {
+export function selectMoodCandidates(
+    clothes: ClothingItem[],
+    moodId: string,
+    weather: WeatherConditions | null = null,
+): { items: ClothingItem[]; fit: Map<string, number>; weatherFit: Map<string, number> } {
     const style = getMoodStyle(moodId);
     const fit = new Map(clothes.map((c) => [c.id, itemMoodFit(c, moodId, style)]));
-    const byFit = (a: ClothingItem, b: ClothingItem) => (fit.get(b.id) ?? 0) - (fit.get(a.id) ?? 0);
-    const keep = new Set(clothes.filter((c) => (fit.get(c.id) ?? 0) >= OFF_MOOD_THRESHOLD).map((c) => c.id));
+    const weatherFit = new Map(clothes.map((c) => [c.id, itemWeatherFit(c, weather)]));
+    const combined = (c: ClothingItem) => 2 * (fit.get(c.id) ?? 0) + (weatherFit.get(c.id) ?? 0);
+    const byFit = (a: ClothingItem, b: ClothingItem) => combined(b) - combined(a);
+    const keep = new Set(clothes
+        .filter((c) => (fit.get(c.id) ?? 0) >= OFF_MOOD_THRESHOLD && (weatherFit.get(c.id) ?? 0) >= OFF_WEATHER_THRESHOLD)
+        .map((c) => c.id));
 
     const topUp = (group: ClothingItem[], min: number) => {
         const have = group.filter((c) => keep.has(c.id)).length;
@@ -111,12 +103,14 @@ export function selectMoodCandidates(clothes: ClothingItem[], moodId: string): {
     }
     if (keptBottoms === 0) topUp(dresses, 2);
 
-    return { items: clothes.filter((c) => keep.has(c.id)).sort(byFit), fit };
+    return { items: clothes.filter((c) => keep.has(c.id)).sort(byFit), fit, weatherFit };
 }
 
 export interface AssembleOptions {
     /** Today's temperature in °C, or null when there is no weather (calendar season is used). */
     temperatureC: number | null;
+    /** Today's weather rules (weatherFit.readWeather), or null when there is no weather. */
+    weather?: WeatherConditions | null;
     /** "Wear more" and least-worn items: a small boost among on-mood pieces. */
     priorityIds?: string[];
     /** Repeatedly skipped items: a penalty. */
@@ -137,22 +131,24 @@ function hashUnit(text: string): number {
 }
 
 /**
- * Code-assembled looks for a mood: bottoms-based (top layer + 1 bottom) or dress-based, each with an
- * outer layer when it is cool and a pair of shoes when there are any, ranked by mood fit first, then
- * weather fit, then wear priorities, and kept distinct from each other. Same composition rules as
+ * Code-assembled looks for a mood: bottoms-based (top layer + 1 bottom) or dress-based, each with a
+ * pair of shoes when there are any and whatever today's weather requires (a raincoat and boots in
+ * rain, a coat when cold: weatherFit.applyWeatherNeeds), ranked by mood fit first, then weather fit,
+ * then wear priorities, and kept distinct from each other. Same composition rules as
  * the StylistAgent. Used when the AI is unavailable and as an instant preview while it works.
  */
 export function assembleMoodLooks(clothes: ClothingItem[], moodId: string, options: AssembleOptions): ClothingItem[][] {
-    const { temperatureC, priorityIds = [], avoidIds = [], count = 3, variant = 0 } = options;
-    const { items, fit } = selectMoodCandidates(clothes, moodId);
+    const { temperatureC, weather = null, priorityIds = [], avoidIds = [], count = 3, variant = 0 } = options;
+    const { items, fit, weatherFit } = selectMoodCandidates(clothes, moodId, weather);
     const targetSeason = temperatureC === null ? getCurrentSeason() : seasonForTemperature(temperatureC);
     const cool = temperatureC === null ? ['fall', 'winter'].includes(targetSeason) : temperatureC <= 15;
     const priority = new Set(priorityIds);
     const avoid = new Set(avoidIds.filter((id) => !priority.has(id)));
 
     const score = new Map(items.map((c) => [c.id,
-        0.6 * (fit.get(c.id) ?? 0.5)
-        + 0.25 * (c.season.includes(targetSeason) ? 1 : 0)
+        0.5 * (fit.get(c.id) ?? 0.5)
+        + 0.15 * (c.season.includes(targetSeason) ? 1 : 0)
+        + 0.2 * (weatherFit.get(c.id) ?? 0.5)
         + (priority.has(c.id) ? 0.12 : 0)
         - (avoid.has(c.id) ? 0.3 : 0)
         + (variant ? 0.12 * hashUnit(`${c.id}:${variant}`) : 0),
@@ -204,15 +200,17 @@ export function assembleMoodLooks(clothes: ClothingItem[], moodId: string, optio
         return pick;
     };
 
-    return chosen.map(({ pieces }) => {
+    return chosen.map(({ pieces }, i) => {
         const look = [...pieces];
         const hasOuter = look.some((p) => p.category === ClothingCategory.Outerwear);
-        if (cool && !hasOuter) {
+        // With a reading, the weather rules decide the layer (and swap in boots for rain); without
+        // one, a cool calendar season still gets a layer.
+        if (!weather && cool && !hasOuter) {
             const layer = pickRotating(outer, usedOuter, look);
             if (layer) look.unshift(layer);
         }
         const shoe = pickRotating(shoes, usedShoes, look);
         if (shoe) look.push(shoe);
-        return look;
+        return applyWeatherNeeds(look, items, weather, i);
     });
 }
