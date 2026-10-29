@@ -34,7 +34,8 @@ const none = new Map<string, number>();
 function sampleLines(): string[] {
     const lines: string[] = [];
     const weathers = [rain, cold, hot, { temperature: 18, condition: 'Clouds' }, { temperature: 10, condition: 'Windy' }, null];
-    const moods = ['professional', 'casual', 'sporty', 'creative', 'romantic', 'unknown'];
+    // 'creative' is a retired mood that can still arrive from stored data: it must read like 'unknown'.
+    const moods = ['professional', 'casual', 'sporty', 'romantic', 'creative', 'unknown'];
     const outfits = [[tee, black], [pinkTop, jeans], [coat, tee, jeans], [tee], [coat, pinkTop, black]];
     for (const w of weathers) for (const m of moods) for (const items of outfits) {
         lines.push(mixNote({ items, weather: w, moodId: m, tryItItemIds: [], dustyDays: none }));

@@ -92,7 +92,6 @@ const MOOD_LINES: Record<string, string[]> = {
     professional: ['Sharp, simple, meeting ready.', 'Polished without trying too hard.', 'Clean lines for a busy day.'],
     casual: ['Easy, comfy and still sharp.', 'Low effort, high style.', 'Relaxed, but put together.'],
     sporty: ['Ready to move in style.', 'Built for a busy, active day.', 'Comfy enough to chase the day.'],
-    creative: ['A little unexpected. We like it.', 'Mixing it up in the best way.', 'Your own rules today.'],
     romantic: ['Soft, sweet and date ready.', 'A gentle look for a lovely day.', 'Just the right amount of charm.'],
 };
 
@@ -178,7 +177,6 @@ const MOOD_SENDOFF: Record<string, string[]> = {
     professional: ['Go nail that meeting.', 'Boardroom ready.'],
     casual: ['Easy day ahead.', 'Comfy and cute.'],
     sporty: ['Go move!', 'Ready to roll.'],
-    creative: ['Go turn some heads.', 'Wear it with flair.'],
     romantic: ['Have a lovely time.', 'Date night ready.'],
 };
 

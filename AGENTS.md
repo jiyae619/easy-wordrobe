@@ -83,6 +83,8 @@ Stylemax uses **three specialized AI agents**, all powered by **Google Gemini 3.
 
 * Detects clothing **and shoes** (category one of tops / bottoms / outerwear / dresses / shoes); bags, hats, and other accessories are intentionally excluded.
 
+* Mood tags: 1–3 of professional / casual / sporty / romantic, each defined in the prompt by example garments so tags agree with the Stylist's mood rules (`src/data/moodStyles.ts`). They become `aiTags` / `userMoods` and feed the mood-fit score.
+
 * Safety check: the prompt first screens for inappropriate content (nudity, violence, etc.) before analyzing the clothing.
 
 * Fallback: if the model returns malformed JSON or a timeout occurs, the item is saved with a default "unknown" category so the upload never silently fails.
@@ -95,14 +97,18 @@ Stylemax uses **three specialized AI agents**, all powered by **Google Gemini 3.
 
 **Trigger:** When Today needs looks for the selected mood and today's weather. One batch is fetched per (wardrobe items, mood, weather bucket) and cached for the rest of the day (`useStylistLooks`: memory, then `localStorage`; the weather part of the key is wet/dry + the temperature band `computeWeatherMatch` scores against (≤5 / ≤15 / ≤24 / >24 °C), so the 30-minute "now" refresh does not re-run the model or reset the swipe stack; code-assembled fallback batches are never persisted and expire from memory after 60s). Weather is optional: with no location and no city, looks are generated without it (the prompt says so and `computeWeatherMatch` scores against the calendar season); while the first reading is still loading, the hook waits for it instead of making two calls. After a mood switch the previous mood's looks are not shown while the new batch loads: Today shows it as a swipe stack, and Tweak mode's **Spin** lands the hanger rails on it (respecting locked pieces), then falls back to code-assembled combinations once the batch is used up.
 
-**What it does:** Receives the user's entire wardrobe inventory (as a condensed JSON array), the current weather conditions, the selected mood, and a `BehavioralContext` from BehavioralAgent. Gemini reasons about which combinations work together — considering color coordination, seasonal appropriateness, weather practicality, and wear-history priorities — and returns three distinct outfits with explanations.
+**What it does:** Scores every piece for the selected mood in code, drops the pieces that clash with it, and sends the rest (as a condensed JSON array, best fit first, each labeled `"fit": "high" | "ok"`) together with a **mood brief** (what the mood means in garments), the current weather (or "unknown"), and a `BehavioralContext` from BehavioralAgent. Gemini reasons about which combinations work together — mood first, then weather practicality, composition, wear-history priorities and color — and returns three distinct outfits with explanations. The looks are re-ranked by a computed `moodMatch` so the best mood fit leads the swipe stack.
+
+**Moods:** Professional, Casual, Sporty, Romantic. (Creative was retired: stored `creative` selections, `preferredVibe` values and item tags are ignored — `useMood` falls through to the next valid source, `normalizeMoodIds` drops the tag, and past wear records still show "Creative" via `moodLabel`.)
+
+**Mood rules (`src/data/moodStyles.ts`):** a curated table, built from established dress conventions (business / business-casual dress codes, smart casual, athleisure, the romantic style vocabulary), that says for each mood what to reach for, silhouettes and fabrics, colors, and what breaks the mood, plus keyword lists matched against item subcategories. `src/services/agents/moodFit.ts` turns it into a score per piece (0–1): neutral 0.5, +0.3 if the user tagged the piece with this mood, +0.35 / +0.15 for a textbook / suitable garment type, −0.45 for a clashing one (which beats a tag), small color and category nudges. Pieces under 0.35 are **off-mood** and never reach the prompt (unless a group would be too thin to build looks, in which case the best of that group is kept); 0.7+ is "high".
 
 **Input:**
 
 ```text
-wardrobe:          ClothingItem[]    (id, category, subcategory, color, season, userMoods)
-weather:           WeatherData       (temperature, feelsLike, condition)
-mood:              FashionMood       (id, name, description)
+wardrobe:          ClothingItem[]    (alias id, category, subcategory, color, season, fit) — off-mood pieces removed
+weather:           WeatherData|null  (temperature, feelsLike, condition)
+mood:              FashionMood       (id, name) + its MoodStyle brief
 userProfile?:      { gender, height, weight }
 behavioralContext?: BehavioralContext  (see below)
 ```
@@ -117,7 +123,7 @@ type BehavioralContext = {
 };
 ```
 
-These are merged into a `priorityIds` set and injected into the prompt as **BEHAVIORAL PRIORITY ITEMS**, with the instruction: *"incorporate at least one of these across your 3 outfits — the user wants to wear these more."* Items from `tryItItemIds` are marked as highest priority.
+These are merged into a `priorityIds` set and injected into the prompt as rule 4, **after** mood, weather and composition: *"once 1 to 3 are satisfied, include at least one of these across the 3 outfits."* Items from `tryItItemIds` are named as explicitly requested. A priority piece that is off-mood is not sent at all: a "Wear more" hoodie waits for a mood it suits instead of landing in a Professional look.
 
 **Output (3 ×&#x20;**`OutfitSuggestion`**):**
 
@@ -130,17 +136,19 @@ These are merged into a `priorityIds` set and injected into the prompt as **BEHA
 ]
 ```
 
-**How it prioritizes items:**
+**How it prioritizes items** (the order is stated in the prompt):
 
-1. **"Wear more" items** (highest) — user tagged these when scanning or in the Closet
+1. **Mood fit** (highest) — every outfit must read as the mood; anchored on a "high" fit piece; consistent formality. Enforced in code too (off-mood pieces are filtered out, looks re-ranked by `moodMatch`).
 
-2. **Least-worn items** — BehavioralAgent flagged these as unworn for 3+ weeks in the current season
+2. **Weather + seasonal fit** — appropriate for current temperature and conditions
 
-3. **Mood-tagged items** — items whose `userMoods` array includes the selected mood ID
+3. **Composition** — the strict bottoms-based / dress-based rules below
 
-4. **Weather + seasonal fit** — appropriate for current temperature and conditions
+4. **"Wear more" and least-worn items** — at least one across the 3 outfits, among pieces that fit the mood; "Wear more" first
 
-5. **Color coordination** — aesthetic cohesion guided by the mood's color palette
+5. **Color coordination** — aesthetic cohesion guided by the mood's palette
+
+Previously mood was a name plus "prioritize userMoods", ranked below the wear-more priorities, with no definition of the mood and no code check, so neglected or "Wear more" pieces routinely beat it.
 
 Items the user **repeatedly skips and has never worn** (3+ times, from `suggestionEvents`) are **deprioritized** — surfaced at most once across the 3 outfits. This rejection signal overrides "least-worn" but never an explicit "Try it", and the `wearFrequency` guard means it can never suppress an item the user actually wears.
 
@@ -154,7 +162,7 @@ Items the user **repeatedly skips and has never worn** (3+ times, from `suggesti
 
 * Outfit structure is enforced in the prompt AND re-validated in code: each outfit is EITHER bottoms-based (1 bottom + ≥1 top layer) OR dress-based (1 dress + optional outerwear), with an optional single "shoes" item added to either shape. Anything else is dropped.
 
-* `weatherMatch` and `wearScore` are **computed in code** (`computeWeatherMatch` from item seasons vs. temperature; `computeWearScore` from real wear counts) — the model's self-reported numbers are ignored. Same principle as BehavioralAgent's analytics: scoring is arithmetic, so it is code's job, not the model's.
+* `weatherMatch`, `wearScore` and `moodMatch` are **computed in code** (`computeWeatherMatch` from item seasons vs. temperature; `computeWearScore` from real wear counts) — the model's self-reported numbers are ignored. Same principle as BehavioralAgent's analytics: scoring is arithmetic, so it is code's job, not the model's.
 
 * Items are passed by ID (a short alias that code maps back to the real ID), not name, to prevent the model from "inventing" items. The app validates that every returned ID actually exists in the wardrobe before rendering; an alias the prompt never issued is dropped like any other unknown ID.
 
@@ -268,7 +276,7 @@ This creates a **virtuous cycle**: BehavioralAgent surfaces neglected items → 
 
 * **Malformed JSON from the model** — the provider adapter (`geminiProvider.ts`, via `extractJsonFromText` in `bedrockClient.ts`) strips markdown code fences and attempts `JSON.parse`. If it fails, the agent throws a typed error and the calling page displays a user-facing error banner.
 
-* **Model API timeout** — 30-second timeout with one automatic retry (StylistAgent: 15 seconds, no retry after a timeout, because Today is waiting on it). If both fail, IntakeAgent falls back to a default placeholder item (flagged `usedFallback`); StylistAgent returns code-assembled fallback outfits flagged `isFallback: true` (rendered as "quick picks — AI stylist unavailable") with **real, computed** scores (never fabricated numbers); BehavioralAgent returns computed analytics with pre-written nudge copy.
+* **Model API timeout** — 30-second timeout with one automatic retry (StylistAgent: 15 seconds, no retry after a timeout, because Today is waiting on it). If both fail, IntakeAgent falls back to a default placeholder item (flagged `usedFallback`); StylistAgent returns code-assembled fallback outfits flagged `isFallback: true` (rendered as "quick picks — AI stylist unavailable"), built by `assembleMoodLooks` from mood fit first, then weather fit and wear priorities (an outer layer when it is cool, shoes when there are any), with **real, computed** scores (never fabricated numbers); BehavioralAgent returns computed analytics with pre-written nudge copy.
 
 * **Item ID hallucination (StylistAgent)** — After parsing, each returned item ID is validated against `context.clothes`. Any ID not found is silently dropped; if the surviving items can't form a valid bottoms-based or dress-based outfit, that outfit is discarded.
 

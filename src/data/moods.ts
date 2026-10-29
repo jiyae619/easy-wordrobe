@@ -26,14 +26,6 @@ export const MOODS: FashionMood[] = [
         tags: ['active', 'gym', 'run']
     },
     {
-        id: 'creative',
-        name: 'Creative',
-        description: 'Bold and expressive combinations',
-        colorPalette: ['#3F4F37', '#6B7F5E', '#D1D8C9'],
-        previewImageUrl: '/demo-images/mood-creative.jpg',
-        tags: ['art', 'bold', 'color']
-    },
-    {
         id: 'romantic',
         name: 'Romantic',
         description: 'Soft and elegant date-night looks',
@@ -42,3 +34,23 @@ export const MOODS: FashionMood[] = [
         tags: ['date', 'evening', 'soft', 'romantic']
     },
 ];
+
+/**
+ * Moods that were offered once and may still be stored: in sessionStorage (selected mood), user
+ * settings (preferredVibe), item userMoods/aiTags and past wear records. Never selectable again;
+ * kept only so history can still show a readable name.
+ */
+const RETIRED_MOOD_NAMES: Record<string, string> = {
+    creative: 'Creative',
+};
+
+/** True for a mood id that can be selected today. */
+export function isMoodId(id: unknown): id is string {
+    return typeof id === 'string' && MOODS.some((m) => m.id === id);
+}
+
+/** Display name for any stored mood id, including retired ones. */
+export function moodLabel(id: string): string {
+    const known = MOODS.find((m) => m.id === id)?.name ?? RETIRED_MOOD_NAMES[id];
+    return known ?? (id ? id.charAt(0).toUpperCase() + id.slice(1) : '');
+}

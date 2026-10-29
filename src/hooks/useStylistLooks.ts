@@ -10,6 +10,7 @@ import {
     seasonForTemperature,
 } from '../services/agents/agentOutputGuards';
 import { useTodayWeather } from './useTodayWeather';
+import { computeMoodMatch } from '../services/agents/moodFit';
 import type { ClothingItem, FashionMood, OutfitSuggestion, WeatherData } from '../types';
 
 /** Serializable form of a look: item ids instead of item objects, so a cached look always renders
@@ -123,6 +124,7 @@ function hydrate(stored: StoredLook[], clothes: ClothingItem[], mood: FashionMoo
                 isFallback: s.isFallback,
                 weatherMatch: computeWeatherMatch(items, temperature),
                 wearScore: computeWearScore(items, clothes),
+                moodMatch: computeMoodMatch(items, mood.id),
             };
         })
         .filter((l) => l.items.length > 0);

@@ -14,11 +14,11 @@ import { nearestPaletteColor } from "../../data/colorPalette";
 import { isStockPhoto } from "../../data/starterCatalog";
 import { itemName } from '../../utils/itemName';
 
+/** Selectable mood ids. "creative" was retired: stored copies are filtered out by normalizeMoodIds. */
 export const VALID_MOODS = [
     "professional",
     "casual",
     "sporty",
-    "creative",
     "romantic",
 ] as const;
 

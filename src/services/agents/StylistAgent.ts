@@ -3,13 +3,14 @@ import {
     type FashionMood,
     type WeatherData,
     type OutfitSuggestion,
-    ClothingCategory
 } from "../../types/index";
 import { v4 as uuidv4 } from 'uuid';
 import { getTextProvider } from "../vision/providerRegistry";
 import { getAgentFailureReason } from "./agentErrors";
 import { createAgentTraceId, recordAgentMetric } from "./agentTelemetry";
-import { StylistAliases, clampSentences, getCurrentSeason, computeWearScore, computeWeatherMatch, mapStylistSuggestions, moodIdsForStyling, parseAgentJson, sanitizeUiCopy } from "./agentOutputGuards";
+import { StylistAliases, clampSentences, getCurrentSeason, computeWearScore, computeWeatherMatch, mapStylistSuggestions, parseAgentJson, sanitizeUiCopy } from "./agentOutputGuards";
+import { assembleMoodLooks, computeMoodMatch, moodFitTier, selectMoodCandidates } from "./moodFit";
+import { getMoodStyle } from "../../data/moodStyles";
 import { itemName } from '../../utils/itemName';
 
 const STYLIST_TIMEOUT_MS = 15_000;
@@ -22,6 +23,17 @@ export type BehavioralContext = {
     /** Items the user consistently skips — the Stylist should surface these less */
     deprioritizeItemIds?: string[];
 };
+
+/** The mood brief at the top of the prompt: what the mood means in garments, not just its name. */
+function moodBrief(mood: FashionMood): string {
+    const style = getMoodStyle(mood.id);
+    if (!style) return `MOOD: ${mood.name}. ${mood.description}.`;
+    return `MOOD: ${mood.name}. ${style.brief}
+- Reach for: ${style.reachFor}.
+- Shape and fabric: ${style.shape}.
+- Colors: ${style.colors}.
+- Breaks the mood: ${style.avoid}.`;
+}
 
 export const StylistAgent = {
     /**
@@ -40,18 +52,23 @@ export const StylistAgent = {
         console.log("[Stylist Agent] Generating outfits...");
         const traceId = createAgentTraceId("stylist");
 
-        // 1. Prepare Wardrobe JSON context (limit fields to save tokens). Items go to the model under
-        // short aliases ("i1", "i2", ...) instead of their 20-36 character ids: every id costs ~15-25
+        // 1. Mood fit first, in code: pieces that clash with the mood (a hoodie for Professional,
+        // a blazer for Sporty) never reach the model, so they cannot end up in a look. Kept pieces
+        // carry a "fit" label and come best-first. (moodFit.ts, rules in data/moodStyles.ts)
+        const { items: candidates, fit } = selectMoodCandidates(clothes, mood.id);
+
+        // 2. Wardrobe JSON with only the fields the model needs. Items go to the model under short
+        // aliases ("i1", "i2", ...) instead of their 20-36 character ids: every id costs ~15-25
         // tokens on the way in AND on the way out, and output tokens are generated one by one, so
         // aliases cut both prompt size and generation time. Aliases are mapped back before validation.
-        const aliases = new StylistAliases(clothes);
-        const wardrobeContext = clothes.map(c => ({
+        const aliases = new StylistAliases(candidates);
+        const wardrobeContext = candidates.map(c => ({
             id: aliases.toAlias(c.id),
             category: c.category,
             subcategory: c.subcategory,
             color: c.color,
             season: c.season,
-            userMoods: moodIdsForStyling(c),
+            fit: moodFitTier(fit.get(c.id) ?? 0.5),
         }));
 
         const profileContext = userProfile
@@ -65,50 +82,50 @@ export const StylistAgent = {
         // Priority = explicit "try it" (always wins) OR least-worn the user hasn't been skipping.
         const priorityIds = [...new Set([...tryItIds, ...leastWornIds])]
             .filter(id => tryItIds.includes(id) || !deprioritizeIds.includes(id));
-        // Priority items are listed by alias only; their details are already in the wardrobe JSON.
+        // Listed by alias only (details are in the wardrobe JSON). toAliases drops pieces that were
+        // filtered out as off-mood: a "Wear more" hoodie waits for a mood it suits.
         const priorityAliases = aliases.toAliases(priorityIds);
         const tryItAliases = aliases.toAliases(tryItIds);
         // Avoid = repeatedly-skipped items, unless the user explicitly asked to try them.
         const avoidAliases = aliases.toAliases(deprioritizeIds.filter(id => !tryItIds.includes(id)));
 
-        const behavioralHint = priorityAliases.length > 0
-            ? `\nBEHAVIORAL PRIORITY ITEMS (incorporate at least one of these across your 3 outfits; the user wants to wear these more): ${JSON.stringify(priorityAliases)}
-${tryItAliases.length > 0 ? `USER "TRY IT" REQUESTS (highest priority; the user explicitly asked to wear these): ${JSON.stringify(tryItAliases)}` : ''}`
+        const priorityRule = priorityAliases.length > 0
+            ? `4. Wear more: once 1 to 3 are satisfied, include at least one of ${JSON.stringify(priorityAliases)} across the 3 outfits (the user wants to wear these more).${tryItAliases.length > 0 ? ` ${JSON.stringify(tryItAliases)} were explicitly requested, so prefer those.` : ''}`
+            : '4. Wear more: no extra priorities today.';
+        const avoidRule = avoidAliases.length > 0
+            ? `\n6. The user keeps skipping ${JSON.stringify(avoidAliases)}: use at most one of them across all 3 outfits, ideally none.`
             : '';
+        const weatherLine = weather
+            ? `Weather now: ${weather.temperature}°C (feels like ${weather.feelsLike}°C), ${weather.condition}.`
+            : `Weather: unknown. Dress for a typical ${getCurrentSeason()} day and favor easy layers.`;
 
-        const avoidHint = avoidAliases.length > 0
-            ? `\nDEPRIORITIZE these item IDs (the user keeps skipping past them; use at most one across all 3 outfits, ideally none): ${JSON.stringify(avoidAliases)}`
-            : '';
+        // Mood leads the prompt and the ranking: it used to be a name in passing, ranked below the
+        // wear-more priorities, so neglected pieces drowned it out.
+        const prompt = `You are a personal stylist building today's outfits from the client's own closet.
 
-        // Prompt tailored to output clothing combinations and engaging commentary
-        const prompt = `You are a high-end Personal Stylist Agent.
-Your client needs logical and aesthetic outfit combinations that optimize their fashion style.
+${moodBrief(mood)}
 
-CONDITIONS:
-- ${weather
-    ? `Current Weather: ${weather.temperature}° (Feels like ${weather.feelsLike}°), ${weather.condition}.`
-    : `Current Weather: unknown. Dress for a typical ${getCurrentSeason()} day and favor easy layers.`}
-- Desired Mood/Vibe: ${mood.name} (${mood.description})
-- ${profileContext}
-${behavioralHint}${avoidHint}
-PRIORITIZE items whose "userMoods" array includes "${mood.id}" — these are items the user categorized for this vibe when adding them.
-AVAILABLE WARDROBE (JSON format):
+${weatherLine}
+${profileContext}
+
+WARDROBE (JSON). "fit" is how well a piece suits ${mood.name}: "high" is textbook ${mood.name}, "ok" works next to high pieces. Pieces that clash with the mood were already removed.
 ${JSON.stringify(wardrobeContext)}
 
-TASK:
-Create 3 different outfit combinations using ONLY the available items.
-For each outfit, provide the IDs of the items used.
-STRICT COMPOSITION RULES (each outfit must be ONE of these two shapes):
-- Bottoms-based: EXACTLY 1 bottoms item AND at least 1 top layer from "tops" or "outerwear". Additional outerwear layers (cardigans, jackets, coats) are optional. NEVER include 2 bottoms.
-- Dress-based: EXACTLY 1 dresses item, with optional outerwear. NEVER mix a dress with bottoms.
-- OPTIONAL for either shape: add 0 or 1 "shoes" item to complete the look. Never add more than 1.
+CHOOSE IN THIS ORDER OF IMPORTANCE:
+1. Mood: every outfit must read as ${mood.name} at a glance. Anchor each outfit on at least one "high" piece and keep formality consistent inside an outfit (no gym pieces with tailoring, no evening pieces with athletic wear).
+2. Weather: dress for the temperature and conditions (layer when cool, breathable when hot, closed shoes in rain).
+3. Composition (strict). Each outfit is ONE of:
+   - Bottoms-based: EXACTLY 1 "bottoms" item and at least 1 top layer from "tops" or "outerwear"; extra outerwear layers are optional. Never 2 bottoms.
+   - Dress-based: EXACTLY 1 "dresses" item, optional outerwear. Never a dress with bottoms.
+   - Either shape may add 0 or 1 "shoes" item.
+${priorityRule}
+5. Color: coordinate colors, guided by the mood's palette. Make the 3 outfits clearly different from each other.${avoidRule}
 
-Provide a brief explanation of why it works, and an engaging one-sentence comment for the user.
-Output strictly as a JSON array of objects, with NO markdown formatting around it:
+Output strictly a JSON array of 3 objects, no markdown:
 [
   {
     "itemIds": ["i1", "i2", "i3"],
-    "explanation": "Write AT MOST 2 short sentences of self contained outfit copy with no label prefix. Reference the specific colors and item types actually in this outfit. Vary your tone freely across the 3 outfits: one punchy and hype, one poetic or editorial, one warm and encouraging. Do not use hyphen or dash characters. Keep it tight: under 20 words in plain, everyday language with no slang. The final sentence should make the user genuinely excited to put it on."
+    "explanation": "AT MOST 2 short sentences of self contained outfit copy, no label prefix. Name the actual colors and item types and say what makes it ${mood.name}. Vary tone across the 3: one punchy and hype, one poetic or editorial, one warm and encouraging. No hyphen or dash characters. Under 20 words, plain everyday language, no slang. End on a line that makes the user excited to put it on."
   }
 ]`;
 
@@ -121,7 +138,8 @@ Output strictly as a JSON array of objects, with NO markdown formatting around i
                 { agent: "stylist", traceId, timeoutMs: STYLIST_TIMEOUT_MS, retryOnTimeout: false },
             );
             const parsed = aliases.resolveSuggestionIds(parseAgentJson(jsonStr, "stylist", traceId));
-            const mapped = mapStylistSuggestions(parsed, clothes, mood, uuidv4, weather?.temperature ?? null);
+            // Validate against the candidates only: an id of a filtered-out (off-mood) piece is dropped.
+            const mapped = mapStylistSuggestions(parsed, candidates, mood, uuidv4, weather?.temperature ?? null);
 
             recordAgentMetric({
                 agent: "stylist",
@@ -137,26 +155,31 @@ Output strictly as a JSON array of objects, with NO markdown formatting around i
                 throw new Error("No valid outfits with one-bottom rule.");
             }
 
-            return mapped.suggestions;
+            // Wear score is measured against the whole closet; best mood match leads the stack.
+            return mapped.suggestions
+                .map((s) => ({ ...s, wearScore: computeWearScore(s.items, clothes), moodMatch: computeMoodMatch(s.items, mood.id) }))
+                .sort((a, b) => b.moodMatch - a.moodMatch);
 
         } catch (error) {
-            console.error("[Stylist Agent] Failed to generate outfits, falling back to mock:", error);
+            console.error("[Stylist Agent] Failed to generate outfits, falling back to code-assembled looks:", error);
             recordAgentMetric({
                 agent: "stylist",
                 traceId,
                 phase: "fallback",
                 reason: getAgentFailureReason(error),
             });
-            return getMockOutfitSuggestions(clothes, mood, weather);
+            return buildCodeLooks(clothes, mood, weather, behavioralContext, { variant: Math.floor(Math.random() * 1000) + 1 });
         }
     }
 };
 
 // ==========================================
-// Mock Data Generators for Stylist Agent
+// Code-assembled looks (fallback, and the instant preview while the AI works)
 // ==========================================
 
-function buildFallbackExplanation(items: ClothingItem[], mood: FashionMood, tone: 'hype' | 'editorial' | 'warm'): string {
+type Tone = 'hype' | 'editorial' | 'warm';
+
+function buildFallbackExplanation(items: ClothingItem[], mood: FashionMood, tone: Tone): string {
     const names = items.map(i => itemName(i)).join(', ');
     const moodName = mood.name.toLowerCase();
     switch (tone) {
@@ -170,93 +193,35 @@ function buildFallbackExplanation(items: ClothingItem[], mood: FashionMood, tone
     }
 }
 
-function getMockOutfitSuggestions(clothes: ClothingItem[], mood: FashionMood, weather: WeatherData | null): OutfitSuggestion[] {
-    const moodId = mood.id;
-
-    const filterByMood = (arr: ClothingItem[]) => {
-        const matching = arr.filter(c => moodIdsForStyling(c).includes(moodId));
-        return matching.length > 0 ? matching : arr;
-    };
-
-    const tops = clothes.filter(c => c.category === ClothingCategory.Tops);
-    const bottoms = clothes.filter(c => c.category === ClothingCategory.Bottoms);
-    const outerwear = clothes.filter(c => c.category === ClothingCategory.Outerwear);
-    const dresses = clothes.filter(c => c.category === ClothingCategory.Dresses);
-    const shoes = clothes.filter(c => c.category === ClothingCategory.Shoes);
-
-    const prioritizedTops = filterByMood(tops);
-    const prioritizedBottoms = filterByMood(bottoms);
-    const prioritizedOuterwear = filterByMood(outerwear);
-    const prioritizedDresses = filterByMood(dresses);
-    const prioritizedShoes = filterByMood(shoes);
-    const prioritizedTopLayers = [...prioritizedTops, ...prioritizedOuterwear];
-
-    const getRandomItem = (arr: ClothingItem[]) => arr.length > 0 ? arr[Math.floor(Math.random() * arr.length)] : null;
-
-    const createOutfit = (): ClothingItem[] => {
-        // Prefer a bottoms-based look; fall back to a dress-based look (mirrors the composition rules).
-        if (prioritizedTopLayers.length > 0 && prioritizedBottoms.length > 0) {
-            const items: ClothingItem[] = [];
-            const top = getRandomItem(prioritizedTopLayers);
-            const bottom = getRandomItem(prioritizedBottoms);
-            if (top) items.push(top);
-            if (bottom) items.push(bottom);
-
-            // Optional second top-layer (never a second bottom)
-            if (Math.random() > 0.5) {
-                const secondLayer = getRandomItem(prioritizedOuterwear);
-                if (secondLayer && !items.includes(secondLayer)) {
-                    items.unshift(secondLayer);
-                }
-            }
-            const shoe = getRandomItem(prioritizedShoes);
-            if (shoe) items.push(shoe);
-            return items;
-        }
-
-        const dress = getRandomItem(prioritizedDresses);
-        if (dress) {
-            const items: ClothingItem[] = [dress];
-            if (Math.random() > 0.5) {
-                const layer = getRandomItem(prioritizedOuterwear);
-                if (layer) items.unshift(layer);
-            }
-            const shoe = getRandomItem(prioritizedShoes);
-            if (shoe) items.push(shoe);
-            return items;
-        }
-        return [];
-    };
-
-    const tones: Array<'hype' | 'editorial' | 'warm'> = ['hype', 'editorial', 'warm'];
-    const shuffledTones = tones.sort(() => Math.random() - 0.5);
-
-    return [0, 1, 2].map((i) => {
-        const createdItems = createOutfit();
-        const topLayers = createdItems.filter(item =>
-            item.category === ClothingCategory.Tops || item.category === ClothingCategory.Outerwear
-        );
-        const bottom = createdItems.find(item => item.category === ClothingCategory.Bottoms);
-        const dress = createdItems.find(item => item.category === ClothingCategory.Dresses);
-        const shoe = createdItems.find(item => item.category === ClothingCategory.Shoes);
-        const base = dress
-            ? [...topLayers, dress]
-            : bottom ? [...topLayers, bottom] : topLayers;
-        const outfitItems = shoe ? [...base, shoe] : base;
-
-        return {
-            id: uuidv4(),
-            items: outfitItems,
-            mood,
-            // Even fallback picks get real, computed scores — no fabricated numbers.
-            weatherMatch: computeWeatherMatch(outfitItems, weather?.temperature ?? null),
-            wearScore: computeWearScore(outfitItems, clothes),
-            explanation: clampSentences(sanitizeUiCopy(buildFallbackExplanation(outfitItems, mood, shuffledTones[i] ?? 'warm')), 2),
-            isFallback: true,
-        };
-    }).filter(outfit =>
-        outfit.items.some(item => item.category === ClothingCategory.Dresses) ||
-        (outfit.items.some(item => item.category === ClothingCategory.Bottoms) &&
-            outfit.items.some(item => item.category === ClothingCategory.Tops || item.category === ClothingCategory.Outerwear))
-    );
+/**
+ * Up to 3 looks assembled in code from mood fit, weather fit and wear priorities (moodFit.ts), with
+ * real computed scores. Flagged isFallback. `variant` 0 is deterministic (stable preview); any other
+ * value reshuffles near-ties so "Show me more" during an outage gives different looks.
+ */
+export function buildCodeLooks(
+    clothes: ClothingItem[],
+    mood: FashionMood,
+    weather: WeatherData | null,
+    behavioralContext?: BehavioralContext,
+    options: { variant?: number } = {},
+): OutfitSuggestion[] {
+    const tryItIds = behavioralContext?.tryItItemIds ?? [];
+    const temperatureC = weather?.temperature ?? null;
+    const looks = assembleMoodLooks(clothes, mood.id, {
+        temperatureC,
+        priorityIds: [...tryItIds, ...(behavioralContext?.leastWornItemIds ?? [])],
+        avoidIds: (behavioralContext?.deprioritizeItemIds ?? []).filter((id) => !tryItIds.includes(id)),
+        variant: options.variant ?? 0,
+    });
+    const tones: Tone[] = ['hype', 'editorial', 'warm'];
+    return looks.map((items, i) => ({
+        id: options.variant ? uuidv4() : `code-${mood.id}-${items.map((item) => item.id).join('+')}`,
+        items,
+        mood,
+        weatherMatch: computeWeatherMatch(items, temperatureC),
+        wearScore: computeWearScore(items, clothes),
+        moodMatch: computeMoodMatch(items, mood.id),
+        explanation: clampSentences(sanitizeUiCopy(buildFallbackExplanation(items, mood, tones[(i + (options.variant ?? 0)) % 3])), 2),
+        isFallback: true,
+    }));
 }

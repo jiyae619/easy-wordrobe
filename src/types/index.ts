@@ -193,6 +193,8 @@ export interface OutfitSuggestion {
     wearScore: number;
     /** True when these are code-assembled fallback picks (the AI stylist was unavailable) */
     isFallback?: boolean;
+    /** Score (0-100) for how well the pieces suit the mood, computed in code (services/agents/moodFit) */
+    moodMatch?: number;
 }
 
 /**
