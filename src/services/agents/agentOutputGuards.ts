@@ -147,19 +147,22 @@ export function seasonForTemperature(temperatureC: number): Season {
 }
 
 /**
- * Weather appropriateness (0-100), computed in code, never read from the model: 50 x the share of
- * items tagged for the temperature's season, plus 100 x the outfit's mean weather fit against
- * today's rules (weatherFit.ts: rain, wind, snow, warmth). A neutral outfit (fit 0.5) scores
- * 50-100 by season alone; leather in the rain pulls it down, a raincoat and boots push it up.
- * With no weather (location off, lookup failed) it scores seasons against the calendar season.
+ * Weather appropriateness (0-100), computed in code, never read from the model.
+ * With today's weather rules (weatherFit.ts): 40 x the share of items tagged for the temperature's
+ * season + 60 x the outfit's weather fit, rescaled so 0.2 (breaks the weather) scores 0 and 0.8+
+ * (made for it) scores full. A raincoat-and-boots look on a rainy day reaches 100; leather and
+ * suede pull it down. Without rules (no reading yet) it is the season share alone: 50 when no
+ * item suits the season, 100 when all do. With no weather at all it uses the calendar season.
  */
 export function computeWeatherMatch(items: ClothingItem[], temperatureC: number | null, conditions: WeatherConditions | null = null): number {
     if (items.length === 0) return 0;
     const target = temperatureC === null || !Number.isFinite(temperatureC)
         ? getCurrentSeason()
         : seasonForTemperature(temperatureC);
-    const matching = items.filter((item) => item.season.includes(target)).length;
-    return clamp(Math.round(50 * (matching / items.length) + 100 * outfitWeatherFit(items, conditions)), 0, 100);
+    const share = items.filter((item) => item.season.includes(target)).length / items.length;
+    if (!conditions) return clamp(Math.round(50 + 50 * share), 0, 100);
+    const fit = clamp((outfitWeatherFit(items, conditions) - 0.2) / 0.6, 0, 1);
+    return clamp(Math.round(40 * share + 60 * fit), 0, 100);
 }
 
 /**

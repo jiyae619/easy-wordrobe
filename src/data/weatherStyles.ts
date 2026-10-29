@@ -3,8 +3,9 @@
  * data/moodStyles). Sources it was built from:
  *  - Rain: wet-weather dressing guides agree on skipping suede, canvas and delicate fabrics, keeping
  *    cotton and denim off the outer layer, and reaching for a waterproof or water-resistant shell
- *    (trench, rain jacket, nylon) and boots with grippy soles. Leather and knits are excluded on
- *    the product owner's call: untreated leather marks and knits soak up water.
+ *    (trench, rain jacket, nylon) and boots with grippy soles. Leather is excluded on the product
+ *    owner's call (untreated leather marks). Knits soak up water, so they are allowed only as a
+ *    warm layer under a raincoat, the way the same guides recommend them.
  *  - Temperature: the bands match computeWeatherMatch's seasons (<=5 / <=15 / <=24 / >24 °C), scored
  *    on "feels like", with the garments in each band ordered by warmth the way clothing-insulation
  *    (clo) tables rank them: coats and knits high, tees, linen and sandals low.
@@ -44,6 +45,11 @@ export interface WeatherRule {
         poor: string[];
         /** Breaks the weather: never sent to the Stylist (unless the closet has nothing else). */
         avoid: string[];
+        /**
+         * Fine only under a weatherproof layer (knits in the rain): allowed when a raincoat or
+         * other shell is available to wear over them, treated as "avoid" when there is none.
+         */
+        underShellOnly?: string[];
     };
 }
 
@@ -93,12 +99,13 @@ export const BAND_RULES: Record<TemperatureBand, WeatherRule> = {
 export const CONDITION_RULES: Record<'wet' | 'snow' | 'windy', WeatherRule> = {
     wet: {
         label: 'Rain',
-        brief: 'Rain: a waterproof or wind-proof outer layer (raincoat, trench, shell) on every outfit and boots on your feet. No leather, suede, knits, canvas or open shoes.',
+        brief: 'Rain: a waterproof or wind-proof outer layer (raincoat, trench, shell) on every outfit and boots on your feet. Knits only under the raincoat. No leather, suede, canvas or open shoes.',
         keywords: {
             strong: ['raincoat', 'rain jacket', 'rain coat', 'mac', 'mackintosh', 'trench', 'waterproof', 'water resistant', 'shell', 'anorak', 'parka', 'windbreaker', 'gore tex', 'rain boot', 'wellington', 'welly', 'gumboot', 'rubber'],
             good: ['boot', 'nylon', 'puffer', 'polyester'],
             poor: ['denim jacket', 'sneaker', 'linen', 'chiffon', 'mule', 'loafer', 'heel'],
-            avoid: ['leather', 'suede', 'nubuck', 'knit', 'knitted', 'knitwear', 'sweater', 'cardigan', 'jumper', 'cashmere', 'mohair', 'canvas', 'espadrille', 'sandal', 'flip flop', 'slide', 'ballet', 'silk', 'satin'],
+            avoid: ['leather', 'suede', 'nubuck', 'canvas', 'espadrille', 'sandal', 'flip flop', 'slide', 'ballet', 'silk', 'satin'],
+            underShellOnly: ['knit', 'knitted', 'knitwear', 'sweater', 'cardigan', 'jumper', 'cashmere', 'mohair'],
         },
     },
     snow: {

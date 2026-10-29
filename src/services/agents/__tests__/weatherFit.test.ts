@@ -54,10 +54,19 @@ describe("itemWeatherFit", () => {
     const rain = readWeather(weather(9, "Rain"));
     const fit = (id: string, c = rain) => itemWeatherFit(byId(id), c);
 
-    it("rain rules out leather, suede, knits, canvas and open shoes", () => {
-        for (const id of ["leather", "suede", "sweater", "cardigan", "sneakers", "sandals"]) {
+    it("rain rules out leather, suede, canvas and open shoes", () => {
+        for (const id of ["leather", "suede", "sneakers", "sandals"]) {
             expect(fit(id), id).toBeLessThan(OFF_WEATHER_THRESHOLD);
         }
+    });
+
+    it("rain allows knits only under a weatherproof layer", () => {
+        for (const id of ["sweater", "cardigan"]) {
+            expect(fit(id), id).toBeLessThan(OFF_WEATHER_THRESHOLD);
+            expect(itemWeatherFit(byId(id), rain, { shell: true }), id).toBeGreaterThanOrEqual(OFF_WEATHER_THRESHOLD);
+        }
+        // A shell doesn't excuse leather.
+        expect(itemWeatherFit(byId("leather"), rain, { shell: true })).toBeLessThan(OFF_WEATHER_THRESHOLD);
     });
 
     it("rain favours a waterproof layer and boots", () => {
@@ -65,10 +74,10 @@ describe("itemWeatherFit", () => {
         expect(fit("boots")).toBeGreaterThanOrEqual(0.8);
     });
 
-    it("a warmer band can't rescue a piece the rain rules out", () => {
-        // A knit is "strong" for cool weather but still vetoed when it rains.
-        expect(fit("sweater", readWeather(weather(9, "Cloudy")))).toBeGreaterThanOrEqual(0.8);
-        expect(fit("sweater")).toBeLessThan(OFF_WEATHER_THRESHOLD);
+    it("a cooler band can't rescue a piece the rain rules out", () => {
+        // A jacket is "strong" for cool weather, but leather is still out when it rains.
+        expect(fit("leather", readWeather(weather(9, "Cloudy")))).toBeGreaterThanOrEqual(0.8);
+        expect(fit("leather")).toBeLessThan(OFF_WEATHER_THRESHOLD);
     });
 
     it("does not mistake a button-down shirt for a down jacket", () => {
@@ -118,8 +127,16 @@ describe("weather in the stylist pipeline", () => {
         const ids = items.map((c) => c.id);
         expect(ids).toContain("raincoat");
         expect(ids).not.toContain("leather");
-        expect(ids).not.toContain("sweater");
         expect(ids).not.toContain("suede");
+        // The raincoat can go over a knit, so knits stay.
+        expect(ids).toContain("sweater");
+    });
+
+    it("drops knits in the rain when there is no weatherproof layer to wear over them", () => {
+        const noShell = closet.filter((c) => c.id !== "raincoat");
+        const ids = selectMoodCandidates(noShell, "casual", readWeather(weather(9, "Rain"))).items.map((c) => c.id);
+        expect(ids).not.toContain("sweater");
+        expect(ids).not.toContain("cardigan");
     });
 
     it("code-built looks in the rain all wear the raincoat and boots", () => {
@@ -131,6 +148,13 @@ describe("weather in the stylist pipeline", () => {
             expect(ids).toContain("boots");
             expect(ids).not.toContain("leather");
         }
+    });
+
+    it("scores a knit under a raincoat as fine and a bare knit in the rain as wrong", () => {
+        const rain = readWeather(weather(9, "Rain"));
+        const covered = computeWeatherMatch([byId("raincoat"), byId("sweater"), byId("jeans"), byId("boots")], 9, rain);
+        const bare = computeWeatherMatch([byId("sweater"), byId("jeans"), byId("boots")], 9, rain);
+        expect(covered).toBeGreaterThan(bare);
     });
 
     it("scores a rain-ready look above a leather-and-suede one", () => {

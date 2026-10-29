@@ -67,15 +67,20 @@ const itemText = (item: FitInput) =>
 /**
  * Weather fit in 0..1. Starts neutral (0.5); each active rule adds +0.3 (made for it), +0.15 (works)
  * or -0.15 (mildly wrong). Matching any rule's "avoid" list caps the score at 0.2, so a warm band
- * can't rescue a leather jacket in the rain. No weather scores everything neutral.
+ * can't rescue a leather jacket in the rain. A rule's "under a shell only" pieces (knits in the
+ * rain) score neutral for that rule when `shell` says a weatherproof layer will go over them, and
+ * are capped like "avoid" when it won't. No weather scores everything neutral.
  */
-export function itemWeatherFit(item: FitInput, conditions: WeatherConditions | null): number {
+export function itemWeatherFit(item: FitInput, conditions: WeatherConditions | null, { shell = false }: { shell?: boolean } = {}): number {
     if (!conditions) return 0.5;
     const text = itemText(item);
     let fit = 0.5;
     let vetoed = false;
     for (const { keywords } of activeRules(conditions)) {
         if (matchesAny(text, keywords.avoid)) vetoed = true;
+        else if (keywords.underShellOnly && matchesAny(text, keywords.underShellOnly)) {
+            if (!shell) vetoed = true;
+        }
         else if (matchesAny(text, keywords.strong)) fit += 0.3;
         else if (matchesAny(text, keywords.good)) fit += 0.15;
         else if (matchesAny(text, keywords.poor)) fit -= 0.15;
@@ -84,14 +89,16 @@ export function itemWeatherFit(item: FitInput, conditions: WeatherConditions | n
     return vetoed ? Math.min(fit, VETOED) : fit;
 }
 
-/** Outfit weather fit 0-1: the mean of its pieces' fit. */
-export function outfitWeatherFit(items: FitInput[], conditions: WeatherConditions | null): number {
-    if (items.length === 0) return 0.5;
-    return items.reduce((sum, item) => sum + itemWeatherFit(item, conditions), 0) / items.length;
-}
-
-const isWeatherproofOuter = (c: ClothingItem) =>
+/** True for an outer layer that keeps rain and wind out (rain jacket, trench, shell, parka...). */
+export const isWeatherproofOuter = (c: Pick<ClothingItem, 'category' | 'subcategory' | 'aiTags'>) =>
     c.category === ClothingCategory.Outerwear && matchesAny(itemText(c), WEATHERPROOF_OUTER_TERMS);
+
+/** Outfit weather fit 0-1: the mean of its pieces' fit. A knit counts as covered when the outfit wears a weatherproof layer. */
+export function outfitWeatherFit(items: Array<Pick<ClothingItem, 'category' | 'subcategory' | 'aiTags'>>, conditions: WeatherConditions | null): number {
+    if (items.length === 0) return 0.5;
+    const shell = items.some(isWeatherproofOuter);
+    return items.reduce((sum, item) => sum + itemWeatherFit(item, conditions, { shell }), 0) / items.length;
+}
 const isBoot = (c: ClothingItem) => c.category === ClothingCategory.Shoes && matchesAny(itemText(c), BOOT_TERMS);
 
 /** What today's weather requires of every look, given the pieces available. */
@@ -106,7 +113,7 @@ export interface WeatherNeeds {
 
 export function weatherNeeds(candidates: ClothingItem[], conditions: WeatherConditions | null): WeatherNeeds {
     if (!conditions) return { outer: false, weatherproofOuter: [], boots: [] };
-    const byFit = (a: ClothingItem, b: ClothingItem) => itemWeatherFit(b, conditions) - itemWeatherFit(a, conditions);
+    const byFit = (a: ClothingItem, b: ClothingItem) => itemWeatherFit(b, conditions, { shell: true }) - itemWeatherFit(a, conditions, { shell: true });
     const shelter = conditions.wet || conditions.windy;
     return {
         outer: conditions.band === 'cold' || conditions.band === 'cool' || conditions.wet,
@@ -134,7 +141,7 @@ export function applyWeatherNeeds(look: ClothingItem[], candidates: ClothingItem
     } else if (needs.outer && !result.some((c) => c.category === ClothingCategory.Outerwear)) {
         const outer = candidates
             .filter((c) => c.category === ClothingCategory.Outerwear && !result.includes(c))
-            .sort((a, b) => itemWeatherFit(b, conditions) - itemWeatherFit(a, conditions));
+            .sort((a, b) => itemWeatherFit(b, conditions, { shell: true }) - itemWeatherFit(a, conditions, { shell: true }));
         if (outer.length > 0) result = [pick(outer), ...result];
     }
 

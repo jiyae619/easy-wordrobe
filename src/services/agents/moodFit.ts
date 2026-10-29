@@ -2,7 +2,7 @@ import { ClothingCategory, type ClothingItem } from '../../types';
 import { getMoodStyle, type MoodStyle } from '../../data/moodStyles';
 import { getCurrentSeason, moodIdsForStyling, seasonForTemperature } from './agentOutputGuards';
 import { matchesAny, normalizeText } from './styleText';
-import { OFF_WEATHER_THRESHOLD, applyWeatherNeeds, itemWeatherFit } from './weatherFit';
+import { OFF_WEATHER_THRESHOLD, applyWeatherNeeds, isWeatherproofOuter, itemWeatherFit } from './weatherFit';
 import type { WeatherConditions } from '../../data/weatherStyles';
 
 /**
@@ -82,7 +82,10 @@ export function selectMoodCandidates(
 ): { items: ClothingItem[]; fit: Map<string, number>; weatherFit: Map<string, number> } {
     const style = getMoodStyle(moodId);
     const fit = new Map(clothes.map((c) => [c.id, itemMoodFit(c, moodId, style)]));
-    const weatherFit = new Map(clothes.map((c) => [c.id, itemWeatherFit(c, weather)]));
+    // Knits are fine in the rain only under a weatherproof layer; one counts if it suits the mood
+    // (it then reaches the Stylist, and applyWeatherNeeds puts it on every look).
+    const shell = clothes.some((c) => isWeatherproofOuter(c) && (fit.get(c.id) ?? 0) >= OFF_MOOD_THRESHOLD);
+    const weatherFit = new Map(clothes.map((c) => [c.id, itemWeatherFit(c, weather, { shell })]));
     const combined = (c: ClothingItem) => 2 * (fit.get(c.id) ?? 0) + (weatherFit.get(c.id) ?? 0);
     const byFit = (a: ClothingItem, b: ClothingItem) => combined(b) - combined(a);
     const keep = new Set(clothes
