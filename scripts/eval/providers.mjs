@@ -11,7 +11,7 @@ Return ONLY a JSON object (no markdown, no commentary) with this exact shape:
   "color": "dominant color name in plain English",
   "colorHex": "#RRGGBB",
   "season": ["spring" | "summer" | "fall" | "winter", ...],
-  "mood": ["professional" | "casual" | "romantic", ...]
+  "mood": ["professional" | "casual" | "occasion", ...]
 }
 
 A one-piece garment that covers the torso and continues into a skirt (slip dress, sundress, shirt dress, wrap dress, any dress) is ALWAYS "dresses", never "tops", even if it is thin-strapped, short, or shown folded or on a hanger.

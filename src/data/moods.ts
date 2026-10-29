@@ -18,12 +18,12 @@ export const MOODS: FashionMood[] = [
         tags: ['relax', 'comfortable', 'daily']
     },
     {
-        id: 'romantic',
-        name: 'Romantic',
-        description: 'Soft and elegant date-night looks',
+        id: 'occasion',
+        name: 'Special day',
+        description: 'Dressed up for a celebration, dinner, date or event',
         colorPalette: ['#556849', '#A8B89A', '#F4F5F0'],
-        previewImageUrl: '/demo-images/mood-romantic.jpg',
-        tags: ['date', 'evening', 'soft', 'romantic']
+        previewImageUrl: '/demo-images/mood-elegant.jpg',
+        tags: ['celebration', 'dinner', 'date', 'event', 'dressy']
     },
 ];
 
@@ -35,11 +35,27 @@ export const MOODS: FashionMood[] = [
 const RETIRED_MOOD_NAMES: Record<string, string> = {
     creative: 'Creative',
     sporty: 'Sporty',
+    romantic: 'Romantic',
+};
+
+/**
+ * Retired moods whose pieces belong to a current one: Romantic (silk, dresses, heels) became the
+ * gender-neutral Special day. Stored selections, favourites, deep links and item tags follow it.
+ */
+const MOOD_ALIASES: Record<string, string> = {
+    romantic: 'occasion',
 };
 
 /** True for a mood id that can be selected today. */
 export function isMoodId(id: unknown): id is string {
     return typeof id === 'string' && MOODS.some((m) => m.id === id);
+}
+
+/** A stored mood id as a selectable one: itself, its successor (romantic → occasion), or undefined. */
+export function resolveMoodId(id: unknown): string | undefined {
+    if (isMoodId(id)) return id;
+    const successor = typeof id === 'string' ? MOOD_ALIASES[id] : undefined;
+    return isMoodId(successor) ? successor : undefined;
 }
 
 /** Display name for any stored mood id, including retired ones. */

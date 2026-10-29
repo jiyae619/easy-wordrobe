@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ClothingCategory, Season, type ClothingItem } from "../../../types";
-import { MOODS, isMoodId, moodLabel } from "../../../data/moods";
+import { MOODS, isMoodId, moodLabel, resolveMoodId } from "../../../data/moods";
 import { MOOD_STYLES } from "../../../data/moodStyles";
 import { VALID_MOODS, normalizeMoodIds } from "../agentOutputGuards";
 import { buildCodeLooks } from "../StylistAgent";
@@ -50,7 +50,7 @@ describe("creative mood is retired", () => {
     it("stored 'creative' tags and selections degrade gracefully", () => {
         expect(normalizeMoodIds(["creative", "casual"])).toEqual(["casual"]);
         expect(isMoodId("creative")).toBe(false);
-        expect(isMoodId("romantic")).toBe(true);
+        expect(isMoodId("occasion")).toBe(true);
         // Past wear records keep a readable name.
         expect(moodLabel("creative")).toBe("Creative");
         expect(moodLabel("sporty")).toBe("Sporty");
@@ -60,20 +60,35 @@ describe("creative mood is retired", () => {
     });
 });
 
+describe("Romantic → Special day", () => {
+    it("maps stored romantic selections, links and item tags to occasion", () => {
+        expect(MOODS.find((m) => m.id === "occasion")?.name).toBe("Special day");
+        expect(isMoodId("romantic")).toBe(false);
+        expect(resolveMoodId("romantic")).toBe("occasion");
+        expect(resolveMoodId("sporty")).toBeUndefined();
+        expect(normalizeMoodIds(["romantic", "casual"])).toEqual(["occasion", "casual"]);
+        expect(moodLabel("romantic")).toBe("Romantic");
+    });
+});
+
 describe("item mood fit (curated rules)", () => {
     it("keeps clashing garment types out of a mood even when the user tagged them nearby", () => {
         expect(moodFitTier(fit("hoodie", "professional"))).toBe("off");
         expect(moodFitTier(fit("joggers", "professional"))).toBe("off");
-        expect(moodFitTier(fit("puffer", "romantic"))).toBe("off");
-        expect(moodFitTier(fit("hoodie", "romantic"))).toBe("off");
+        expect(moodFitTier(fit("puffer", "occasion"))).toBe("off");
+        expect(moodFitTier(fit("hoodie", "occasion"))).toBe("off");
+        expect(moodFitTier(fit("sneakers", "occasion"))).toBe("off");
     });
 
     it("rates textbook pieces high", () => {
         expect(moodFitTier(fit("blazer", "professional"))).toBe("high");
         expect(moodFitTier(fit("trousers", "professional"))).toBe("high");
         expect(moodFitTier(fit("hoodie", "casual"))).toBe("high");
-        expect(moodFitTier(fit("wrap", "romantic"))).toBe("high");
-        expect(moodFitTier(fit("skirt", "romantic"))).toBe("high");
+        expect(moodFitTier(fit("wrap", "occasion"))).toBe("high");
+        expect(moodFitTier(fit("skirt", "occasion"))).toBe("high");
+        // Special day is for everyone: tailoring and dress shoes count too.
+        expect(moodFitTier(fit("blazer", "occasion"))).toBe("high");
+        expect(moodFitTier(fit("loafers", "occasion"))).toBe("high");
         expect(moodFitTier(fit("jeans", "casual"))).toBe("high");
     });
 
@@ -151,8 +166,8 @@ describe("code-assembled mood looks (fallback and preview)", () => {
     });
 
     it("is stable for variant 0 so the instant preview does not reshuffle", () => {
-        const a = assembleMoodLooks(closet, "romantic", { temperatureC: 18 }).map((l) => l.map((i) => i.id));
-        const b = assembleMoodLooks(closet, "romantic", { temperatureC: 18 }).map((l) => l.map((i) => i.id));
+        const a = assembleMoodLooks(closet, "occasion", { temperatureC: 18 }).map((l) => l.map((i) => i.id));
+        const b = assembleMoodLooks(closet, "occasion", { temperatureC: 18 }).map((l) => l.map((i) => i.id));
         expect(a).toEqual(b);
     });
 });

@@ -16,12 +16,17 @@ import { nearestPaletteColor } from "../../data/colorPalette";
 import { isStockPhoto } from "../../data/starterCatalog";
 import { itemName } from '../../utils/itemName';
 
-/** Selectable mood ids. "creative" and "sporty" were retired: stored copies are filtered out by normalizeMoodIds. */
+/**
+ * Selectable mood ids. "creative" and "sporty" were retired: stored copies are filtered out by
+ * normalizeMoodIds. "romantic" became "occasion" (Special day): stored copies are mapped to it.
+ */
 export const VALID_MOODS = [
     "professional",
     "casual",
-    "romantic",
+    "occasion",
 ] as const;
+
+const MOOD_SUCCESSORS: Record<string, typeof VALID_MOODS[number]> = { romantic: "occasion" };
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
 
@@ -84,7 +89,9 @@ export function normalizeColorHex(value: unknown, fallback = "#000000"): string 
 }
 
 export function normalizeMoodIds(...sources: unknown[]): string[] {
-    const values = sources.flatMap((source) => Array.isArray(source) ? source : []);
+    const values = sources
+        .flatMap((source) => Array.isArray(source) ? source : [])
+        .map((value) => (typeof value === "string" && MOOD_SUCCESSORS[value]) || value);
     return [...new Set(
         values.filter((value): value is typeof VALID_MOODS[number] =>
             typeof value === "string" && VALID_MOODS.includes(value as typeof VALID_MOODS[number])

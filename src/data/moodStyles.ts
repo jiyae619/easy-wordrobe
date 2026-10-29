@@ -2,13 +2,14 @@ import { ClothingCategory } from '../types';
 
 /**
  * What each mood means in actual garments. A curated rules table built from long-standing dress
- * conventions (business / business-casual dress codes, smart-casual, athleisure, and the
- * "romantic" style vocabulary of soft fabrics and feminine silhouettes) rather than from live
+ * conventions (business / business-casual dress codes, smart-casual, athleisure, and occasion /
+ * cocktail dress codes) rather than from live
  * trend data: it is free, instant, deterministic and testable, so it can sit on Today's hot path.
  *
  * Sources: business-casual dress-code guides (what to wear and avoid at work), romantic-style guides
- * (soft, flowing fabrics, defined waists, florals and ruffles, delicate shoes) and athleisure guides
- * (joggers, leggings, hoodies, technical and stretch fabrics, sneakers), which now fold into Casual.
+ * (soft, flowing fabrics, florals and ruffles, delicate shoes), which with occasion and cocktail
+ * dress codes shape the gender-neutral Special day, and athleisure guides (joggers, leggings,
+ * hoodies, technical and stretch fabrics, sneakers), which now fold into Casual.
  *
  * It is used twice:
  *  - the prose fields brief the StylistAgent (the prompt used to get only the mood's name);
@@ -70,18 +71,18 @@ export const MOOD_STYLES: Record<string, MoodStyle> = {
         },
         colorAffinity: { good: ['Blue', 'Navy', 'White', 'Grey', 'Olive', 'Beige', 'Cream'], avoid: [] },
     },
-    romantic: {
-        brief: 'Soft, feminine and a little dressy: date night or a lovely day out. Flowing shapes, delicate fabrics.',
-        reachFor: 'blouses (silk, lace, ruffles, puff sleeves), camisoles, soft knits and cardigans; pleated, midi, A-line or slip skirts, flowing trousers; wrap, slip, midi or floral dresses and sundresses; ballet flats, Mary Janes, heels, strappy sandals, sleek ankle boots',
-        shape: 'fluid drape, waist definition, midi and maxi lengths; silk, satin, lace, chiffon, cashmere',
-        colors: 'blush and pink, cream, ivory, white, lavender, burgundy and red, soft neutrals; black for evening',
-        avoid: 'hoodies and sweatshirts, athletic wear, cargo and utility pieces, puffers, parkas and windbreakers, graphic tees, sneakers and trainers',
+    occasion: {
+        brief: 'Dressed up for a celebration, dinner, date or event: a clear step above everyday, polished with one special touch. For everyone.',
+        reachFor: 'dresses (wrap, slip, midi, shirt or cocktail) and dressy skirts; silk or satin shirts and blouses, crisp button-downs, fine knits and turtlenecks; tailored trousers or dark, clean jeans; blazers, suit jackets, a wool coat or trench; loafers, dress shoes, heels, sleek boots',
+        shape: 'tailored or fluid lines, nothing baggy or worn in; richer fabrics (silk, satin, velvet, fine wool, cashmere); one statement piece, print or detail',
+        colors: 'black, navy, cream and white, deep jewel tones (burgundy, emerald, plum); one bold color or print as the statement',
+        avoid: 'hoodies and sweatshirts, athletic wear, t-shirts and graphic tees, shorts, cargo and utility pieces, ripped or distressed denim, puffers, fleece and windbreakers, sneakers and trainers, flip flops',
         keywords: {
-            strong: ['blouse', 'silk', 'satin', 'lace', 'chiffon', 'ruffle', 'puff sleeve', 'wrap dress', 'slip dress', 'slip skirt', 'sundress', 'midi', 'maxi', 'floral', 'pleated', 'a-line', 'tulle', 'off-shoulder', 'camisole', 'cami', 'mary jane', 'ballet', 'heel', 'kitten heel', 'bow', 'corset', 'peplum', 'tiered', 'empire', 'eyelet', 'embroidered', 'gingham', 'velvet', 'smocked'],
-            good: ['skirt', 'dress', 'cardigan', 'cashmere', 'mohair', 'knit', 'sweater', 'wrap', 'sandal', 'ankle boot', 'flat', 'trench', 'wool coat', 'coat', 'shirt'],
-            avoid: ['hoodie', 'sweatshirt', 'jogger', 'legging', 'sweatpant', 'track', 'tracksuit', 'athletic', 'running', 'gym', 'cargo', 'puffer', 'parka', 'windbreaker', 'fleece', 'graphic', 'utility', 'combat', 'chunky', 'sneaker', 'trainer', 'anorak'],
+            strong: ['silk', 'satin', 'velvet', 'lace', 'sequin', 'cocktail', 'gown', 'tuxedo', 'suit', 'blazer', 'dress shirt', 'button-down', 'button-up', 'blouse', 'turtleneck', 'cashmere', 'tailored', 'trouser', 'slip dress', 'wrap dress', 'sheath', 'jumpsuit', 'midi', 'maxi', 'pleated', 'heel', 'pump', 'loafer', 'oxford', 'derby', 'brogue', 'dress shoe', 'chelsea', 'mary jane'],
+            good: ['dress', 'skirt', 'shirt', 'knit', 'sweater', 'cardigan', 'vest', 'waistcoat', 'wool coat', 'trench', 'coat', 'chino', 'ankle boot', 'boot', 'mule', 'flat', 'ballet', 'sandal', 'sundress', 'jean'],
+            avoid: ['hoodie', 'sweatshirt', 'jogger', 'legging', 'sweatpant', 'track', 'tracksuit', 'athletic', 'running', 'gym', 'graphic', 'tshirt', 'tee', 'shorts', 'cargo', 'utility', 'ripped', 'distressed', 'puffer', 'fleece', 'windbreaker', 'anorak', 'sneaker', 'trainer', 'flip-flop', 'slide', 'denim jacket'],
         },
-        colorAffinity: { good: ['Pink', 'Cream', 'White', 'Red', 'Purple', 'Beige'], avoid: ['Olive', 'Orange'] },
+        colorAffinity: { good: ['Black', 'Navy', 'Cream', 'White', 'Red', 'Purple', 'Green'], avoid: ['Orange', 'Yellow'] },
     },
 };
 

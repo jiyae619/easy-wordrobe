@@ -14,7 +14,7 @@
 export const CATEGORIES = ["tops", "bottoms", "outerwear", "dresses", "shoes"];
 
 export const VALID_SEASONS = ["spring", "summer", "fall", "winter"];
-export const VALID_MOODS = ["professional", "casual", "romantic"];
+export const VALID_MOODS = ["professional", "casual", "occasion"];
 
 // Mirror of src/data/demoItems.ts colorHexMap (gray/grey dedup'd to one generation name).
 export const COLOR_HEX = {
@@ -58,7 +58,7 @@ export const MOODS_BY_CATEGORY = {
     tops: ["casual", "professional"],
     bottoms: ["casual"],
     outerwear: ["professional", "casual"],
-    dresses: ["romantic"],
+    dresses: ["occasion"],
     shoes: ["casual"],
 };
 
@@ -76,29 +76,29 @@ export const SUBCATEGORIES = {
         { slug: "button-down", phrase: "button-down oxford shirt", keywords: ["button-down", "button down", "shirt", "oxford"], moods: ["professional", "casual"], seasons: ["spring", "summer", "fall"] },
         { slug: "hoodie", phrase: "oversized hoodie", keywords: ["hoodie", "sweatshirt"], moods: ["casual"], seasons: ["fall", "winter"] },
         { slug: "knit-sweater", phrase: "knit sweater", keywords: ["sweater", "knit", "pullover", "jumper"], moods: ["casual"], seasons: ["fall", "winter"] },
-        { slug: "silk-blouse", phrase: "silk blouse", keywords: ["blouse", "silk"], moods: ["romantic", "professional"], seasons: ["spring", "summer", "fall"] },
+        { slug: "silk-blouse", phrase: "silk blouse", keywords: ["blouse", "silk"], moods: ["occasion", "professional"], seasons: ["spring", "summer", "fall"] },
     ],
     bottoms: [
         { slug: "slim-jeans", phrase: "slim-fit jeans", keywords: ["jeans", "denim"], moods: ["casual"], seasons: ["spring", "fall", "winter"] },
         { slug: "chinos", phrase: "tailored chinos", keywords: ["chino", "chinos", "trouser"], moods: ["professional", "casual"], seasons: ["spring", "fall"] },
         { slug: "trousers", phrase: "tailored wool trousers", keywords: ["trouser", "trousers", "slacks", "pants"], moods: ["professional"], seasons: ["fall", "winter"] },
-        { slug: "pleated-skirt", phrase: "pleated midi skirt", keywords: ["skirt", "pleated", "midi"], moods: ["romantic"], seasons: ["spring", "summer"] },
+        { slug: "pleated-skirt", phrase: "pleated midi skirt", keywords: ["skirt", "pleated", "midi"], moods: ["occasion"], seasons: ["spring", "summer"] },
         { slug: "denim-shorts", phrase: "denim shorts", keywords: ["shorts", "denim"], moods: ["casual"], seasons: ["summer"] },
     ],
     outerwear: [
         { slug: "denim-jacket", phrase: "denim jacket", keywords: ["denim jacket", "jacket", "trucker"], moods: ["casual"], seasons: ["spring", "fall"] },
-        { slug: "wool-coat", phrase: "wool overcoat", keywords: ["coat", "overcoat", "wool"], moods: ["professional", "romantic"], seasons: ["fall", "winter"] },
+        { slug: "wool-coat", phrase: "wool overcoat", keywords: ["coat", "overcoat", "wool"], moods: ["professional", "occasion"], seasons: ["fall", "winter"] },
         { slug: "blazer", phrase: "tailored blazer", keywords: ["blazer", "jacket", "suit"], moods: ["professional"], seasons: ["spring", "fall", "winter"] },
         { slug: "puffer-parka", phrase: "puffer parka", keywords: ["parka", "puffer", "down jacket"], moods: ["casual"], seasons: ["winter"] },
-        { slug: "cardigan", phrase: "knit cardigan", keywords: ["cardigan", "knit"], moods: ["casual", "romantic"], seasons: ["fall", "winter"] },
+        { slug: "cardigan", phrase: "knit cardigan", keywords: ["cardigan", "knit"], moods: ["casual"], seasons: ["fall", "winter"] },
         { slug: "rain-jacket", phrase: "hooded waterproof rain jacket with a full zip", keywords: ["rain jacket", "raincoat", "waterproof"], moods: ["casual"], seasons: ["spring", "fall", "winter"] },
         { slug: "trench-coat", phrase: "classic belted trench coat", keywords: ["trench", "trench coat", "coat"], moods: ["professional", "casual"], seasons: ["spring", "fall"] },
     ],
     dresses: [
-        { slug: "wrap-dress", phrase: "wrap dress", keywords: ["wrap dress", "wrap", "dress"], moods: ["romantic", "professional"], seasons: ["spring", "summer"] },
-        { slug: "slip-dress", phrase: "slip dress", keywords: ["slip dress", "slip", "dress"], moods: ["romantic"], seasons: ["summer"] },
+        { slug: "wrap-dress", phrase: "wrap dress", keywords: ["wrap dress", "wrap", "dress"], moods: ["occasion", "professional"], seasons: ["spring", "summer"] },
+        { slug: "slip-dress", phrase: "slip dress", keywords: ["slip dress", "slip", "dress"], moods: ["occasion"], seasons: ["summer"] },
         { slug: "shirt-dress", phrase: "shirt dress", keywords: ["shirt dress", "shirtdress", "dress"], moods: ["casual", "professional"], seasons: ["spring", "summer", "fall"] },
-        { slug: "sundress", phrase: "summer sundress", keywords: ["sundress", "dress", "summer"], moods: ["romantic", "casual"], seasons: ["summer"] },
+        { slug: "sundress", phrase: "summer sundress", keywords: ["sundress", "dress", "summer"], moods: ["occasion", "casual"], seasons: ["summer"] },
     ],
     // Presentation note: shoes render as a floor-standing pair, not on a hanger — see prompt.mjs.
     shoes: [

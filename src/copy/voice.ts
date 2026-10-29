@@ -91,7 +91,7 @@ export interface MixContext {
 const MOOD_LINES: Record<string, string[]> = {
     professional: ['Sharp, simple, meeting ready.', 'Polished without trying too hard.', 'Clean lines for a busy day.'],
     casual: ['Easy, comfy and still sharp.', 'Low effort, high style.', 'Relaxed, but put together.'],
-    romantic: ['Soft, sweet and date ready.', 'A gentle look for a lovely day.', 'Just the right amount of charm.'],
+    occasion: ['Dressed up and ready to celebrate.', 'A step above everyday, made for the moment.', 'Polished with a little extra.'],
 };
 
 /** A useful, specific line about the combination on the rails. */
@@ -175,7 +175,7 @@ const WEATHER_SENDOFF: Partial<Record<WeatherKind, string[]>> = {
 const MOOD_SENDOFF: Record<string, string[]> = {
     professional: ['Go nail that meeting.', 'Boardroom ready.'],
     casual: ['Easy day ahead.', 'Comfy and cute.'],
-    romantic: ['Have a lovely time.', 'Date night ready.'],
+    occasion: ['Have a wonderful time.', 'Ready for the big day.'],
 };
 
 /** "Saved." plus a send-off that fits the day. */

@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useWardrobe } from '../../context/WardrobeContext';
 import { LogOut, User, Settings, X, Lock, Camera, Info, Cloud, Activity, Heart } from 'lucide-react';
-import { MOODS, isMoodId } from '../../data/moods';
+import { MOODS, resolveMoodId } from '../../data/moods';
 import { SUPPORTED_CITIES } from '../../services/weatherService';
 
 interface UserMenuProps {
@@ -23,7 +23,7 @@ const UserMenu: React.FC<UserMenuProps> = ({ variant = 'avatar' }) => {
     const [weight, setWeight] = useState(userSettings?.weight || '');
     const [gender, setGender] = useState(userSettings?.gender || '');
     // A retired mood (e.g. "creative") shows as "Not specified" and is cleared on the next save.
-    const [preferredVibe, setPreferredVibe] = useState(isMoodId(userSettings?.preferredVibe) ? userSettings.preferredVibe : '');
+    const [preferredVibe, setPreferredVibe] = useState(resolveMoodId(userSettings?.preferredVibe) ?? '');
     const [city, setCity] = useState(userSettings?.city || '');
 
     const menuRef = useRef<HTMLDivElement>(null);
@@ -34,7 +34,7 @@ const UserMenu: React.FC<UserMenuProps> = ({ variant = 'avatar' }) => {
             setHeight(userSettings.height || '');
             setWeight(userSettings.weight || '');
             setGender(userSettings.gender || '');
-            setPreferredVibe(isMoodId(userSettings.preferredVibe) ? userSettings.preferredVibe : '');
+            setPreferredVibe(resolveMoodId(userSettings.preferredVibe) ?? '');
             setCity(userSettings.city || '');
         }
     }, [userSettings]);

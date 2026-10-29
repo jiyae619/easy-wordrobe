@@ -79,10 +79,10 @@ FIELD RULES:
 - "color": the dominant color name in plain English, e.g. "Olive Green", "Cream", "Burgundy"
 - "colorHex": a valid 6-digit hex code matching the color, e.g. "#6B7C45"
 - "season": a JSON array containing one or more of: "spring", "summer", "fall", "winter"
-- "mood": a JSON array with 1–2 values from: "professional", "casual", "romantic". Tag a mood only if the piece clearly belongs in it:
+- "mood": a JSON array with 1–2 values from: "professional", "casual", "occasion". Tag a mood only if the piece clearly belongs in it:
   "professional" = tailored or office ready (blazers, shirts and blouses, trousers, pencil skirts, sheath dresses, loafers, pumps);
   "casual" = relaxed everyday, athleisure included (tees, sweatshirts, hoodies, jeans, chinos, joggers, leggings, shorts, sneakers, sundresses);
-  "romantic" = soft and feminine (silk, satin, lace, ruffles, florals, slip, wrap and midi dresses and skirts, delicate shoes)
+  "occasion" = dressed up for a celebration, dinner, date or event, for anyone (silk or satin shirts and blouses, dress shirts, blazers and suits, tailored trousers, cocktail, slip, wrap and midi dresses, heels, loafers and dress shoes)
 - "hasNoisyBackground": true if the background is cluttered or distracting, otherwise false
 - "bbox": normalized location of the item in the image with x,y,width,height in range 0..1
 - "confidence": confidence for the detection in range 0..1

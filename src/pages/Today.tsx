@@ -73,7 +73,7 @@ const Today: React.FC = () => {
         if (routeState) navigate(location.pathname + location.search, { replace: true, state: null });
     }, [routeState, navigate, location.pathname, location.search]);
 
-    // Deep links like /?mood=romantic still work.
+    // Deep links like /?mood=occasion still work (and the old /?mood=romantic maps to it).
     const moodParam = searchParams.get('mood');
     useEffect(() => {
         if (moodParam) setMood(moodParam);
