@@ -75,11 +75,11 @@ export const MOOD_STYLES: Record<string, MoodStyle> = {
         reachFor: 'hoodies, sweatshirts, performance or jersey tees, tanks, track, zip or windbreaker jackets, fleece, puffers; joggers, leggings, track pants, sweatpants, athletic or bike shorts; sneakers and running shoes',
         shape: 'stretch and jersey, relaxed or fitted athletic cuts, layers you can unzip',
         colors: 'black, grey, white and navy with a bright or color block accent',
-        avoid: 'tailoring (blazers, trousers, pencil skirts), silk, satin and lace, blouses, heels, loafers and dress shoes, formal dresses and wool coats',
+        avoid: 'tailoring (blazers, trousers, pencil skirts), silk, satin, lace and leather, blouses, heels, loafers and dress shoes, formal dresses and wool coats',
         keywords: {
             strong: ['hoodie', 'sweatshirt', 'jogger', 'legging', 'track', 'tracksuit', 'sweatpant', 'athletic', 'running', 'sneaker', 'trainer', 'windbreaker', 'sports bra', 'bike short', 'performance', 'gym', 'tennis', 'zip-up', 'quarter-zip', 'fleece', 'anorak', 'nylon', 'spandex', 'yoga'],
             good: ['tee', 'tshirt', 'tank', 'crop', 'shorts', 'puffer', 'parka', 'polo', 'sweater', 'pullover', 'jacket', 'cap', 'denim shorts'],
-            avoid: ['blazer', 'suit', 'trouser', 'tailored', 'slack', 'pencil', 'silk', 'satin', 'lace', 'blouse', 'heel', 'pump', 'stiletto', 'loafer', 'oxford', 'derby', 'brogue', 'dress shoe', 'gown', 'cocktail', 'wool coat', 'trench', 'slip dress', 'wrap dress', 'sheath', 'button-down', 'button-up', 'pleated', 'midi', 'maxi', 'chiffon', 'ruffle'],
+            avoid: ['blazer', 'suit', 'trouser', 'tailored', 'slack', 'pencil', 'silk', 'satin', 'lace', 'leather', 'blouse', 'heel', 'pump', 'stiletto', 'loafer', 'oxford', 'derby', 'brogue', 'dress shoe', 'gown', 'cocktail', 'wool coat', 'trench', 'slip dress', 'wrap dress', 'sheath', 'button-down', 'button-up', 'pleated', 'midi', 'maxi', 'chiffon', 'ruffle'],
         },
         colorAffinity: { good: ['Black', 'Grey', 'White', 'Navy', 'Red', 'Blue', 'Teal', 'Green', 'Orange', 'Yellow'], avoid: ['Brown', 'Beige'] },
         categoryBias: { [ClothingCategory.Dresses]: -0.2 },
