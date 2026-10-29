@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useLayoutEffect, useRef, useState } from 'react';
 import { type ClothingItem, type OutfitSuggestion } from '../../types';
 import { GarmentImage } from '../common/GarmentImage';
-import { slotsFromItems, isDress, type SlotId } from '../../utils/outfitSlots';
+import { slotsFromItems, SLOT_ORDER, type SlotId } from '../../utils/outfitSlots';
 import { itemName } from '../../utils/itemName';
 
 interface MirrorCardProps {
@@ -10,99 +10,143 @@ interface MirrorCardProps {
     total: number;
     /** Short code-derived "because" line, or null. */
     reason: string | null;
-    /** Tap a piece in the mirror to swap it for another piece of the same kind. */
-    onSwap?: (slot: SlotId) => void;
-    canSwap: (slot: SlotId) => boolean;
+    /** Tap a piece to see it up close (and swap it from there). Only the top card gets this. */
+    onInspect?: (slot: SlotId) => void;
 }
 
-interface Placement { left: number; top: number; width: number; z: number; tilt: number }
+const GAP = 8;
+/** A tile may stretch this much past square in its roomy direction (cover crops the photo's margin). */
+const STRETCH = 1.15;
+/** Below this tile height the name caption would hide too much of the photo. */
+const CAPTION_MIN = 96;
 
-/** Where each piece hangs inside the mirror (percent of the glass). */
-function placements(slots: Record<SlotId, ClothingItem | null>): Partial<Record<SlotId, Placement>> {
-    const dress = isDress(slots.bottom);
-    const both = Boolean(slots.layer && slots.top && !dress);
-    const out: Partial<Record<SlotId, Placement>> = {};
-    if (dress) {
-        if (slots.layer) out.layer = { left: 6, top: 12, width: 44, z: 3, tilt: -5 };
-        out.bottom = { left: slots.layer ? 36 : 22, top: slots.layer ? 18 : 12, width: 56, z: 2, tilt: 3 };
-    } else {
-        if (both) {
-            out.top = { left: 48, top: 14, width: 42, z: 1, tilt: 5 };
-            out.layer = { left: 8, top: 10, width: 46, z: 2, tilt: -4 };
-        } else if (slots.layer) out.layer = { left: 27, top: 10, width: 46, z: 2, tilt: -2 };
-        else if (slots.top) out.top = { left: 27, top: 10, width: 46, z: 2, tilt: -2 };
-        if (slots.bottom) out.bottom = { left: 27, top: 42, width: 46, z: 3, tilt: 2 };
+interface PieceTileProps {
+    item: ClothingItem;
+    width: number;
+    height: number;
+    /** Swing-in stagger, ms. */
+    delay: number;
+    onClick?: () => void;
+}
+
+const PieceTile: React.FC<PieceTileProps> = ({ item, width, height, delay, onClick }) => {
+    const name = itemName(item);
+    return (
+        <button
+            type="button"
+            disabled={!onClick}
+            onClick={onClick}
+            aria-label={onClick ? `See the ${name} up close` : name}
+            className="relative flex-none p-0 border-0 bg-transparent rounded-2xl disabled:cursor-default focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime focus-visible:ring-offset-2 focus-visible:ring-offset-ink"
+            style={{ width, height }}
+        >
+            <span
+                className="piece-swing relative block w-full h-full rounded-2xl overflow-hidden bg-white border-[3px] border-white shadow-[0_6px_14px_rgba(21,26,20,0.16)]"
+                style={{ animationDelay: `${delay}ms` }}
+            >
+                {/* h-full! beats the global unlayered `img { height: auto }`, so tiles taller than wide still fill */}
+                <GarmentImage item={item} className="w-full h-full! rounded-[13px]" />
+                {height >= CAPTION_MIN && (
+                    <span className="absolute left-1.5 right-1.5 bottom-1.5 flex justify-center pointer-events-none">
+                        <span className="max-w-full truncate px-2 py-0.5 rounded-full bg-white/90 text-[10px] leading-4 font-extrabold text-ink">{name}</span>
+                    </span>
+                )}
+            </span>
+        </button>
+    );
+};
+
+interface Grid { cols: number; width: number; height: number }
+
+/**
+ * The biggest even grid that fits `n` pieces in a w×h box. Garment photos are square, so tiles stay
+ * (nearly) square and every piece gets the same size: nothing overlaps, nothing is a thumbnail.
+ */
+function fitGrid(n: number, w: number, h: number): Grid {
+    let best: Grid = { cols: 1, width: 0, height: 0 };
+    for (let cols = 1; cols <= n; cols++) {
+        const rows = Math.ceil(n / cols);
+        const cw = (w - GAP * (cols - 1)) / cols;
+        const ch = (h - GAP * (rows - 1)) / rows;
+        const side = Math.min(cw, ch);
+        if (side <= 0) continue;
+        const width = Math.min(cw, side * STRETCH);
+        const height = Math.min(ch, side * STRETCH);
+        if (width * height > best.width * best.height) best = { cols, width, height };
     }
-    if (slots.shoes) out.shoes = { left: slots.bottom && !dress ? 58 : 38, top: 72, width: 30, z: 4, tilt: -6 };
-    return out;
+    return { ...best, width: Math.floor(best.width), height: Math.floor(best.height) };
 }
 
 /**
- * One AI look shown in an arched mirror (the Walk-in "mirror" idea) — used as a card in the Picks
- * swipe stack. Pieces are arranged on the body, tap one to swap it; the explanation and the
- * code-computed scores sit underneath.
+ * One AI look in the mirror — a card in Today's swipe stack. The pieces hang in an even grid sized
+ * to the glass (layer, top, bottom or dress, shoes), each labelled; tap one to see it up close and
+ * swap it. The code-computed scores sit on top, the stylist's explanation underneath.
  */
-export const MirrorCard: React.FC<MirrorCardProps> = ({ look, index, total, reason, onSwap, canSwap }) => {
+export const MirrorCard: React.FC<MirrorCardProps> = ({ look, index, total, reason, onInspect }) => {
     const ids = slotsFromItems(look.items);
     const byId = new Map(look.items.map((i) => [i.id, i]));
-    const slots: Record<SlotId, ClothingItem | null> = {
-        layer: ids.layer ? byId.get(ids.layer) ?? null : null,
-        top: ids.top ? byId.get(ids.top) ?? null : null,
-        bottom: ids.bottom ? byId.get(ids.bottom) ?? null : null,
-        shoes: ids.shoes ? byId.get(ids.shoes) ?? null : null,
-    };
-    const place = placements(slots);
+    const pieces = SLOT_ORDER
+        .map((slot) => ({ slot, item: ids[slot] ? byId.get(ids[slot]!) : undefined }))
+        .filter((p): p is { slot: SlotId; item: ClothingItem } => Boolean(p.item));
+
+    const glassRef = useRef<HTMLDivElement>(null);
+    const [box, setBox] = useState<{ w: number; h: number } | null>(null);
+    useLayoutEffect(() => {
+        const el = glassRef.current;
+        if (!el) return;
+        const ro = new ResizeObserver(([entry]) => {
+            const { width, height } = entry.contentRect;
+            setBox((b) => (b && b.w === width && b.h === height ? b : { w: width, h: height }));
+        });
+        ro.observe(el);
+        return () => ro.disconnect();
+    }, []);
+    const grid = box ? fitGrid(pieces.length, box.w, box.h) : null;
 
     return (
         <article className="w-full h-full flex flex-col rounded-[30px] bg-white border-2 border-ink overflow-hidden shadow-[0_14px_30px_rgba(21,26,20,0.12)] select-none">
-            <header className="flex items-center justify-between px-4 pt-3.5">
-                <span className="h-[26px] px-2.5 rounded-full bg-ink text-lime text-[11px] font-extrabold flex items-center tracking-wide">
+            <header className="flex items-center justify-between gap-2 px-3.5 pt-3 [@media(max-height:760px)]:pt-2.5">
+                <span className="h-[26px] px-2.5 rounded-full bg-ink text-lime text-[11px] font-extrabold flex items-center tracking-wide whitespace-nowrap">
                     LOOK {index + 1} OF {total}
                 </span>
-                <span className="text-[11px] font-extrabold text-ink/50 uppercase tracking-wide">{look.mood.name}</span>
+                <span className="flex gap-1.5">
+                    <span className="h-[26px] px-2.5 rounded-full border-[1.5px] border-ink text-[11px] font-extrabold flex items-center whitespace-nowrap">Weather {Math.round(look.weatherMatch)}</span>
+                    <span className="h-[26px] px-2.5 rounded-full border-[1.5px] border-ink text-[11px] font-extrabold flex items-center whitespace-nowrap">Rotation {Math.round(look.wearScore)}</span>
+                </span>
             </header>
 
-            <div className="flex-1 min-h-0 flex items-center justify-center px-4 pt-3 pb-2">
-                <div className="relative h-full max-w-full aspect-[0.82] rounded-t-[999px] rounded-b-2xl bg-ink p-[6px]">
-                    <div className="relative w-full h-full rounded-t-[999px] rounded-b-[11px] bg-paper overflow-hidden">
+            <div className="flex-1 min-h-0 px-3 pt-2.5 pb-2">
+                <div className="h-full rounded-t-[56px] rounded-b-[20px] bg-ink p-[5px]">
+                    <div className="relative h-full rounded-t-[51px] rounded-b-[15px] bg-paper overflow-hidden px-3 pt-4 pb-3 [@media(max-height:760px)]:pt-3 [@media(max-height:760px)]:pb-2">
                         <div className="absolute -left-10 top-0 w-14 h-[140%] bg-white/60 rotate-[24deg] pointer-events-none" />
-                        {(Object.keys(place) as SlotId[]).map((slot) => {
-                            const item = slots[slot];
-                            const p = place[slot];
-                            if (!item || !p) return null;
-                            const swappable = Boolean(onSwap) && canSwap(slot);
-                            return (
-                                <button
-                                    key={item.id}
-                                    type="button"
-                                    disabled={!swappable}
-                                    onClick={() => onSwap?.(slot)}
-                                    aria-label={swappable ? `Swap the ${itemName(item)}` : itemName(item)}
-                                    className="absolute aspect-square p-0 border-0 bg-transparent disabled:cursor-default"
-                                    style={{ left: `${p.left}%`, top: `${p.top}%`, width: `${p.width}%`, zIndex: p.z, transform: `rotate(${p.tilt}deg)` }}
-                                >
-                                    <span className="piece-swing block w-full h-full rounded-xl overflow-hidden bg-white border-[3px] border-white shadow-[0_6px_14px_rgba(21,26,20,0.16)]" style={{ animationDelay: `${p.z * 60}ms` }}>
-                                        <GarmentImage item={item} className="w-full h-full rounded-[9px]" />
-                                    </span>
-                                </button>
-                            );
-                        })}
+                        <div ref={glassRef} className="relative h-full flex items-center justify-center">
+                            {grid && (
+                                <div className="flex flex-wrap justify-center" style={{ gap: GAP, width: grid.cols * grid.width + (grid.cols - 1) * GAP }}>
+                                    {pieces.map(({ slot, item }, i) => (
+                                        <PieceTile
+                                            key={item.id}
+                                            item={item}
+                                            width={grid.width}
+                                            height={grid.height}
+                                            delay={i * 60}
+                                            onClick={onInspect ? () => onInspect(slot) : undefined}
+                                        />
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <div className="px-4 pb-4">
+            <div className="px-4 pb-3.5">
                 {look.isFallback && (
                     <p className="text-[11px] font-semibold text-amber-700 mb-1">Quick picks while your stylist takes a break.</p>
                 )}
                 {look.explanation && (
-                    <p className="font-display font-bold text-[16px] leading-snug text-ink">{look.explanation}</p>
+                    <p className="font-display font-bold text-[15px] leading-snug text-ink line-clamp-3 [@media(max-height:760px)]:line-clamp-2">{look.explanation}</p>
                 )}
-                <div className="flex flex-wrap gap-1.5 mt-2">
-                    <span className="h-[26px] px-2.5 rounded-full border-[1.5px] border-ink text-[11px] font-extrabold flex items-center">Weather {Math.round(look.weatherMatch)}</span>
-                    <span className="h-[26px] px-2.5 rounded-full border-[1.5px] border-ink text-[11px] font-extrabold flex items-center">Rotation {Math.round(look.wearScore)}</span>
-                </div>
-                {reason && <p className="mt-2 text-[11px] font-semibold text-ink/60 [@media(max-height:760px)]:hidden">{reason}</p>}
+                {reason && <p className="mt-1.5 text-[11px] font-semibold text-ink/60 truncate [@media(max-height:760px)]:hidden">{reason}</p>}
             </div>
         </article>
     );
