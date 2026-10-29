@@ -23,6 +23,7 @@ import { computeBehavioralAnalytics, computeSeasonalLeastWornIds, getCurrentSeas
 import { drainAgentMetricTally } from '../services/agents/agentTelemetry';
 import { getActiveProvider } from '../services/vision/providerRegistry';
 import { wornOn } from '../utils/wearLog';
+import { isWardrobePending, mergeLoadedClothes } from '../utils/wardrobeLoad';
 
 const WardrobeContext = createContext<WardrobeContextType | undefined>(undefined);
 
@@ -73,6 +74,10 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
     const [weather, setWeather] = useState<WeatherData | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    // Whose closet the in-memory state holds. Derived (not a flag set in the load effect) so it is
+    // already "loading" on the very first render after sign-in, before the effect has even run.
+    const [loadedUid, setLoadedUid] = useState<string | null>(null);
+    const isWardrobeLoading = isWardrobePending(uid, loadedUid);
 
     const normalizeLegacyThumbnails = useCallback(async (items: ClothingItem[]) => {
         if (!uid) return;
@@ -129,15 +134,23 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
             setClothes([]);
             setOutfits([]);
             setBookmarkedItems([]);
+            setTryItItemIds([]);
             setUserSettings(null);
             setCurrentMood(null);
+            setInsights(null);
             setSuggestionEvents([]);
             setError(null);
+            setLoadedUid(null);
             return;
         }
 
+        // Set by the cleanup when the user changes (or StrictMode re-runs the effect) so a stale
+        // read can't overwrite the current user's closet or end its loading state early.
+        let cancelled = false;
+        // Start this user from an empty closet, so the merge below can only keep their own new pieces.
+        setClothes([]);
+
         const loadUserData = async () => {
-            setIsLoading(true);
             setError(null);
             prodDiag.loadUserDataStart(uid);
             try {
@@ -180,9 +193,11 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
                     prodDiag.loadUserDataFirestore(uid, false, fsErr);
                     throw fsErr;
                 }
+                if (cancelled) return;
 
                 const normalizedItems = items.map(normalizeWardrobeMoodSignals);
-                setClothes(normalizedItems);
+                // Keep anything scanned while this read was in flight instead of dropping it.
+                setClothes(prev => mergeLoadedClothes(normalizedItems, prev));
                 setOutfits(outfitRecords);
                 setBookmarkedItems(settings.bookmarkedItems || []);
                 setTryItItemIds(settings.tryItItemIds || []);
@@ -191,12 +206,13 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
 
                 // Non-blocking: load the rejection signal (never fails the critical load).
                 firestoreService.getRecentSuggestionEvents(uid, SUGGESTION_EVENTS_DAYS)
-                    .then(setSuggestionEvents)
+                    .then((events) => { if (!cancelled) setSuggestionEvents(events); })
                     .catch((e) => console.warn('[Wardrobe] Failed to load suggestion events:', e));
 
                 prodDiag.loadUserDataEnd(uid, normalizedItems.length);
                 console.log(`[Wardrobe] Loaded ${items.length} items, ${outfitRecords.length} outfits from Firestore`);
             } catch (err) {
+                if (cancelled) return;
                 prodDiag.loadUserDataError(uid, err);
                 const msg = (err as Error)?.message || String(err);
                 console.error('[Wardrobe] Failed to load data from Firestore:', err);
@@ -205,11 +221,13 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
                     : '';
                 setError(`Failed to load wardrobe: ${msg}${hint}`);
             } finally {
-                setIsLoading(false);
+                // Loaded (or failed with an error banner): either way pages may now trust `clothes`.
+                if (!cancelled) setLoadedUid(uid);
             }
         };
 
         loadUserData();
+        return () => { cancelled = true; };
     }, [uid, normalizeLegacyThumbnails]);
 
     // --- Actions ---
@@ -668,7 +686,9 @@ export const WardrobeProvider: React.FC<{ children: ReactNode }> = ({ children }
             currentMood,
             weather,
             insights,
-            isLoading,
+            // Pages that only read `isLoading` (Closet skeleton, Style Log) also wait for the first load.
+            isLoading: isLoading || isWardrobeLoading,
+            isWardrobeLoading,
             error,
             clearError: () => setError(null),
             addClothingItem,
