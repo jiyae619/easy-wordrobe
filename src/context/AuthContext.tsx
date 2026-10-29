@@ -23,12 +23,26 @@ function getAuthErrorMessage(code: string): string {
         case 'auth/too-many-requests':
             return 'Lots of tries there. Take a breather and try again soon.';
         case 'auth/popup-closed-by-user':
+        case 'auth/cancelled-popup-request':
             return 'Google sign in was closed. Try again when you’re ready.';
+        case 'auth/popup-blocked':
+            return 'Your browser blocked the Google sign in window. Allow pop-ups for this site and try again.';
+        case 'auth/unauthorized-domain':
+            return `Google sign in isn’t enabled for ${window.location.hostname} yet. Add it under Firebase Auth → Settings → Authorized domains.`;
+        case 'auth/operation-not-allowed':
+            return 'Google sign in is turned off for this app. Enable it under Firebase Auth → Sign-in method.';
         case 'auth/network-request-failed':
             return 'Can’t reach the internet. Check your connection.';
         default:
-            return 'Something went sideways. Try again?';
+            // Show the code so a failure we don't map yet can still be diagnosed.
+            return `Something went sideways${code ? ` (${code})` : ''}. Try again?`;
     }
+}
+
+function reportAuthError(err: unknown): string {
+    const { code = '', message } = (err ?? {}) as { code?: string; message?: string };
+    console.error('[auth]', code, message);
+    return getAuthErrorMessage(code);
 }
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -62,7 +76,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         try {
             await authService.signInWithEmail(email, password);
         } catch (err: any) {
-            setError(getAuthErrorMessage(err.code));
+            setError(reportAuthError(err));
             throw err;
         } finally {
             setIsLoading(false);
@@ -76,7 +90,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             const user = await authService.signUpWithEmail(email, password, displayName);
             sessionStorage.setItem('wardrobe_skip_migration', user.uid);
         } catch (err: any) {
-            setError(getAuthErrorMessage(err.code));
+            setError(reportAuthError(err));
             throw err;
         } finally {
             setIsLoading(false);
@@ -92,7 +106,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 sessionStorage.setItem('wardrobe_skip_migration', user.uid);
             }
         } catch (err: any) {
-            setError(getAuthErrorMessage(err.code));
+            setError(reportAuthError(err));
             throw err;
         } finally {
             setIsLoading(false);
@@ -104,7 +118,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         try {
             await authService.signOut();
         } catch (err: any) {
-            setError(getAuthErrorMessage(err.code));
+            setError(reportAuthError(err));
         }
     };
 
@@ -113,7 +127,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         try {
             await authService.resetPassword(email);
         } catch (err: any) {
-            setError(getAuthErrorMessage(err.code));
+            setError(reportAuthError(err));
             throw err;
         }
     };
