@@ -14,7 +14,7 @@ Return ONLY a JSON object (no markdown, no commentary) with this exact shape:
   "color": "dominant color name in plain English",
   "colorHex": "#RRGGBB",
   "season": ["spring" | "summer" | "fall" | "winter", ...],
-  "mood": ["professional" | "casual" | "sporty" | "romantic", ...]
+  "mood": ["professional" | "casual" | "romantic", ...]
 }
 
 If multiple items are visible, describe the most prominent one only.`;

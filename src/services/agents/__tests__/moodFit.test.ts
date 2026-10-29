@@ -64,8 +64,6 @@ describe("item mood fit (curated rules)", () => {
     it("keeps clashing garment types out of a mood even when the user tagged them nearby", () => {
         expect(moodFitTier(fit("hoodie", "professional"))).toBe("off");
         expect(moodFitTier(fit("joggers", "professional"))).toBe("off");
-        expect(moodFitTier(fit("blazer", "sporty"))).toBe("off");
-        expect(moodFitTier(fit("trousers", "sporty"))).toBe("off");
         expect(moodFitTier(fit("puffer", "romantic"))).toBe("off");
         expect(moodFitTier(fit("hoodie", "romantic"))).toBe("off");
     });
@@ -73,8 +71,7 @@ describe("item mood fit (curated rules)", () => {
     it("rates textbook pieces high", () => {
         expect(moodFitTier(fit("blazer", "professional"))).toBe("high");
         expect(moodFitTier(fit("trousers", "professional"))).toBe("high");
-        expect(moodFitTier(fit("joggers", "sporty"))).toBe("high");
-        expect(moodFitTier(fit("hoodie", "sporty"))).toBe("high");
+        expect(moodFitTier(fit("hoodie", "casual"))).toBe("high");
         expect(moodFitTier(fit("wrap", "romantic"))).toBe("high");
         expect(moodFitTier(fit("skirt", "romantic"))).toBe("high");
         expect(moodFitTier(fit("jeans", "casual"))).toBe("high");
@@ -137,10 +134,14 @@ describe("code-assembled mood looks (fallback and preview)", () => {
         expect(ids).toContain("trousers");
     });
 
-    it("dresses Sporty in athleisure", () => {
-        const [first] = assembleMoodLooks(closet, "sporty", { temperatureC: 20 });
-        expect(first.map((i) => i.id)).toEqual(expect.arrayContaining(["joggers", "sneakers"]));
-        expect(first.map((i) => i.id)).not.toContain("blazer");
+    it("puts athleisure (retired Sporty) under Casual", () => {
+        expect(MOODS.map((m) => m.id)).not.toContain("sporty");
+        expect(VALID_MOODS).not.toContain("sporty");
+        expect(isMoodId("sporty")).toBe(false);
+        expect(normalizeMoodIds(["sporty", "casual"])).toEqual(["casual"]);
+        // Joggers tagged only "sporty" still work for Casual, and never for Professional.
+        expect(moodFitTier(fit("joggers", "casual"))).not.toBe("off");
+        expect(moodFitTier(fit("joggers", "professional"))).toBe("off");
     });
 
     it("adds an outer layer when it is cool and works with no weather at all", () => {

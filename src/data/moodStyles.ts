@@ -8,7 +8,7 @@ import { ClothingCategory } from '../types';
  *
  * Sources: business-casual dress-code guides (what to wear and avoid at work), romantic-style guides
  * (soft, flowing fabrics, defined waists, florals and ruffles, delicate shoes) and athleisure guides
- * (joggers, leggings, hoodies, technical and stretch fabrics, sneakers).
+ * (joggers, leggings, hoodies, technical and stretch fabrics, sneakers), which now fold into Casual.
  *
  * It is used twice:
  *  - the prose fields brief the StylistAgent (the prompt used to get only the mood's name);
@@ -39,7 +39,7 @@ export interface MoodStyle {
     };
     /** Palette color names (data/colorPalette) that suit / fight the mood. */
     colorAffinity: { good: string[]; avoid: string[] };
-    /** Small per-category nudge, e.g. dresses are rarely sporty. */
+    /** Small per-category nudge for a mood (e.g. -0.2 for dresses). */
     categoryBias?: Partial<Record<ClothingCategory, number>>;
 }
 
@@ -58,31 +58,17 @@ export const MOOD_STYLES: Record<string, MoodStyle> = {
         colorAffinity: { good: ['Black', 'Navy', 'Grey', 'White', 'Cream', 'Beige', 'Brown'], avoid: ['Yellow', 'Orange'] },
     },
     casual: {
-        brief: 'Relaxed, comfortable, everyday: easy pieces that still look put together.',
-        reachFor: 't-shirts, sweatshirts, knit sweaters, casual shirts, polos, cardigans, denim or utility jackets; jeans, chinos, shorts, casual skirts; sundresses and t-shirt dresses; sneakers, boots, sandals',
+        brief: 'Relaxed, comfortable, everyday, athleisure included: easy pieces that still look put together.',
+        reachFor: 't-shirts, sweatshirts and hoodies, knit sweaters, casual shirts, polos, cardigans, denim, utility or track jackets; jeans, chinos, joggers, leggings, shorts, casual skirts; sundresses and t-shirt dresses; sneakers, boots, sandals',
         shape: 'relaxed fits, soft cotton, denim and knits; mix one sharper piece with easy basics',
         colors: 'anything goes; denim blue, neutrals and one easy color work best',
         avoid: 'full suiting, evening or cocktail pieces (sequins, satin gowns), stilettos, head to toe gym kit',
         keywords: {
             strong: ['tshirt', 'tee', 'jean', 'denim', 'chino', 'sweatshirt', 'hoodie', 'sneaker', 'cardigan', 'flannel', 'polo', 'sundress', 'tshirt dress', 'henley', 'overshirt', 'jumper'],
-            good: ['sweater', 'knit', 'pullover', 'shirt', 'shorts', 'skirt', 'denim jacket', 'jacket', 'boot', 'sandal', 'loafer', 'puffer', 'parka', 'cargo', 'wrap dress', 'linen'],
+            good: ['sweater', 'knit', 'pullover', 'shirt', 'shorts', 'skirt', 'denim jacket', 'jacket', 'boot', 'sandal', 'loafer', 'puffer', 'parka', 'cargo', 'wrap dress', 'linen', 'jogger', 'legging', 'sweatpant', 'track jacket', 'zip-up', 'quarter-zip', 'fleece', 'windbreaker', 'anorak'],
             avoid: ['tuxedo', 'gown', 'cocktail', 'sequin', 'suit', 'stiletto', 'pump', 'waistcoat'],
         },
         colorAffinity: { good: ['Blue', 'Navy', 'White', 'Grey', 'Olive', 'Beige', 'Cream'], avoid: [] },
-    },
-    sporty: {
-        brief: 'Active, energetic athleisure: built to move, technical or jersey fabrics, trainers.',
-        reachFor: 'hoodies, sweatshirts, performance or jersey tees, tanks, track, zip or windbreaker jackets, fleece, puffers; joggers, leggings, track pants, sweatpants, athletic or bike shorts; sneakers and running shoes',
-        shape: 'stretch and jersey, relaxed or fitted athletic cuts, layers you can unzip',
-        colors: 'black, grey, white and navy with a bright or color block accent',
-        avoid: 'tailoring (blazers, trousers, pencil skirts), silk, satin, lace and leather, blouses, heels, loafers and dress shoes, formal dresses and wool coats',
-        keywords: {
-            strong: ['hoodie', 'sweatshirt', 'jogger', 'legging', 'track', 'tracksuit', 'sweatpant', 'athletic', 'running', 'sneaker', 'trainer', 'windbreaker', 'sports bra', 'bike short', 'performance', 'gym', 'tennis', 'zip-up', 'quarter-zip', 'fleece', 'anorak', 'nylon', 'spandex', 'yoga'],
-            good: ['tee', 'tshirt', 'tank', 'crop', 'shorts', 'puffer', 'parka', 'polo', 'sweater', 'pullover', 'jacket', 'cap', 'denim shorts'],
-            avoid: ['blazer', 'suit', 'trouser', 'tailored', 'slack', 'pencil', 'silk', 'satin', 'lace', 'leather', 'blouse', 'heel', 'pump', 'stiletto', 'loafer', 'oxford', 'derby', 'brogue', 'dress shoe', 'gown', 'cocktail', 'wool coat', 'trench', 'slip dress', 'wrap dress', 'sheath', 'button-down', 'button-up', 'pleated', 'midi', 'maxi', 'chiffon', 'ruffle'],
-        },
-        colorAffinity: { good: ['Black', 'Grey', 'White', 'Navy', 'Red', 'Blue', 'Teal', 'Green', 'Orange', 'Yellow'], avoid: ['Brown', 'Beige'] },
-        categoryBias: { [ClothingCategory.Dresses]: -0.2 },
     },
     romantic: {
         brief: 'Soft, feminine and a little dressy: date night or a lovely day out. Flowing shapes, delicate fabrics.',

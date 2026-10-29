@@ -83,7 +83,7 @@ Stylemax uses **three specialized AI agents**, all powered by **Google Gemini 3.
 
 * Detects clothing **and shoes** (category one of tops / bottoms / outerwear / dresses / shoes); bags, hats, and other accessories are intentionally excluded.
 
-* Mood tags: 1–3 of professional / casual / sporty / romantic, each defined in the prompt by example garments so tags agree with the Stylist's mood rules (`src/data/moodStyles.ts`). They become `aiTags` / `userMoods` and feed the mood-fit score.
+* Mood tags: 1–2 of professional / casual / romantic, each defined in the prompt by example garments so tags agree with the Stylist's mood rules (`src/data/moodStyles.ts`). They become `aiTags` / `userMoods` and feed the mood-fit score.
 
 * Safety check: the prompt first screens for inappropriate content (nudity, violence, etc.) before analyzing the clothing.
 
@@ -99,7 +99,7 @@ Stylemax uses **three specialized AI agents**, all powered by **Google Gemini 3.
 
 **What it does:** Scores every piece for the selected mood in code, drops the pieces that clash with it, and sends the rest (as a condensed JSON array, best fit first, each labeled `"fit": "high" | "ok"`) together with a **mood brief** (what the mood means in garments), the current weather (or "unknown"), and a `BehavioralContext` from BehavioralAgent. Gemini reasons about which combinations work together — mood first, then weather practicality, composition, wear-history priorities and color — and returns three distinct outfits with explanations. The looks are re-ranked by a computed `moodMatch` so the best mood fit leads the swipe stack.
 
-**Moods:** Professional, Casual, Sporty, Romantic. (Creative was retired: stored `creative` selections, `preferredVibe` values and item tags are ignored — `useMood` falls through to the next valid source, `normalizeMoodIds` drops the tag, and past wear records still show "Creative" via `moodLabel`.)
+**Moods:** Professional, Casual, Romantic. (Creative and Sporty were retired; athleisure — hoodies, joggers, leggings, track jackets — now reads as Casual. Stored `creative` / `sporty` selections, `preferredVibe` values and item tags are ignored — `useMood` falls through to the next valid source, `normalizeMoodIds` drops the tag, and past wear records still show the old name via `moodLabel`.)
 
 **Mood rules (`src/data/moodStyles.ts`):** a curated table, built from established dress conventions (business / business-casual dress codes, smart casual, athleisure, the romantic style vocabulary), that says for each mood what to reach for, silhouettes and fabrics, colors, and what breaks the mood, plus keyword lists matched against item subcategories. `src/services/agents/moodFit.ts` turns it into a score per piece (0–1): neutral 0.5, +0.3 if the user tagged the piece with this mood, +0.35 / +0.15 for a textbook / suitable garment type, −0.45 for a clashing one (which beats a tag), small color and category nudges. Pieces under 0.35 are **off-mood** and never reach the prompt (unless a group would be too thin to build looks, in which case the best of that group is kept); 0.7+ is "high".
 

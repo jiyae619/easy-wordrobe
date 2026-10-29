@@ -46,7 +46,7 @@ const { Spring, Summer, Fall, Winter } = Season;
 export const STARTER_CATALOG: StarterCatalogEntry[] = [
     // --- Tops ---
     { slug: 'tops-crew-tee', label: 'Crew Neck T-Shirt', category: ClothingCategory.Tops, subcategory: 'Crew Neck T-Shirt', colors: ['White', 'Black', 'Grey', 'Navy', 'Olive'], season: [Spring, Summer, Fall], moods: ['casual'] },
-    { slug: 'tops-hoodie', label: 'Hoodie', category: ClothingCategory.Tops, subcategory: 'Hoodie', colors: ['Grey', 'Black', 'Navy', 'Olive', 'Cream'], season: [Spring, Fall, Winter], moods: ['casual', 'sporty'] },
+    { slug: 'tops-hoodie', label: 'Hoodie', category: ClothingCategory.Tops, subcategory: 'Hoodie', colors: ['Grey', 'Black', 'Navy', 'Olive', 'Cream'], season: [Spring, Fall, Winter], moods: ['casual'] },
     { slug: 'tops-button-down', label: 'Button-Down Shirt', category: ClothingCategory.Tops, subcategory: 'Button-Down Shirt', colors: ['White', 'Blue', 'Black', 'Cream'], season: [Spring, Summer, Fall, Winter], moods: ['professional', 'casual'] },
     { slug: 'tops-knit-sweater', label: 'Knit Sweater', category: ClothingCategory.Tops, subcategory: 'Knit Sweater', colors: ['Cream', 'Navy', 'Grey', 'Brown'], season: [Fall, Winter], moods: ['casual'] },
     { slug: 'tops-silk-blouse', label: 'Silk Blouse', category: ClothingCategory.Tops, subcategory: 'Silk Blouse', colors: ['Cream', 'White', 'Black', 'Pink'], season: [Spring, Summer, Fall], moods: ['professional', 'romantic'] },
@@ -55,18 +55,18 @@ export const STARTER_CATALOG: StarterCatalogEntry[] = [
     { slug: 'bottoms-chinos', label: 'Chinos', category: ClothingCategory.Bottoms, subcategory: 'Chinos', colors: ['Beige', 'Navy', 'Olive', 'Black'], season: [Spring, Fall, Winter], moods: ['casual', 'professional'] },
     { slug: 'bottoms-trousers', label: 'Trousers', category: ClothingCategory.Bottoms, subcategory: 'Tailored Trousers', colors: ['Black', 'Grey', 'Navy', 'Beige'], season: [Spring, Summer, Fall, Winter], moods: ['professional'] },
     { slug: 'bottoms-pleated-skirt', label: 'Pleated Skirt', category: ClothingCategory.Bottoms, subcategory: 'Pleated Skirt', colors: ['Black', 'Beige', 'Navy', 'Pink'], season: [Spring, Summer, Fall], moods: ['romantic', 'professional'] },
-    { slug: 'bottoms-denim-shorts', label: 'Denim Shorts', category: ClothingCategory.Bottoms, subcategory: 'Denim Shorts', colors: ['Blue', 'Black', 'White'], season: [Summer], moods: ['casual', 'sporty'] },
+    { slug: 'bottoms-denim-shorts', label: 'Denim Shorts', category: ClothingCategory.Bottoms, subcategory: 'Denim Shorts', colors: ['Blue', 'Black', 'White'], season: [Summer], moods: ['casual'] },
     // --- Outerwear ---
     { slug: 'outerwear-denim-jacket', label: 'Denim Jacket', category: ClothingCategory.Outerwear, subcategory: 'Denim Jacket', colors: ['Blue', 'Black', 'White'], season: [Spring, Fall], moods: ['casual'] },
     { slug: 'outerwear-cardigan', label: 'Cardigan', category: ClothingCategory.Outerwear, subcategory: 'Cardigan', colors: ['Grey', 'Beige', 'Navy', 'Olive'], season: [Spring, Fall, Winter], moods: ['casual', 'romantic'] },
     { slug: 'outerwear-blazer', label: 'Blazer', category: ClothingCategory.Outerwear, subcategory: 'Blazer', colors: ['Black', 'Navy', 'Beige', 'Grey'], season: [Spring, Fall, Winter], moods: ['professional'] },
     { slug: 'outerwear-wool-coat', label: 'Wool Coat', category: ClothingCategory.Outerwear, subcategory: 'Wool Coat', colors: ['Beige', 'Black', 'Grey', 'Navy'], season: [Fall, Winter], moods: ['professional'] },
-    { slug: 'outerwear-puffer-parka', label: 'Puffer Jacket', category: ClothingCategory.Outerwear, subcategory: 'Puffer Parka', colors: ['Black', 'Olive', 'Cream', 'Brown'], season: [Winter], moods: ['casual', 'sporty'] },
+    { slug: 'outerwear-puffer-parka', label: 'Puffer Jacket', category: ClothingCategory.Outerwear, subcategory: 'Puffer Parka', colors: ['Black', 'Olive', 'Cream', 'Brown'], season: [Winter], moods: ['casual'] },
     // --- Dresses ---
     { slug: 'dresses-wrap-dress', label: 'Wrap Dress', category: ClothingCategory.Dresses, subcategory: 'Wrap Dress', colors: ['Black', 'Navy', 'Olive', 'Pink'], season: [Spring, Summer, Fall], moods: ['romantic', 'professional'] },
     { slug: 'dresses-sundress', label: 'Sundress', category: ClothingCategory.Dresses, subcategory: 'Sundress', colors: ['White', 'Blue', 'Pink', 'Cream'], season: [Spring, Summer], moods: ['romantic', 'casual'] },
     // --- Shoes ---
-    { slug: 'shoes-sneakers', label: 'Sneakers', category: ClothingCategory.Shoes, subcategory: 'Low-Top Sneakers', colors: ['White', 'Black', 'Grey', 'Navy'], season: [Spring, Summer, Fall], moods: ['casual', 'sporty'] },
+    { slug: 'shoes-sneakers', label: 'Sneakers', category: ClothingCategory.Shoes, subcategory: 'Low-Top Sneakers', colors: ['White', 'Black', 'Grey', 'Navy'], season: [Spring, Summer, Fall], moods: ['casual'] },
     { slug: 'shoes-ankle-boots', label: 'Ankle Boots', category: ClothingCategory.Shoes, subcategory: 'Ankle Boots', colors: ['Black', 'Brown', 'Beige'], season: [Fall, Winter], moods: ['casual', 'professional'] },
     { slug: 'shoes-loafers', label: 'Loafers', category: ClothingCategory.Shoes, subcategory: 'Penny Loafers', colors: ['Brown', 'Black', 'Beige'], season: [Spring, Fall], moods: ['professional', 'casual'] },
 ];

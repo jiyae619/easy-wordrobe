@@ -18,14 +18,6 @@ export const MOODS: FashionMood[] = [
         tags: ['relax', 'comfortable', 'daily']
     },
     {
-        id: 'sporty',
-        name: 'Sporty',
-        description: 'Active and energetic athleisure',
-        colorPalette: ['#556849', '#8A9E78', '#D1D8C9'],
-        previewImageUrl: '/demo-images/mood-sporty.jpg',
-        tags: ['active', 'gym', 'run']
-    },
-    {
         id: 'romantic',
         name: 'Romantic',
         description: 'Soft and elegant date-night looks',
@@ -42,6 +34,7 @@ export const MOODS: FashionMood[] = [
  */
 const RETIRED_MOOD_NAMES: Record<string, string> = {
     creative: 'Creative',
+    sporty: 'Sporty',
 };
 
 /** True for a mood id that can be selected today. */
