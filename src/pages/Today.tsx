@@ -48,7 +48,7 @@ const Today: React.FC = () => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const [mood, setMood] = useMood();
-    const { weather, outlook, cheer, isLoading: weatherLoading, usingDefaultLocation } = useTodayWeather();
+    const { weather, outlook, cheer, isLoading: weatherLoading, usingDefaultLocation, locationSource } = useTodayWeather();
     const readiness = getWardrobeReadiness(clothes);
     const [showWeather, setShowWeather] = useState(false);
 
@@ -106,14 +106,23 @@ const Today: React.FC = () => {
                     >
                         {format(new Date(), 'EEE d MMM')} ·
                         <WeatherIcon condition={weather?.condition} />
-                        <span>{weather ? `${Math.round(weather.temperature)}° ${weather.condition}` : weatherLoading ? 'Checking the sky…' : 'No weather right now'}</span>
+                        <span>{weather ? `${Math.round(weather.temperature)}° now · ${weather.condition}` : weatherLoading ? 'Checking the sky…' : usingDefaultLocation ? 'Location off · set your city' : 'No weather right now'}</span>
                         <ChevronDown className={`w-3.5 h-3.5 flex-none transition-transform ${showWeather ? 'rotate-180' : ''}`} />
                     </button>
                 }
             >
                 {showWeather && (
                     <div className="p-3 rounded-2xl bg-white border-[1.5px] border-ink animate-fade-in-up">
-                        {weather?.location && <p className="text-[11px] font-extrabold uppercase tracking-wide text-ink/50 mb-2">{weather.location}</p>}
+                        {weather?.location && (
+                            <p className="text-[11px] font-extrabold uppercase tracking-wide text-ink/50 mb-2">
+                                {weather.location}
+                                {locationSource === 'city' ? ' · your city' : locationSource === 'last-known' ? ' · last known location' : ''}
+                                {' · '}
+                                {weather.source === 'observation'
+                                    ? `observed ${format(new Date(weather.asOf), 'h:mm a')}`
+                                    : `forecast for ${format(new Date(weather.asOf), 'h a')}`}
+                            </p>
+                        )}
                         {outlook.length > 0 && (
                             <div className="grid grid-cols-3 gap-2">
                                 {outlook.map((slot) => (
@@ -132,7 +141,7 @@ const Today: React.FC = () => {
                                 onClick={() => window.dispatchEvent(new CustomEvent('open-settings'))}
                                 className="mt-2 text-[11px] font-semibold text-ink underline underline-offset-2"
                             >
-                                Location is off. Set your city for local weather.
+                                Location is off, so there's no weather. Set your city for local weather.
                             </button>
                         )}
                     </div>

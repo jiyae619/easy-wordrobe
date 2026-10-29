@@ -9,14 +9,14 @@ export const WeatherAgent = {
         outlook: WeatherOutlookPeriod[]
     ): Promise<string> => {
         const prompt = `You are a warm fashion weather companion.
-Generate one short cheer up sentence for the user's home screen based on current weather and today's outlook.
+Generate one short cheer up sentence for the user's home screen based on the current weather and the rest of today's outlook.
 
 CURRENT:
 - ${weather.temperature}°C, ${weather.condition}
 - Location: ${weather.location}
 
-OUTLOOK:
-${outlook.map((p) => `- ${p.label}: ${p.temperature}°C, ${p.condition}`).join('\n')}
+REST OF TODAY:
+${outlook.length ? outlook.map((p) => `- ${p.label}: ${p.temperature}°C, ${p.condition}`).join('\n') : '- (no outlook available)'}
 
 RULES:
 - Output JSON only: {"cheerLine":"..."}
