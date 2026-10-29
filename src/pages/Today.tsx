@@ -43,7 +43,7 @@ interface BuildMode {
  * hanger-rail builder (lock + Spin) on the same batch. Also where a past day gets logged.
  */
 const Today: React.FC = () => {
-    const { clothes } = useWardrobe();
+    const { clothes, isWardrobeLoading } = useWardrobe();
     const location = useLocation();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
@@ -141,7 +141,10 @@ const Today: React.FC = () => {
 
             {!build?.logDate && <MoodChips value={mood.id} onChange={setMood} />}
 
-            {!readiness.canMakeOutfit ? (
+            {isWardrobeLoading ? (
+                // The closet is still on its way: don't tell a returning user it's empty.
+                <div role="status" className="skeleton h-[420px] w-full rounded-[28px]" aria-busy="true" aria-label="Loading your closet" />
+            ) : !readiness.canMakeOutfit ? (
                 <section className="rounded-[28px] border-2 border-dashed border-ink/40 p-5">
                     <h2 className="font-display text-xl font-extrabold text-ink">
                         {clothes.length === 0 ? 'Your closet is empty' : 'Almost ready'}

@@ -10,6 +10,7 @@ import {
     query,
     where,
     orderBy,
+    limit,
     increment,
 } from 'firebase/firestore';
 import { db } from './firebaseConfig';
@@ -273,8 +274,9 @@ export const firestoreService = {
         let migratedItems = 0;
         let migratedOutfits = 0;
 
-        // Check if user already has data in Firestore
-        const existingItems = await getDocs(collection(db, 'users', uid, 'wardrobe'));
+        // Check if user already has data in Firestore. One doc answers "any?" — reading the whole
+        // closet here doubled every returning user's login read (getWardrobe fetches it again next).
+        const existingItems = await getDocs(query(collection(db, 'users', uid, 'wardrobe'), limit(1)));
         if (!existingItems.empty) {
             // User already has cloud data — skip migration
             return { migratedItems: 0, migratedOutfits: 0 };
