@@ -8,23 +8,15 @@ interface LocationState {
 }
 
 export const useUserLocation = () => {
-    const [location, setLocation] = useState<LocationState>({
+    const [location, setLocation] = useState<LocationState>(() => ({
         latitude: null,
         longitude: null,
-        loading: true,
-        error: null,
-    });
+        loading: Boolean(navigator.geolocation),
+        error: navigator.geolocation ? null : "Geolocation is not supported by your browser",
+    }));
 
     useEffect(() => {
-        if (!navigator.geolocation) {
-            setLocation({
-                latitude: null,
-                longitude: null,
-                loading: false,
-                error: "Geolocation is not supported by your browser",
-            });
-            return;
-        }
+        if (!navigator.geolocation) return;
 
         const success = (position: GeolocationPosition) => {
             setLocation({
@@ -36,12 +28,12 @@ export const useUserLocation = () => {
         };
 
         const error = () => {
-            // Fallback to default location (e.g., New York) on error/denial
+            // No silent default city: callers must handle "no location" explicitly.
             setLocation({
-                latitude: 40.7128,
-                longitude: -74.0060,
+                latitude: null,
+                longitude: null,
                 loading: false,
-                error: "Location access denied. Using default location.",
+                error: "Location access denied or unavailable.",
             });
         };
 
