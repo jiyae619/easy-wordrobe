@@ -11,6 +11,7 @@ import {
 } from '../services/agents/agentOutputGuards';
 import { useTodayWeather } from './useTodayWeather';
 import { computeMoodMatch } from '../services/agents/moodFit';
+import { buildCodeLooks } from '../services/agents/StylistAgent';
 import type { ClothingItem, FashionMood, OutfitSuggestion, WeatherData } from '../types';
 
 /** Serializable form of a look: item ids instead of item objects, so a cached look always renders
@@ -132,6 +133,12 @@ function hydrate(stored: StoredLook[], clothes: ClothingItem[], mood: FashionMoo
 
 export interface StylistLooks {
     looks: OutfitSuggestion[];
+    /**
+     * Instant, code-assembled looks for this mood (flagged isFallback, stable ids) while `looks` is
+     * still empty: from first paint, before weather or the model answer. Empty once `looks` is
+     * ready. A UI can show these straight away and swap in the AI looks when they land.
+     */
+    previewLooks: OutfitSuggestion[];
     isLoading: boolean;
     error: string | null;
     /** Fetch a fresh batch, bypassing the cache ("Show different looks"). */
@@ -240,5 +247,15 @@ export function useStylistLooks(mood: FashionMood, weather: WeatherData | null):
         [current, clothes, mood, temperature],
     );
 
-    return { looks, isLoading: isLoading || (Boolean(key) && !current && !error), error, regenerate };
+    // Pure code (no model, no network): ~1ms for a typical closet. Recomputed only while waiting.
+    const previewLooks = useMemo(() => {
+        if (!canStyle || current) return [];
+        return buildCodeLooks(clothes, mood, weather, {
+            leastWornItemIds: computeSeasonalLeastWornIds(clothes, outfits),
+            tryItItemIds,
+            deprioritizeItemIds: computeDeprioritizedItemIds(suggestionEvents, clothes),
+        });
+    }, [canStyle, current, clothes, outfits, tryItItemIds, suggestionEvents, mood, weather]);
+
+    return { looks, previewLooks, isLoading: isLoading || (Boolean(key) && !current && !error), error, regenerate };
 }

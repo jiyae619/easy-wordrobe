@@ -3,6 +3,7 @@ import { ClothingCategory, Season, type ClothingItem } from "../../../types";
 import { MOODS, isMoodId, moodLabel } from "../../../data/moods";
 import { MOOD_STYLES } from "../../../data/moodStyles";
 import { VALID_MOODS, normalizeMoodIds } from "../agentOutputGuards";
+import { buildCodeLooks } from "../StylistAgent";
 import { OFF_MOOD_THRESHOLD, assembleMoodLooks, computeMoodMatch, itemMoodFit, moodFitTier, selectMoodCandidates } from "../moodFit";
 
 const ALL = [Season.Spring, Season.Summer, Season.Fall, Season.Winter];
@@ -152,5 +153,21 @@ describe("code-assembled mood looks (fallback and preview)", () => {
         const a = assembleMoodLooks(closet, "romantic", { temperatureC: 18 }).map((l) => l.map((i) => i.id));
         const b = assembleMoodLooks(closet, "romantic", { temperatureC: 18 }).map((l) => l.map((i) => i.id));
         expect(a).toEqual(b);
+    });
+});
+
+describe("instant preview looks (buildCodeLooks)", () => {
+    const casual = MOODS.find((m) => m.id === "casual")!;
+
+    it("are flagged, scored, stable across renders and work without weather", () => {
+        const a = buildCodeLooks(closet, casual, null);
+        const b = buildCodeLooks(closet, casual, null);
+        expect(a.length).toBeGreaterThan(0);
+        expect(a.map((l) => l.id)).toEqual(b.map((l) => l.id));
+        a.forEach((look) => {
+            expect(look.isFallback).toBe(true);
+            expect(look.moodMatch).toBeGreaterThan(0);
+            expect(look.weatherMatch).toBeGreaterThanOrEqual(50);
+        });
     });
 });
