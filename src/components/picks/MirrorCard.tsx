@@ -8,12 +8,8 @@ interface MirrorCardProps {
     look: OutfitSuggestion;
     index: number;
     total: number;
-    /** Short code-derived "because" line, or null. */
-    reason: string | null;
     /** Tap a piece to see it up close (and swap it from there). Only the top card gets this. */
     onInspect?: (slot: SlotId) => void;
-    /** Overrides the note on code-built looks (e.g. instant previews while the stylist works). */
-    fallbackNote?: string;
 }
 
 const GAP = 8;
@@ -84,7 +80,7 @@ function fitGrid(n: number, w: number, h: number): Grid {
  * to the glass (layer, top, bottom or dress, shoes), each labelled; tap one to see it up close and
  * swap it. The code-computed scores sit on top, the stylist's explanation underneath.
  */
-export const MirrorCard: React.FC<MirrorCardProps> = ({ look, index, total, reason, onInspect, fallbackNote }) => {
+export const MirrorCard: React.FC<MirrorCardProps> = ({ look, index, total, onInspect }) => {
     const ids = slotsFromItems(look.items);
     const byId = new Map(look.items.map((i) => [i.id, i]));
     const pieces = SLOT_ORDER
@@ -118,8 +114,8 @@ export const MirrorCard: React.FC<MirrorCardProps> = ({ look, index, total, reas
             </header>
 
             <div className="flex-1 min-h-0 px-3 pt-2.5 pb-2">
-                <div className="h-full rounded-t-[56px] rounded-b-[20px] bg-ink p-[5px]">
-                    <div className="relative h-full rounded-t-[51px] rounded-b-[15px] bg-paper overflow-hidden px-3 pt-4 pb-3 [@media(max-height:760px)]:pt-3 [@media(max-height:760px)]:pb-2">
+                <div className="h-full rounded-[20px] bg-ink p-[5px]">
+                    <div className="relative h-full rounded-[15px] bg-paper overflow-hidden px-3 pt-4 pb-3 [@media(max-height:760px)]:pt-3 [@media(max-height:760px)]:pb-2">
                         <div className="absolute -left-10 top-0 w-14 h-[140%] bg-white/60 rotate-[24deg] pointer-events-none" />
                         <div ref={glassRef} className="relative h-full flex items-center justify-center">
                             {grid && (
@@ -143,12 +139,11 @@ export const MirrorCard: React.FC<MirrorCardProps> = ({ look, index, total, reas
 
             <div className="px-4 pb-3.5">
                 {look.isFallback && (
-                    <p className="text-[11px] font-semibold text-amber-700 mb-1">{fallbackNote ?? 'Quick picks while your stylist takes a break.'}</p>
+                    <p className="text-[11px] font-semibold text-amber-700 mb-1">Quick picks while your stylist takes a break.</p>
                 )}
                 {look.explanation && (
                     <p className="font-display font-bold text-[15px] leading-snug text-ink line-clamp-3 [@media(max-height:760px)]:line-clamp-2">{look.explanation}</p>
                 )}
-                {reason && <p className="mt-1.5 text-[11px] font-semibold text-ink/60 truncate [@media(max-height:760px)]:hidden">{reason}</p>}
             </div>
         </article>
     );

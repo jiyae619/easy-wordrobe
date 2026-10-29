@@ -117,10 +117,6 @@ const Today: React.FC = () => {
                             <p className="text-[11px] font-extrabold uppercase tracking-wide text-ink/50 mb-2">
                                 {weather.location}
                                 {locationSource === 'city' ? ' · your city' : locationSource === 'last-known' ? ' · last known location' : ''}
-                                {' · '}
-                                {weather.source === 'observation'
-                                    ? `observed ${format(new Date(weather.asOf), 'h:mm a')}`
-                                    : `forecast for ${format(new Date(weather.asOf), 'h a')}`}
                             </p>
                         )}
                         {outlook.length > 0 && (
@@ -139,7 +135,7 @@ const Today: React.FC = () => {
                             <button
                                 type="button"
                                 onClick={() => window.dispatchEvent(new CustomEvent('open-settings'))}
-                                className="mt-2 text-[11px] font-semibold text-ink underline underline-offset-2"
+                                className="mt-2 text-[11px] font-semibold text-ink"
                             >
                                 Location is off, so there's no weather. Set your city for local weather.
                             </button>
@@ -152,7 +148,7 @@ const Today: React.FC = () => {
 
             {isWardrobeLoading ? (
                 // The closet is still on its way: don't tell a returning user it's empty.
-                <div role="status" className="skeleton h-[420px] w-full rounded-[28px]" aria-busy="true" aria-label="Loading your closet" />
+                <div role="status" className="skeleton h-[420px] w-full rounded-[28px] border-2 border-dashed border-ink/40" aria-busy="true" aria-label="Loading your closet" />
             ) : !readiness.canMakeOutfit ? (
                 <section className="rounded-[28px] border-2 border-dashed border-ink/40 p-5">
                     <h2 className="font-display text-xl font-extrabold text-ink">
