@@ -14,11 +14,11 @@ import { nearestPaletteColor } from "../../data/colorPalette";
 import { isStockPhoto } from "../../data/starterCatalog";
 import { itemName } from '../../utils/itemName';
 
+/** Selectable mood ids. "creative" was retired: stored copies are filtered out by normalizeMoodIds. */
 export const VALID_MOODS = [
     "professional",
     "casual",
     "sporty",
-    "creative",
     "romantic",
 ] as const;
 
@@ -136,7 +136,8 @@ export function getCurrentSeason(): Season {
     return knownLatitude !== null && knownLatitude < 0 ? OPPOSITE_SEASON[northern] : northern;
 }
 
-function seasonForTemperature(temperatureC: number): Season {
+/** The season a temperature reads as. Also the temperature band the Stylist's looks cache keys on. */
+export function seasonForTemperature(temperatureC: number): Season {
     if (temperatureC <= 5) return Season.Winter;
     if (temperatureC <= 15) return Season.Fall;
     if (temperatureC <= 24) return Season.Spring;
@@ -146,10 +147,13 @@ function seasonForTemperature(temperatureC: number): Season {
 /**
  * Weather appropriateness (0-100), computed from item seasons vs. the current temperature.
  * 100 when every item suits the temperature's season, 50 when none do. Never read from the model.
+ * With no weather (location off, lookup failed) it scores against the calendar season instead.
  */
-export function computeWeatherMatch(items: ClothingItem[], temperatureC: number): number {
+export function computeWeatherMatch(items: ClothingItem[], temperatureC: number | null): number {
     if (items.length === 0) return 0;
-    const target = seasonForTemperature(temperatureC);
+    const target = temperatureC === null || !Number.isFinite(temperatureC)
+        ? getCurrentSeason()
+        : seasonForTemperature(temperatureC);
     const matching = items.filter((item) => item.season.includes(target)).length;
     return clamp(Math.round(50 + 50 * (matching / items.length)), 0, 100);
 }
@@ -357,12 +361,58 @@ export function normalizeStylistRawSuggestions(raw: unknown): unknown[] {
     return [];
 }
 
+/**
+ * Short, prompt-local aliases for wardrobe item ids ("i1", "i2", ...). Unknown aliases in the
+ * model's answer pass through unchanged, so hallucinated ids are still dropped by
+ * mapStylistSuggestions exactly as before; a real id echoed back also still resolves.
+ */
+export class StylistAliases {
+    private readonly byId = new Map<string, string>();
+    private readonly byAlias = new Map<string, string>();
+
+    constructor(clothes: Pick<ClothingItem, "id">[]) {
+        clothes.forEach((c, i) => {
+            const alias = `i${i + 1}`;
+            this.byId.set(c.id, alias);
+            this.byAlias.set(alias, c.id);
+        });
+    }
+
+    toAlias(id: string): string {
+        return this.byId.get(id) ?? id;
+    }
+
+    /** Aliases for the ids that are in the wardrobe (others are dropped). */
+    toAliases(ids: string[]): string[] {
+        return ids.map((id) => this.byId.get(id)).filter((a): a is string => Boolean(a));
+    }
+
+    /** Rewrite every outfit's itemIds from aliases back to real ids, leaving the rest untouched. */
+    resolveSuggestionIds(raw: unknown): unknown {
+        const resolve = (outfit: unknown): unknown => {
+            if (!isRecord(outfit) || !Array.isArray(outfit.itemIds)) return outfit;
+            return {
+                ...outfit,
+                itemIds: outfit.itemIds.map((id) => typeof id === "string" ? this.byAlias.get(id.trim()) ?? id : id),
+            };
+        };
+        if (Array.isArray(raw)) return raw.map(resolve);
+        if (isRecord(raw)) {
+            for (const key of ["outfits", "suggestions"]) {
+                const list = raw[key];
+                if (Array.isArray(list)) return { ...raw, [key]: list.map(resolve) };
+            }
+        }
+        return raw;
+    }
+}
+
 export function mapStylistSuggestions(
     raw: unknown,
     clothes: ClothingItem[],
     mood: FashionMood,
     createId: () => string,
-    temperatureC: number
+    temperatureC: number | null
 ): StylistMappingResult {
     const clothesById = new Map(clothes.map((item) => [item.id, item]));
     const rawSuggestions = normalizeStylistRawSuggestions(raw);

@@ -32,7 +32,14 @@ Optional non-secret config (defaults shown) can be set as function env vars in
 ```
 ALLOWED_ORIGINS=*          # tighten to your app origin(s), comma-separated, in production
 RATE_LIMIT_PER_MIN=30      # max AI calls per user per rolling minute
+AI_PROXY_MIN_INSTANCES=0   # 1 keeps one instance warm (no cold start on Today; ~$10/month)
 ```
+
+### Latency
+
+Each instance gets 1 vCPU and serves up to 40 requests at once (the proxy only waits on Gemini),
+so one warm instance covers a user's parallel calls. With `AI_PROXY_MIN_INSTANCES=0` the first call
+after the function scales to zero pays a cold start (about 1-4s); set it to `1` to remove that.
 
 ## Deploy
 

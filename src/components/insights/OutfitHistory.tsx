@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { useWardrobe } from '../../context/WardrobeContext';
 import { format } from 'date-fns';
 import { Shirt, RotateCcw, Check } from 'lucide-react';
-import { MOODS } from '../../data/moods';
+import { moodLabel } from '../../data/moods';
 import type { ClothingItem, WeatherData } from '../../types';
 import { loggedTodayKeys, outfitKey } from '../../utils/wearLog';
 
@@ -24,7 +24,7 @@ function getCachedWeather(): WeatherData | null {
 }
 
 function moodName(id: string): string {
-    return MOODS.find((m) => m.id === id)?.name ?? id;
+    return moodLabel(id);
 }
 
 /**

@@ -20,7 +20,21 @@ export interface VisionCallOptions {
     traceId: string;
     timeoutMs?: number;
     maxRetries?: number;
+    /**
+     * Retry after a client-side timeout (default true). Latency-sensitive callers (the Stylist on
+     * Today) set false: a request that already took `timeoutMs` will rarely be faster the second
+     * time, and the code-assembled fallback is better than doubling the wait.
+     */
+    retryOnTimeout?: boolean;
 }
+
+/**
+ * How much the model may "think" before answering (Gemini 3.x `thinkingLevel`). Text agents
+ * default to "minimal": they write short JSON, and thinking tokens are generated before the first
+ * output token, so they add latency 1:1 and also eat into maxOutputTokens.
+ * "default" sends no thinkingConfig (the model's own default).
+ */
+export type ThinkingLevel = "minimal" | "low" | "medium" | "high" | "default";
 
 /**
  * A normalized text-only (no image) model request, used by the Stylist and Behavioral agents.
@@ -31,6 +45,8 @@ export interface TextRequest {
     prompt: string;
     maxTokens?: number;
     temperature?: number;
+    /** Thinking budget for providers that support it; see ThinkingLevel. */
+    thinking?: ThinkingLevel;
 }
 
 /**

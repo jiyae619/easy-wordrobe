@@ -57,7 +57,7 @@ export const STARTER_CATALOG: StarterCatalogEntry[] = [
     { slug: 'bottoms-pleated-skirt', label: 'Pleated Skirt', category: ClothingCategory.Bottoms, subcategory: 'Pleated Skirt', colors: ['Black', 'Beige', 'Navy', 'Pink'], season: [Spring, Summer, Fall], moods: ['romantic', 'professional'] },
     { slug: 'bottoms-denim-shorts', label: 'Denim Shorts', category: ClothingCategory.Bottoms, subcategory: 'Denim Shorts', colors: ['Blue', 'Black', 'White'], season: [Summer], moods: ['casual', 'sporty'] },
     // --- Outerwear ---
-    { slug: 'outerwear-denim-jacket', label: 'Denim Jacket', category: ClothingCategory.Outerwear, subcategory: 'Denim Jacket', colors: ['Blue', 'Black', 'White'], season: [Spring, Fall], moods: ['casual', 'creative'] },
+    { slug: 'outerwear-denim-jacket', label: 'Denim Jacket', category: ClothingCategory.Outerwear, subcategory: 'Denim Jacket', colors: ['Blue', 'Black', 'White'], season: [Spring, Fall], moods: ['casual'] },
     { slug: 'outerwear-cardigan', label: 'Cardigan', category: ClothingCategory.Outerwear, subcategory: 'Cardigan', colors: ['Grey', 'Beige', 'Navy', 'Olive'], season: [Spring, Fall, Winter], moods: ['casual', 'romantic'] },
     { slug: 'outerwear-blazer', label: 'Blazer', category: ClothingCategory.Outerwear, subcategory: 'Blazer', colors: ['Black', 'Navy', 'Beige', 'Grey'], season: [Spring, Fall, Winter], moods: ['professional'] },
     { slug: 'outerwear-wool-coat', label: 'Wool Coat', category: ClothingCategory.Outerwear, subcategory: 'Wool Coat', colors: ['Beige', 'Black', 'Grey', 'Navy'], season: [Fall, Winter], moods: ['professional'] },
