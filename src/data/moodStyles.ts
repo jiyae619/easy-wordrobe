@@ -80,7 +80,7 @@ export const MOOD_STYLES: Record<string, MoodStyle> = {
         keywords: {
             strong: ['silk', 'satin', 'velvet', 'lace', 'sequin', 'cocktail', 'gown', 'tuxedo', 'suit', 'blazer', 'dress shirt', 'button-down', 'button-up', 'blouse', 'turtleneck', 'cashmere', 'tailored', 'trouser', 'slip dress', 'wrap dress', 'sheath', 'jumpsuit', 'midi', 'maxi', 'pleated', 'heel', 'pump', 'loafer', 'oxford', 'derby', 'brogue', 'dress shoe', 'chelsea', 'mary jane'],
             good: ['dress', 'skirt', 'shirt', 'knit', 'sweater', 'cardigan', 'vest', 'waistcoat', 'wool coat', 'trench', 'coat', 'chino', 'ankle boot', 'boot', 'mule', 'flat', 'ballet', 'sandal', 'sundress', 'jean'],
-            avoid: ['hoodie', 'sweatshirt', 'jogger', 'legging', 'sweatpant', 'track', 'tracksuit', 'athletic', 'running', 'gym', 'graphic', 'tshirt', 'tee', 'shorts', 'cargo', 'utility', 'ripped', 'distressed', 'puffer', 'fleece', 'windbreaker', 'anorak', 'sneaker', 'trainer', 'flip-flop', 'slide', 'denim jacket'],
+            avoid: ['hoodie', 'sweatshirt', 'jogger', 'legging', 'sweatpant', 'track', 'tracksuit', 'athletic', 'running', 'gym', 'graphic', 'tshirt', 'tee', 'shorts', 'cargo', 'utility', 'ripped', 'distressed', 'puffer', 'fleece', 'windbreaker', 'anorak', 'sneaker', 'trainer', 'flip-flop', 'slide', 'denim jacket', 'rain boot', 'wellington', 'welly', 'gumboot'],
         },
         colorAffinity: { good: ['Black', 'Navy', 'Cream', 'White', 'Red', 'Purple', 'Green'], avoid: ['Orange', 'Yellow'] },
     },
