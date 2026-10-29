@@ -54,7 +54,16 @@ export const LooksDeck: React.FC<LooksDeckProps> = ({ onTweak }) => {
     const [mood] = useMood();
     const { weather, isLoading: weatherLoading } = useTodayWeather();
     const readiness = getWardrobeReadiness(clothes);
-    const { looks, isLoading, error, regenerate } = useStylistLooks(mood, readiness.canMakeOutfit ? weather : null);
+    const { looks: aiLooks, previewLooks, isLoading, error, regenerate } = useStylistLooks(mood, readiness.canMakeOutfit ? weather : null);
+    // While the stylist works, deal the instant code-built looks. Once one is swiped, keep that batch
+    // until it runs out, so the stylist's looks arriving doesn't reshuffle the stack mid-swipe.
+    const [pinned, setPinned] = useState<{ moodId: string; looks: OutfitSuggestion[] } | null>(null);
+    const pinnedLooks = pinned?.moodId === mood.id ? pinned.looks : null;
+    const showPreview = !pinnedLooks && aiLooks.length === 0 && isLoading && previewLooks.length > 0;
+    const looks = pinnedLooks ?? (showPreview ? previewLooks : aiLooks);
+    const previewNote = pinnedLooks
+        ? (aiLooks.length > 0 ? 'Quick pick · your stylist’s looks are up next.' : 'Quick pick · your stylist is still styling.')
+        : showPreview ? 'Quick pick · your stylist is still styling.' : undefined;
     const { wear, undo, notify, isPending, logged, notice } = usePendingWear();
     const deckRef = useRef<SwipeDeckHandle>(null);
     // Deck progress belongs to one batch of looks. Keyed on look ids, so a logged wear (which
@@ -100,6 +109,7 @@ export const LooksDeck: React.FC<LooksDeckProps> = ({ onTweak }) => {
         const lookIndex = looks.findIndex((l) => l.id === key);
         const look = looks[lookIndex];
         if (!look) return;
+        if (showPreview) setPinned({ moodId: mood.id, looks: previewLooks });
         const items = effective(look).items;
         const ids = items.map((i) => i.id);
         if (dir === 'up') {
@@ -123,6 +133,11 @@ export const LooksDeck: React.FC<LooksDeckProps> = ({ onTweak }) => {
     const showDifferent = async () => {
         const current = looks[index];
         if (current) void logSuggestionEvent('regenerated', effective(current).items.map((i) => i.id), mood.id);
+        if (pinnedLooks) {
+            // Done with the quick picks: show the stylist's batch before asking for more.
+            setPinned(null);
+            if (aiLooks.length > 0) return;
+        }
         await regenerate();
     };
 
@@ -140,6 +155,7 @@ export const LooksDeck: React.FC<LooksDeckProps> = ({ onTweak }) => {
                     index={index + j}
                     total={looks.length}
                     reason={look.isFallback ? null : describeOutfitReason(eff, { tryItItemIds, leastWornItemIds: leastWornIds }, weather ?? undefined)}
+                    fallbackNote={previewNote}
                     onInspect={j === 0 ? (slot) => setInspecting({ lookId: look.id, slot }) : undefined}
                 />
             ),
@@ -192,7 +208,7 @@ export const LooksDeck: React.FC<LooksDeckProps> = ({ onTweak }) => {
                     {picksDoneLine(wornLook, weather, mood.id)}
                 </p>
                 <button type="button" onClick={() => void showDifferent()} disabled={isLoading} className="h-12 px-5 rounded-full bg-ink text-paper text-sm font-bold inline-flex items-center gap-2 disabled:opacity-60">
-                    {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />} Show me more
+                    {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />} {pinnedLooks && aiLooks.length > 0 ? 'See your stylist’s looks' : 'Show me more'}
                 </button>
                 <button type="button" onClick={() => onTweak()} className="h-11 px-5 rounded-full border-[1.5px] border-ink text-sm font-bold">
                     Build my own

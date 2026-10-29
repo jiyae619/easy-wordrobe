@@ -140,20 +140,36 @@ async function loadWeather(city: string, prev: CachedWeather | null): Promise<Ca
         };
     }
 
-    const cheer = reusableCheer(prev, weather)
-        || await awsNovaService.generateWeatherCheer(weather, outlook).catch(() => '');
+    const reused = reusableCheer(prev, weather);
     const result: CachedWeather = {
         ...base,
         weather,
         weatherOutlook: outlook,
-        weatherCheer: cheer || `The ${weather.condition.toLowerCase()} vibes are here. You have this today.`,
+        weatherCheer: reused || `The ${weather.condition.toLowerCase()} vibes are here. You have this today.`,
         usingDefaultLocation: false,
         locationSource: coords.source,
         error: null,
     };
     writeCache(result);
+    // The cheer line is a model call and pure decoration: publish the weather now (the stylist waits
+    // on it) and swap the line in when it lands.
+    if (!reused) {
+        void awsNovaService.generateWeatherCheer(weather, outlook)
+            .then((cheer) => {
+                if (!cheer) return;
+                const withCheer = { ...result, weatherCheer: cheer };
+                writeCache(withCheer);
+                // Pages mounted later reuse the in-flight load, so it must carry the line too.
+                if (inflight?.city === result.city) inflight.promise = Promise.resolve(withCheer);
+                cheerListeners.forEach((fn) => fn(withCheer));
+            })
+            .catch(() => undefined);
+    }
     return result;
 }
+
+/** Mounted hooks, told when a late cheer line lands for the reading they show. */
+const cheerListeners = new Set<(data: CachedWeather) => void>();
 
 function toState(data: CachedWeather | null, isLoading: boolean): TodayWeather {
     return {
@@ -215,6 +231,14 @@ export function useTodayWeather(): TodayWeather {
         document.addEventListener('visibilitychange', onVisible);
         return () => document.removeEventListener('visibilitychange', onVisible);
     }, []);
+
+    useEffect(() => {
+        const onCheer = (data: CachedWeather) => {
+            if (data.city === city) setState((s) => ({ ...s, cheer: data.weatherCheer }));
+        };
+        cheerListeners.add(onCheer);
+        return () => { cheerListeners.delete(onCheer); };
+    }, [city]);
 
     useEffect(() => {
         let cancelled = false;

@@ -12,6 +12,8 @@ interface MirrorCardProps {
     reason: string | null;
     /** Tap a piece to see it up close (and swap it from there). Only the top card gets this. */
     onInspect?: (slot: SlotId) => void;
+    /** Overrides the note on code-built looks (e.g. instant previews while the stylist works). */
+    fallbackNote?: string;
 }
 
 const GAP = 8;
@@ -82,7 +84,7 @@ function fitGrid(n: number, w: number, h: number): Grid {
  * to the glass (layer, top, bottom or dress, shoes), each labelled; tap one to see it up close and
  * swap it. The code-computed scores sit on top, the stylist's explanation underneath.
  */
-export const MirrorCard: React.FC<MirrorCardProps> = ({ look, index, total, reason, onInspect }) => {
+export const MirrorCard: React.FC<MirrorCardProps> = ({ look, index, total, reason, onInspect, fallbackNote }) => {
     const ids = slotsFromItems(look.items);
     const byId = new Map(look.items.map((i) => [i.id, i]));
     const pieces = SLOT_ORDER
@@ -141,7 +143,7 @@ export const MirrorCard: React.FC<MirrorCardProps> = ({ look, index, total, reas
 
             <div className="px-4 pb-3.5">
                 {look.isFallback && (
-                    <p className="text-[11px] font-semibold text-amber-700 mb-1">Quick picks while your stylist takes a break.</p>
+                    <p className="text-[11px] font-semibold text-amber-700 mb-1">{fallbackNote ?? 'Quick picks while your stylist takes a break.'}</p>
                 )}
                 {look.explanation && (
                     <p className="font-display font-bold text-[15px] leading-snug text-ink line-clamp-3 [@media(max-height:760px)]:line-clamp-2">{look.explanation}</p>
