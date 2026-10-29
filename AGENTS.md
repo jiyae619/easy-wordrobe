@@ -93,7 +93,7 @@ Stylemax uses **three specialized AI agents**, all powered by **Google Gemini 3.
 
 **File:** `src/services/agents/StylistAgent.ts`
 
-**Trigger:** When Today needs looks for the selected mood and today's weather. One batch is fetched per (wardrobe items, mood, weather) and cached for the session (`useStylistLooks`): Today shows it as a swipe stack, and Tweak mode's **Spin** lands the hanger rails on it (respecting locked pieces), then falls back to code-assembled combinations once the batch is used up.
+**Trigger:** When Today needs looks for the selected mood and today's weather. One batch is fetched per (wardrobe items, mood, weather bucket) and cached for the rest of the day (`useStylistLooks`: memory, then `localStorage`; the weather part of the key is wet/dry + the temperature band `computeWeatherMatch` scores against (≤5 / ≤15 / ≤24 / >24 °C), so the 30-minute "now" refresh does not re-run the model or reset the swipe stack; code-assembled fallback batches are never persisted and expire from memory after 60s). Weather is optional: with no location and no city, looks are generated without it (the prompt says so and `computeWeatherMatch` scores against the calendar season); while the first reading is still loading, the hook waits for it instead of making two calls. After a mood switch the previous mood's looks are not shown while the new batch loads: Today shows it as a swipe stack, and Tweak mode's **Spin** lands the hanger rails on it (respecting locked pieces), then falls back to code-assembled combinations once the batch is used up.
 
 **What it does:** Receives the user's entire wardrobe inventory (as a condensed JSON array), the current weather conditions, the selected mood, and a `BehavioralContext` from BehavioralAgent. Gemini reasons about which combinations work together — considering color coordination, seasonal appropriateness, weather practicality, and wear-history priorities — and returns three distinct outfits with explanations.
 
@@ -124,10 +124,7 @@ These are merged into a `priorityIds` set and injected into the prompt as **BEHA
 ```json
 [
   {
-    "itemIds": ["item-uuid-1", "item-uuid-2", "item-uuid-3"],
-    "moodName": "Casual",
-    "weatherMatch": 92,
-    "wearScore": 74,
+    "itemIds": ["i3", "i7", "i12"],
     "explanation": "Linen is breathable for the 30°C heat, but the collar maintains the professional mood."
   }
 ]
@@ -153,11 +150,13 @@ Items the user **repeatedly skips and has never worn** (3+ times, from `suggesti
 
 * Wardrobe JSON is trimmed to only the fields the model needs (no `imageUrl`, no `userNotes`) to minimize input token cost.
 
+* **Latency budget.** Items are sent under short prompt-local aliases (`i1`, `i2`, … via `StylistAliases`) instead of 20–36 character ids, and the model is asked only for `itemIds` + `explanation` (scores are computed in code anyway). For a 40-item wardrobe this roughly halves the prompt (~2.6k → ~1.3k tokens) and cuts the generated output by ~70% (~420 → ~130 tokens). Text agents run with Gemini thinking at `minimal` (`geminiProvider.callText`, override with `VITE_GEMINI_THINKING_LEVEL`), since thinking tokens are generated before the first answer token. The Stylist call times out at 15s and is not retried after a timeout (429/5xx still retry once).
+
 * Outfit structure is enforced in the prompt AND re-validated in code: each outfit is EITHER bottoms-based (1 bottom + ≥1 top layer) OR dress-based (1 dress + optional outerwear), with an optional single "shoes" item added to either shape. Anything else is dropped.
 
 * `weatherMatch` and `wearScore` are **computed in code** (`computeWeatherMatch` from item seasons vs. temperature; `computeWearScore` from real wear counts) — the model's self-reported numbers are ignored. Same principle as BehavioralAgent's analytics: scoring is arithmetic, so it is code's job, not the model's.
 
-* Items are passed by ID, not name, to prevent the model from "inventing" items. The app validates that every returned ID actually exists in the wardrobe before rendering.
+* Items are passed by ID (a short alias that code maps back to the real ID), not name, to prevent the model from "inventing" items. The app validates that every returned ID actually exists in the wardrobe before rendering; an alias the prompt never issued is dropped like any other unknown ID.
 
 * Tone varies across the 3 outfits: one punchy/hype, one poetic/editorial, one warm/encouraging.
 
@@ -269,7 +268,7 @@ This creates a **virtuous cycle**: BehavioralAgent surfaces neglected items → 
 
 * **Malformed JSON from the model** — the provider adapter (`geminiProvider.ts`, via `extractJsonFromText` in `bedrockClient.ts`) strips markdown code fences and attempts `JSON.parse`. If it fails, the agent throws a typed error and the calling page displays a user-facing error banner.
 
-* **Model API timeout** — 30-second timeout with one automatic retry. If both fail, IntakeAgent falls back to a default placeholder item (flagged `usedFallback`); StylistAgent returns code-assembled fallback outfits flagged `isFallback: true` (rendered as "quick picks — AI stylist unavailable") with **real, computed** scores (never fabricated numbers); BehavioralAgent returns computed analytics with pre-written nudge copy.
+* **Model API timeout** — 30-second timeout with one automatic retry (StylistAgent: 15 seconds, no retry after a timeout, because Today is waiting on it). If both fail, IntakeAgent falls back to a default placeholder item (flagged `usedFallback`); StylistAgent returns code-assembled fallback outfits flagged `isFallback: true` (rendered as "quick picks — AI stylist unavailable") with **real, computed** scores (never fabricated numbers); BehavioralAgent returns computed analytics with pre-written nudge copy.
 
 * **Item ID hallucination (StylistAgent)** — After parsing, each returned item ID is validated against `context.clothes`. Any ID not found is silently dropped; if the surviving items can't form a valid bottoms-based or dress-based outfit, that outfit is discarded.
 

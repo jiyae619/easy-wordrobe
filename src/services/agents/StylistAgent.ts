@@ -9,8 +9,10 @@ import { v4 as uuidv4 } from 'uuid';
 import { getTextProvider } from "../vision/providerRegistry";
 import { getAgentFailureReason } from "./agentErrors";
 import { createAgentTraceId, recordAgentMetric } from "./agentTelemetry";
-import { clampSentences, computeWearScore, computeWeatherMatch, mapStylistSuggestions, moodIdsForStyling, parseAgentJson, sanitizeUiCopy } from "./agentOutputGuards";
+import { StylistAliases, clampSentences, getCurrentSeason, computeWearScore, computeWeatherMatch, mapStylistSuggestions, moodIdsForStyling, parseAgentJson, sanitizeUiCopy } from "./agentOutputGuards";
 import { itemName } from '../../utils/itemName';
+
+const STYLIST_TIMEOUT_MS = 15_000;
 
 export type BehavioralContext = {
     /** Items flagged by BehavioralAgent as unworn for 3+ weeks in the current season */
@@ -31,16 +33,20 @@ export const StylistAgent = {
     generateOutfitSuggestions: async (
         clothes: ClothingItem[],
         mood: FashionMood,
-        weather: WeatherData,
+        weather: WeatherData | null,
         userProfile?: { gender?: string, height?: string, weight?: string },
         behavioralContext?: BehavioralContext
     ): Promise<OutfitSuggestion[]> => {
         console.log("[Stylist Agent] Generating outfits...");
         const traceId = createAgentTraceId("stylist");
 
-        // 1. Prepare Wardrobe JSON context (limit fields to save tokens)
+        // 1. Prepare Wardrobe JSON context (limit fields to save tokens). Items go to the model under
+        // short aliases ("i1", "i2", ...) instead of their 20-36 character ids: every id costs ~15-25
+        // tokens on the way in AND on the way out, and output tokens are generated one by one, so
+        // aliases cut both prompt size and generation time. Aliases are mapped back before validation.
+        const aliases = new StylistAliases(clothes);
         const wardrobeContext = clothes.map(c => ({
-            id: c.id,
+            id: aliases.toAlias(c.id),
             category: c.category,
             subcategory: c.subcategory,
             color: c.color,
@@ -59,18 +65,19 @@ export const StylistAgent = {
         // Priority = explicit "try it" (always wins) OR least-worn the user hasn't been skipping.
         const priorityIds = [...new Set([...tryItIds, ...leastWornIds])]
             .filter(id => tryItIds.includes(id) || !deprioritizeIds.includes(id));
-        const priorityItems = wardrobeContext.filter(c => priorityIds.includes(c.id));
+        // Priority items are listed by alias only; their details are already in the wardrobe JSON.
+        const priorityAliases = aliases.toAliases(priorityIds);
+        const tryItAliases = aliases.toAliases(tryItIds);
         // Avoid = repeatedly-skipped items, unless the user explicitly asked to try them.
-        const avoidIds = deprioritizeIds.filter(id => !tryItIds.includes(id));
+        const avoidAliases = aliases.toAliases(deprioritizeIds.filter(id => !tryItIds.includes(id)));
 
-        const behavioralHint = priorityItems.length > 0
-            ? `\nBEHAVIORAL PRIORITY ITEMS (incorporate at least one of these across your 3 outfits; the user wants to wear these more):
-${JSON.stringify(priorityItems)}
-${tryItIds.length > 0 ? `USER "TRY IT" REQUESTS (highest priority; the user explicitly asked to wear these): ${JSON.stringify(tryItIds)}` : ''}`
+        const behavioralHint = priorityAliases.length > 0
+            ? `\nBEHAVIORAL PRIORITY ITEMS (incorporate at least one of these across your 3 outfits; the user wants to wear these more): ${JSON.stringify(priorityAliases)}
+${tryItAliases.length > 0 ? `USER "TRY IT" REQUESTS (highest priority; the user explicitly asked to wear these): ${JSON.stringify(tryItAliases)}` : ''}`
             : '';
 
-        const avoidHint = avoidIds.length > 0
-            ? `\nDEPRIORITIZE these item IDs (the user keeps skipping past them; use at most one across all 3 outfits, ideally none): ${JSON.stringify(avoidIds)}`
+        const avoidHint = avoidAliases.length > 0
+            ? `\nDEPRIORITIZE these item IDs (the user keeps skipping past them; use at most one across all 3 outfits, ideally none): ${JSON.stringify(avoidAliases)}`
             : '';
 
         // Prompt tailored to output clothing combinations and engaging commentary
@@ -78,7 +85,9 @@ ${tryItIds.length > 0 ? `USER "TRY IT" REQUESTS (highest priority; the user expl
 Your client needs logical and aesthetic outfit combinations that optimize their fashion style.
 
 CONDITIONS:
-- Current Weather: ${weather.temperature}° (Feels like ${weather.feelsLike}°), ${weather.condition}.
+- ${weather
+    ? `Current Weather: ${weather.temperature}° (Feels like ${weather.feelsLike}°), ${weather.condition}.`
+    : `Current Weather: unknown. Dress for a typical ${getCurrentSeason()} day and favor easy layers.`}
 - Desired Mood/Vibe: ${mood.name} (${mood.description})
 - ${profileContext}
 ${behavioralHint}${avoidHint}
@@ -98,21 +107,21 @@ Provide a brief explanation of why it works, and an engaging one-sentence commen
 Output strictly as a JSON array of objects, with NO markdown formatting around it:
 [
   {
-    "itemIds": ["id1", "id2", "id3"],
-    "moodName": "${mood.name}",
-    "weatherMatch": 95,
-    "wearScore": 90,
-                    "explanation": "Write AT MOST 2 short sentences of self contained outfit copy with no label prefix. Reference the specific colors and item types actually in this outfit. Vary your tone freely across the 3 outfits: one punchy and hype, one poetic or editorial, one warm and encouraging. Do not use hyphen or dash characters. Keep it tight: under 20 words in plain, everyday language with no slang. The final sentence should make the user genuinely excited to put it on."
+    "itemIds": ["i1", "i2", "i3"],
+    "explanation": "Write AT MOST 2 short sentences of self contained outfit copy with no label prefix. Reference the specific colors and item types actually in this outfit. Vary your tone freely across the 3 outfits: one punchy and hype, one poetic or editorial, one warm and encouraging. Do not use hyphen or dash characters. Keep it tight: under 20 words in plain, everyday language with no slang. The final sentence should make the user genuinely excited to put it on."
   }
 ]`;
 
         try {
             const jsonStr = await getTextProvider().callText(
                 { prompt, maxTokens: 1000, temperature: 0.75 },
-                { agent: "stylist", traceId },
+                // Today waits on this call. A 15s cap with no retry after a timeout bounds the worst
+                // case at ~15s before code-assembled picks show (was 30s + a 30s retry). Fast
+                // failures (429 / 5xx) still get their one retry.
+                { agent: "stylist", traceId, timeoutMs: STYLIST_TIMEOUT_MS, retryOnTimeout: false },
             );
-            const parsed = parseAgentJson(jsonStr, "stylist", traceId);
-            const mapped = mapStylistSuggestions(parsed, clothes, mood, uuidv4, weather.temperature);
+            const parsed = aliases.resolveSuggestionIds(parseAgentJson(jsonStr, "stylist", traceId));
+            const mapped = mapStylistSuggestions(parsed, clothes, mood, uuidv4, weather?.temperature ?? null);
 
             recordAgentMetric({
                 agent: "stylist",
@@ -161,7 +170,7 @@ function buildFallbackExplanation(items: ClothingItem[], mood: FashionMood, tone
     }
 }
 
-function getMockOutfitSuggestions(clothes: ClothingItem[], mood: FashionMood, weather: WeatherData): OutfitSuggestion[] {
+function getMockOutfitSuggestions(clothes: ClothingItem[], mood: FashionMood, weather: WeatherData | null): OutfitSuggestion[] {
     const moodId = mood.id;
 
     const filterByMood = (arr: ClothingItem[]) => {
@@ -240,7 +249,7 @@ function getMockOutfitSuggestions(clothes: ClothingItem[], mood: FashionMood, we
             items: outfitItems,
             mood,
             // Even fallback picks get real, computed scores — no fabricated numbers.
-            weatherMatch: computeWeatherMatch(outfitItems, weather.temperature),
+            weatherMatch: computeWeatherMatch(outfitItems, weather?.temperature ?? null),
             wearScore: computeWearScore(outfitItems, clothes),
             explanation: clampSentences(sanitizeUiCopy(buildFallbackExplanation(outfitItems, mood, shuffledTones[i] ?? 'warm')), 2),
             isFallback: true,

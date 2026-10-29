@@ -40,7 +40,7 @@ export const awsNovaService = {
     suggestOutfits: async (
         clothes: ClothingItem[],
         mood: FashionMood,
-        weather: WeatherData,
+        weather: WeatherData | null,
         userProfile?: { gender?: string, height?: string, weight?: string },
         behavioralContext?: BehavioralContext
     ): Promise<OutfitSuggestion[]> => {

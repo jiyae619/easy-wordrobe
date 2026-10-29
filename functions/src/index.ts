@@ -8,7 +8,7 @@
  * all parsing stays on the client — this stays a dumb, auditable proxy.
  */
 import { onRequest } from "firebase-functions/v2/https";
-import { defineSecret, defineString } from "firebase-functions/params";
+import { defineInt, defineSecret, defineString } from "firebase-functions/params";
 import * as logger from "firebase-functions/logger";
 import { initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
@@ -25,6 +25,10 @@ const GEMINI_API_KEY = defineSecret("GEMINI_API_KEY");
 const ALLOWED_ORIGINS = defineString("ALLOWED_ORIGINS", { default: "*" });
 // Max AI calls per user per rolling minute — a guardrail against runaway loops / abuse.
 const RATE_LIMIT_PER_MIN = defineString("RATE_LIMIT_PER_MIN", { default: "30" });
+// Warm instances kept ready. 0 = scale to zero (every first call after ~15 idle minutes pays a
+// cold start of roughly 1-4s before the model even starts). 1 removes that for ~$10/month at
+// 1 vCPU / 512MiB idle pricing. Set AI_PROXY_MIN_INSTANCES=1 in functions/.env to opt in.
+const MIN_INSTANCES = defineInt("AI_PROXY_MIN_INSTANCES", { default: 0 });
 
 const UPSTREAM_TIMEOUT_MS = 30_000;
 const RATE_WINDOW_MS = 60_000;
@@ -82,7 +86,14 @@ export const aiProxy = onRequest(
   {
     secrets: [GEMINI_API_KEY],
     timeoutSeconds: 60,
-    memory: "256MiB",
+    // The proxy is I/O bound (it waits on Gemini). With the old 256MiB default the instance got a
+    // fractional vCPU, which forces concurrency 1: Today's parallel calls (weather line, stylist,
+    // insights) each needed their own instance, i.e. their own cold start, and module load ran on
+    // ~1/6 of a CPU. One full vCPU allows request concurrency, so one warm instance serves them all.
+    memory: "512MiB",
+    cpu: 1,
+    concurrency: 40,
+    minInstances: MIN_INSTANCES,
     maxInstances: 10,
   },
   async (req, res) => {

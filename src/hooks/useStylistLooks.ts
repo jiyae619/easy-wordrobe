@@ -6,7 +6,10 @@ import {
     computeSeasonalLeastWornIds,
     computeWearScore,
     computeWeatherMatch,
+    getWardrobeReadiness,
+    seasonForTemperature,
 } from '../services/agents/agentOutputGuards';
+import { useTodayWeather } from './useTodayWeather';
 import type { ClothingItem, FashionMood, OutfitSuggestion, WeatherData } from '../types';
 
 /** Serializable form of a look: item ids instead of item objects, so a cached look always renders
@@ -18,14 +21,96 @@ interface StoredLook {
     isFallback?: boolean;
 }
 
-const memoryCache = new Map<string, StoredLook[]>();
+interface MemoryEntry {
+    looks: StoredLook[];
+    at: number;
+}
+
+const memoryCache = new Map<string, MemoryEntry>();
 const inflight = new Map<string, Promise<StoredLook[]>>();
+
+/** Fallback (code-assembled) batches are kept in memory only, and only this long, so the AI is
+ *  retried soon after an outage instead of the quick picks sticking for the whole day. */
+const FALLBACK_TTL_MS = 60_000;
+const STORAGE_PREFIX = 'stylemax-looks:';
+const MAX_STORED_BATCHES = 24;
+
+function dayKey(date = new Date()): string {
+    return `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
+}
+
+/** FNV-1a: a short, stable fingerprint of the wardrobe's item-id set for the cache key. */
+function fingerprint(text: string): string {
+    let hash = 0x811c9dc5;
+    for (let i = 0; i < text.length; i += 1) {
+        hash ^= text.charCodeAt(i);
+        hash = Math.imul(hash, 0x01000193);
+    }
+    return (hash >>> 0).toString(36);
+}
+
+/**
+ * The weather part of the cache key, coarsened to what changes an outfit: the temperature band
+ * computeWeatherMatch scores against (<=5 / <=15 / <=24 / >24 °C) and wet vs dry. "Now" weather
+ * refreshes every 30 minutes, and keying on the exact reading ("Partly Cloudy" 18° → "Mostly
+ * Cloudy" 19°) re-ran the model and reset the swipe stack. The prompt still gets the exact weather.
+ * No weather at all (location off, no city) is its own bucket: looks still generate.
+ */
+export function weatherCacheBucket(weather: Pick<WeatherData, 'temperature' | 'condition'> | null): string {
+    if (!weather) return 'noweather';
+    const wet = /rain|shower|drizzle|thunder|storm|snow|sleet|flurr|ice|blizzard/.test(weather.condition.toLowerCase());
+    return `${wet ? 'wet' : 'dry'}-${seasonForTemperature(weather.temperature)}`;
+}
+
+function readMemory(key: string): StoredLook[] | null {
+    const entry = memoryCache.get(key);
+    if (!entry) return null;
+    const isFallback = entry.looks.some((l) => l.isFallback);
+    if (isFallback && Date.now() - entry.at > FALLBACK_TTL_MS) {
+        memoryCache.delete(key);
+        return null;
+    }
+    return entry.looks;
+}
+
+/** Today's AI batches persist in localStorage so reopening the app later the same day is instant. */
+function readStored(key: string): StoredLook[] | null {
+    try {
+        const raw = localStorage.getItem(STORAGE_PREFIX + key);
+        return raw ? (JSON.parse(raw) as StoredLook[]) : null;
+    } catch {
+        return null;
+    }
+}
+
+function writeStored(key: string, looks: StoredLook[]): void {
+    try {
+        const today = `${STORAGE_PREFIX}v2:${dayKey()}:`;
+        const ours: string[] = [];
+        for (let i = 0; i < localStorage.length; i += 1) {
+            const k = localStorage.key(i);
+            if (k?.startsWith(STORAGE_PREFIX)) ours.push(k);
+        }
+        // Drop other days' batches, and the oldest of today's beyond the cap.
+        const stale = ours.filter((k) => !k.startsWith(today));
+        const todays = ours.filter((k) => k.startsWith(today));
+        stale.concat(todays.slice(0, Math.max(0, todays.length - MAX_STORED_BATCHES + 1)))
+            .forEach((k) => localStorage.removeItem(k));
+        localStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(looks));
+    } catch {
+        /* storage unavailable or full: the memory cache still works */
+    }
+}
+
+function readCache(key: string): StoredLook[] | null {
+    return readMemory(key) ?? readStored(key);
+}
 
 function toStored(looks: OutfitSuggestion[]): StoredLook[] {
     return looks.map((l) => ({ id: l.id, itemIds: l.items.map((i) => i.id), explanation: l.explanation, isFallback: l.isFallback }));
 }
 
-function hydrate(stored: StoredLook[], clothes: ClothingItem[], mood: FashionMood, temperature: number): OutfitSuggestion[] {
+function hydrate(stored: StoredLook[], clothes: ClothingItem[], mood: FashionMood, temperature: number | null): OutfitSuggestion[] {
     const byId = new Map(clothes.map((c) => [c.id, c]));
     return stored
         .map((s) => {
@@ -43,15 +128,6 @@ function hydrate(stored: StoredLook[], clothes: ClothingItem[], mood: FashionMoo
         .filter((l) => l.items.length > 0);
 }
 
-function readSession(key: string): StoredLook[] | null {
-    try {
-        const raw = sessionStorage.getItem(key);
-        return raw ? (JSON.parse(raw) as StoredLook[]) : null;
-    } catch {
-        return null;
-    }
-}
-
 export interface StylistLooks {
     looks: OutfitSuggestion[];
     isLoading: boolean;
@@ -62,17 +138,31 @@ export interface StylistLooks {
 
 /**
  * The StylistAgent's 3 looks for (wardrobe, mood, weather) — fetched once and shared by Today and
- * Picks through a session cache, so switching tabs never re-runs the model. The cache key uses the
- * SET of item ids only, so logging a wear (which bumps wear counts) does not trigger a new call.
+ * Tweak mode through a cache (memory, then localStorage for the rest of the day), so switching tabs
+ * or reopening the app never re-runs the model. The key uses the SET of item ids only, so logging a
+ * wear (which bumps wear counts) does not trigger a new call, and a coarse weather bucket, so a
+ * small change in the reading does not either.
+ *
+ * Weather is optional: while the first reading is still loading the hook waits for it (one call,
+ * not a no-weather call followed by a weather one), but when there is no weather to wait for
+ * (location off and no city, or the lookup failed) looks are generated without it.
  */
 export function useStylistLooks(mood: FashionMood, weather: WeatherData | null): StylistLooks {
     const { clothes, outfits, userSettings, tryItItemIds, suggestionEvents } = useWardrobe();
-    const itemsKey = useMemo(() => clothes.map((c) => c.id).sort().join(','), [clothes]);
-    const key = weather
-        ? `looks:v1:${itemsKey}:${mood.id}:${weather.condition.toLowerCase()}:${Math.round(weather.temperature)}`
+    const { isLoading: weatherLoading } = useTodayWeather();
+    const canStyle = getWardrobeReadiness(clothes).canMakeOutfit;
+    const itemsKey = useMemo(() => fingerprint(clothes.map((c) => c.id).sort().join(',')), [clothes]);
+    const waitingForWeather = !weather && weatherLoading;
+    const key = canStyle && !waitingForWeather
+        ? `v2:${dayKey()}:${itemsKey}:${mood.id}:${weatherCacheBucket(weather)}`
         : null;
 
-    const [stored, setStored] = useState<StoredLook[] | null>(() => (key ? memoryCache.get(key) ?? readSession(key) : null));
+    // Looks are stored WITH the key they belong to: after a mood switch the previous mood's looks
+    // must not keep rendering (labelled as the new mood) while the new batch loads.
+    const [stored, setStored] = useState<{ key: string; looks: StoredLook[] } | null>(() => {
+        const cached = key ? readCache(key) : null;
+        return key && cached ? { key, looks: cached } : null;
+    });
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -82,7 +172,6 @@ export function useStylistLooks(mood: FashionMood, weather: WeatherData | null):
 
     const fetchLooks = useCallback(async (cacheKey: string): Promise<StoredLook[]> => {
         const { clothes: c, outfits: o, userSettings: u, tryItItemIds: t, suggestionEvents: e, mood: m, weather: w } = latest.current;
-        if (!w) return [];
         const userProfile = u ? { gender: u.gender, height: u.height, weight: u.weight } : undefined;
         const behavioralContext = {
             // Computed deterministically from wear history — no dependency on the Insights page.
@@ -91,20 +180,23 @@ export function useStylistLooks(mood: FashionMood, weather: WeatherData | null):
             deprioritizeItemIds: computeDeprioritizedItemIds(e, c),
         };
         const result = toStored(await awsNovaService.suggestOutfits(c, m, w, userProfile, behavioralContext));
-        memoryCache.set(cacheKey, result);
-        try { sessionStorage.setItem(cacheKey, JSON.stringify(result)); } catch { /* quota — memory cache still works */ }
+        memoryCache.set(cacheKey, { looks: result, at: Date.now() });
+        // Only real AI batches are persisted; fallback picks stay in memory briefly (FALLBACK_TTL_MS).
+        if (!result.some((l) => l.isFallback)) writeStored(cacheKey, result);
         return result;
     }, []);
 
     useEffect(() => {
-        if (!key || clothes.length === 0) {
+        if (!key) {
             setStored(null);
+            setIsLoading(false);
             return;
         }
-        const cached = memoryCache.get(key) ?? readSession(key);
+        const cached = readCache(key);
         if (cached) {
-            setStored(cached);
+            setStored({ key, looks: cached });
             setError(null);
+            setIsLoading(false);
             return;
         }
         let cancelled = false;
@@ -116,21 +208,21 @@ export function useStylistLooks(mood: FashionMood, weather: WeatherData | null):
             inflight.set(key, promise);
         }
         promise
-            .then((r) => { if (!cancelled) setStored(r); })
+            .then((r) => { if (!cancelled) setStored({ key, looks: r }); })
             .catch((err) => {
                 console.error('Stylist error:', err);
                 if (!cancelled) setError('Your stylist hit a snag. Want to try again?');
             })
             .finally(() => { if (!cancelled) setIsLoading(false); });
         return () => { cancelled = true; };
-    }, [key, clothes.length, fetchLooks]);
+    }, [key, fetchLooks]);
 
     const regenerate = useCallback(async () => {
         if (!key) return;
         setIsLoading(true);
         setError(null);
         try {
-            setStored(await fetchLooks(key));
+            setStored({ key, looks: await fetchLooks(key) });
         } catch (err) {
             console.error('Regeneration error:', err);
             setError('Your stylist hit a snag. Want to try again?');
@@ -139,10 +231,12 @@ export function useStylistLooks(mood: FashionMood, weather: WeatherData | null):
         }
     }, [key, fetchLooks]);
 
+    const current = stored && stored.key === key ? stored.looks : null;
+    const temperature = weather ? weather.temperature : null;
     const looks = useMemo(
-        () => (stored && weather ? hydrate(stored, clothes, mood, weather.temperature) : []),
-        [stored, clothes, mood, weather],
+        () => (current ? hydrate(current, clothes, mood, temperature) : []),
+        [current, clothes, mood, temperature],
     );
 
-    return { looks, isLoading, error, regenerate };
+    return { looks, isLoading: isLoading || (Boolean(key) && !current && !error), error, regenerate };
 }
