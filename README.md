@@ -4,7 +4,8 @@
 
 **Live Demo:** https://easy-wardrobe-f10c6.web.app
 **AI Agent Deep Dive:** [AGENTS.md](AGENTS.md)  
-**System Architecture:** [ARCHITECTURE.md](ARCHITECTURE.md)
+**System Architecture:** [ARCHITECTURE.md](ARCHITECTURE.md)  
+**Style Rules (moods + weather):** [docs/STYLE_RULES.md](docs/STYLE_RULES.md)
 
 ---
 
@@ -22,17 +23,19 @@ Stylemax uses **three specialized AI agents**, all powered by Google Gemini 3.5 
 User uploads photo
        │
        ▼
- IntakeAgent        ← Vision AI analyzes the photo: category, color, pattern, season, mood tags
+ IntakeAgent        ← Vision AI reads the photo: category, piece name (with material), color, season, mood tags
        │
        ▼
  Firestore + Storage ← Item saved to user's cloud wardrobe
        │
        ▼
- StylistAgent       ← Takes wardrobe + live weather + chosen mood → generates 3 outfit combos
-       │
+ StylistAgent       ← Wardrobe + live weather + chosen mood → 3 outfits. Code first drops pieces
+       │              that clash with the mood or the weather, then checks every look
        ▼
  BehavioralAgent    ← Analyzes 21-day wear history → personalized style nudges + analytics
 ```
+
+The mood and weather rules the Stylist follows are listed in [docs/STYLE_RULES.md](docs/STYLE_RULES.md).
 
 See [AGENTS.md](AGENTS.md) for a detailed breakdown of each agent's inputs, outputs, and design decisions.
 
@@ -40,10 +43,13 @@ See [AGENTS.md](AGENTS.md) for a detailed breakdown of each agent's inputs, outp
 
 ## Features
 
-- **Smart wardrobe intake** — Photograph any clothing item; AI auto-tags category, color, pattern, season, and mood compatibility. No manual entry.
-- **Outfit suggestions** — Pick a mood (Minimal Chic, Streetwear, Professional, etc.), get three weather-aware outfit combinations with AI reasoning.
-- **Wear tracking** — Log which outfits you actually wear. Increments wear counts, tracks last-worn dates.
-- **Behavioral insights** — Visualize color distribution, wear frequency, and weekly patterns. AI surfaces nudges like "your mint cardigan hasn't been worn in 3 weeks — try it with those gray jeans."
+- **Smart wardrobe intake** — Photograph one piece or a whole outfit (several pieces per photo), or add a batch from your gallery; AI fills in category, name, color, season and mood. No manual entry.
+- **Starter picker** — No photos needed to start: answer "do you own this?" over 22 common basics (now including a rain jacket and trench coat) and get a working closet in about 30 seconds.
+- **Today** — Pick a mood (Professional, Casual or Special day) and swipe through three outfits for today's weather: right to wear, left to skip, up to tweak. Tap a piece to see it up close or swap it.
+- **Mood and weather rules** — Pieces that clash with the mood (a hoodie for Professional) or the weather (leather in the rain, a puffer at 28 °C) never reach the AI. In rain every look gets your raincoat and boots; when it's cold, a coat.
+- **Live weather** — The nearest weather station's current reading for your location (US, via the National Weather Service). With location off it says so; it never shows another city.
+- **Closet** — Every piece on rails by type; mark pieces "Wear more" and the stylist works them in.
+- **Style Log** — Log what you wore (including forgotten days, from photos), see streaks, go-tos and forgotten pieces, plus AI nudges like "your mint cardigan hasn't been worn in 3 weeks."
 - **Firebase Auth** — Email/password and Google sign-in. All data is user-scoped and isolated.
 
 ---
@@ -85,13 +91,21 @@ After the AWS account was suspended (Oct 2026), the app moved to **Firebase Host
 
 ```
 src/
-├── services/agents/    # AI agents: IntakeAgent, StylistAgent, BehavioralAgent
-├── services/           # bedrockClient, firebaseConfig, firestoreService, storageService, weatherService
+├── services/agents/    # IntakeAgent, StylistAgent, BehavioralAgent, WeatherAgent (cheer line),
+│                       #   moodFit / weatherFit (rule scoring), agentOutputGuards (validation + scores)
+├── services/vision/    # Model providers (Gemini; legacy Nova) behind one interface
+├── services/           # aiProxyClient, authService, firebaseConfig, firestoreService, storageService, weatherService
+├── data/               # moods, moodStyles + weatherStyles (style rules), starterCatalog, colorPalette
 ├── context/            # AuthContext, WardrobeContext (global state)
-├── pages/              # Home, Wardrobe, Suggest, Insights, Login
-├── components/         # upload/, wardrobe/, suggestions/, insights/, mood/
-├── hooks/              # useLocation
+├── pages/              # Today, Wardrobe ("Closet"), Insights ("Style Log"), Login
+├── components/         # today/, picks/, closet/, upload/, onboarding/, insights/, wardrobe/, home/, common/
+├── hooks/              # useStylistLooks, useTodayWeather, useMood, usePendingWear, …
+├── copy/               # voice.ts — the app's copy lines
 └── types/              # TypeScript interfaces (ClothingItem, OutfitSuggestion, UserInsight, WearRecord)
+functions/              # aiProxy Cloud Function (keeps the Gemini key server-side)
+scripts/gen/            # Catalog image generator (local FLUX.2-klein via iris.c)
+scripts/eval/           # Intake model benchmark
+docs/STYLE_RULES.md     # Generated mood + weather rule reference
 ```
 
 ---
@@ -108,7 +122,7 @@ src/
 
 ```bash
 git clone https://github.com/jiyae619/easy-wordrobe.git
-cd wardrobe-ai
+cd easy-wordrobe
 npm install
 ```
 
@@ -142,6 +156,8 @@ npm run dev        # http://localhost:5173
 npm run build      # production build
 npm run preview    # preview production build
 npm run lint       # ESLint
+npx vitest run     # tests (needs the VITE_FIREBASE_* values from .env)
+npm run docs:style-rules   # regenerate docs/STYLE_RULES.md after changing a mood or weather rule
 ```
 
 ### Deploy (Firebase Hosting)
@@ -179,7 +195,17 @@ To ship afterwards: merge into `master`, then `git checkout production && git me
 
 ## Want to explore without your own wardrobe?
 
-Click **"Populate Demo Data"** on the Home page after signing in. It loads a sample wardrobe of 10 clothing items so you can immediately try outfit suggestions, insights, and the full AI pipeline.
+Sign in and tap **"Pick my basics"** on Today. The starter picker lets you add common basics (tees, jeans, a blazer, a rain jacket, sneakers…) in the colors you own, with no photos, so you can try outfits, weather rules and the Style Log right away. Each piece shows a "Stock photo" badge until you swap in your own photo.
+
+### Adding catalog images
+
+Starter-catalog photos are rendered locally with FLUX.2-klein through [iris.c](https://github.com/antirez/iris.c) and then resized to 256px WebP in `public/catalog-images/`. To render one item in chosen colors:
+
+```bash
+IRIS_BIN=/path/to/iris.c/iris IRIS_MODEL=/path/to/iris.c/flux-klein-4b node scripts/gen/generate.mjs --sub rain-jacket --colors navy,black --out scripts/gen/catalog-new --flat
+```
+
+See [scripts/gen/README.md](scripts/gen/README.md) for engines and options.
 
 ---
 
@@ -189,6 +215,7 @@ Click **"Populate Demo Data"** on the Home page after signing in. It loads a sam
 |----------|--------------|
 | [AGENTS.md](AGENTS.md) | How the three AI agents work, their prompts, inputs/outputs, and trade-offs |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Full system architecture: data flows, Firestore schema, component hierarchy, TypeScript types |
+| [docs/STYLE_RULES.md](docs/STYLE_RULES.md) | Every mood and weather rule, the research sources, and sample scores (generated from the code) |
 | [SECURITY.md](SECURITY.md) | API key management and rotation policy |
 
 ---

@@ -21,12 +21,13 @@ For a focused explanation of the three AI agents specifically, see [AGENTS.md](A
 
 ## Architecture Overview
 
-Wardrobe AI is a **React-based mobile web application** with a **three-tier architecture**:
+Stylemax is a **React-based mobile web application** with a **three-tier architecture**:
 
 - **Frontend**: React 19 with TypeScript, Vite, React Router
 - **Backend**: Firebase (Authentication, Firestore, Cloud Storage, Cloud Functions, Hosting)
 - **AI Services**: Google Gemini 3.5 Flash-Lite, reached through an auth-checked Cloud Functions proxy (`aiProxy`) that keeps the key server-side
 - **External APIs**: National Weather Service (NWS)
+- **Style rules**: curated mood and weather rule tables in code (`src/data/moodStyles.ts`, `src/data/weatherStyles.ts`), listed in [docs/STYLE_RULES.md](docs/STYLE_RULES.md)
 
 ### Technology Stack
 
@@ -60,24 +61,25 @@ Weather API: National Weather Service (free, no key required)
 │  │ WardrobeContext │────▶│  Wardrobe & Outfit State         │ │
 │  │   (Core State)  │     │  - clothes: ClothingItem[]       │ │
 │  └─────────────────┘     │  - outfits: WearRecord[]         │ │
-│                          │  - weather: WeatherData          │ │
+│                          │  - tryItItemIds, suggestionEvents│ │
 │                          │  - insights: UserInsight         │ │
 │                          └──────────────────────────────────┘ │
 │                                                                │
 │  ┌──────────────────────────────────────────────────────────┐ │
 │  │              MAIN PAGES (React Router)                   │ │
 │  │                                                          │ │
-│  │  /login    /       /wardrobe    /suggest    /insights   │ │
-│  │  ┌─────┐  ┌────┐  ┌─────────┐  ┌────────┐  ┌────────┐  │ │
-│  │  │Login│  │Home│  │Wardrobe │  │Suggest │  │Insights│  │ │
-│  │  │Page │  │Page│  │  Grid   │  │Mood+AI │  │Analytics│ │ │
-│  │  └─────┘  └────┘  └─────────┘  └────────┘  └────────┘  │ │
-│  │              │          │           │           │        │ │
-│  │              └──────────┴───────────┴───────────┘        │ │
+│  │  /login      /           /wardrobe      /insights        │ │
+│  │  ┌─────┐  ┌──────────┐  ┌──────────┐  ┌────────────┐    │ │
+│  │  │Login│  │  Today   │  │  Closet  │  │ Style Log  │    │ │
+│  │  │     │  │mood+looks│  │  rails   │  │ wear log + │    │ │
+│  │  │     │  │ +weather │  │          │  │  insights  │    │ │
+│  │  └─────┘  └──────────┘  └──────────┘  └────────────┘    │ │
+│  │                │             │               │           │ │
+│  │                └─────────────┴───────────────┘           │ │
 │  │                           │                              │ │
 │  │              ┌────────────────────────────┐              │ │
-│  │              │  CameraScannerOverlay      │              │ │
-│  │              │  (Global Upload Component) │              │ │
+│  │              │  Scanner · Bulk upload ·   │              │ │
+│  │              │  Starter picker (global)   │              │ │
 │  │              └────────────────────────────┘              │ │
 │  └──────────────────────────────────────────────────────────┘ │
 │                                                                │
@@ -95,7 +97,9 @@ App.tsx (Layout wrapper with navigation)
 │   │   └── LoginForm
 │   ├── / → Today (ProtectedRoute) — the stylist
 │   │   ├── Weather pill (useTodayWeather) + MoodChips (useMood)
-│   │   ├── LooksDeck: SwipeDeck of MirrorCard (3 AI looks: right wear · left skip · up tweak)
+│   │   ├── Closet still loading → skeleton (never the empty-closet prompt)
+│   │   ├── LooksDeck: SwipeDeck of MirrorCard (3 AI looks: right wear · left skip · up tweak);
+│   │   │   tap a piece → PieceSheet (close-up + "Swap it for")
 │   │   ├── OutfitBuilder ("Tweak"): HangerReel ×4 (layer / top / bottom-or-dress / shoes) — lock + Spin;
 │   │   │   also logs a past day when opened from the Style Log calendar
 │   │   └── FirstWeekChecklist (then closet-growth nudge) + StreakCard
@@ -105,6 +109,8 @@ App.tsx (Layout wrapper with navigation)
 │   ├── CameraScannerOverlay (global) — one photo, several pieces: AI-filled review,
 │   │   "Wear more" toggle, "Add all", then "Style it" on the new piece
 │   ├── BulkUploadOverlay (global) — several gallery photos → one AI-filled review list → Add all
+│   ├── StarterPickerOverlay (global) — "Do you own this?" over 22 basics (catalog photos), one
+│   │   item per picked color, saved in one Firestore batch; opened by "Pick my basics"
 │   ├── /suggest → redirects to / (Picks merged into Today)
 │   └── /insights → Insights = "Style Log" (ProtectedRoute)
 │       ├── WeeklyOutfitTimeline (scrollable weeks + logging streak bar; tap a day to log a forgotten outfit:
@@ -172,22 +178,27 @@ App.tsx (Layout wrapper with navigation)
 │  │                │ │                │ │                  │   │
 │  │ Input:         │ │ Input:         │ │ Input:           │   │
 │  │ • Base64 image │ │ • Wardrobe[]   │ │ • Wardrobe[]     │   │
-│  │                │ │ • FashionMood  │ │ • WearRecord[]   │   │
-│  │ Output:        │ │ • WeatherData  │ │   (14 days)      │   │
-│  │ • category     │ │                │ │                  │   │
-│  │ • color/hex    │ │ Output:        │ │ Output:          │   │
-│  │ • pattern      │ │ • 3x Outfits   │ │ • mostWornColors │   │
-│  │ • season[]     │ │ • weatherMatch │ │ • mostWornItems  │   │
-│  │ • aiTags[]     │ │ • wearScore    │ │ • leastWornItems │   │
-│  │ • subcategory  │ │ • explanation  │ │ • nudges[]       │   │
-│  └────────────────┘ └────────────────┘ │ • weeklyPattern  │   │
-│                                        └──────────────────┘   │
+│  │                │ │   (mood- and   │ │ • WearRecord[]   │   │
+│  │ Output:        │ │   weather-     │ │   (21 days)      │   │
+│  │ • category     │ │   filtered)    │ │                  │   │
+│  │ • subcategory  │ │ • Mood brief   │ │ Output:          │   │
+│  │   (+ material) │ │ • WEATHER NOW  │ │ • 3 nudges       │   │
+│  │ • color/hex    │ │                │ │ (analytics are   │   │
+│  │ • season[]     │ │ Output:        │ │  computed in     │   │
+│  │ • mood tags    │ │ • 3x Outfits:  │ │  code)           │   │
+│  │ • bbox         │ │   ids + copy   │ │                  │   │
+│  └────────────────┘ └────────────────┘ └──────────────────┘   │
+│                                                                 │
+│  Helper: WeatherAgent writes the one-line weather cheer on      │
+│  Today. Scores (weatherMatch, wearScore, moodMatch) are always  │
+│  computed in code, never taken from a model.                    │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
 **Choosing the provider:** `VITE_VISION_PROVIDER` (`gemini` default; `nova-2-lite` is legacy and no
 longer served by the proxy) selects the provider for **all** agents — Intake, Stylist, Behavioral and the Weather cheer line
-(`src/services/vision/providerRegistry.ts`). `VITE_GEMINI_MODEL` overrides the Gemini model.
+(`src/services/vision/providerRegistry.ts`). `VITE_GEMINI_MODEL` overrides the Gemini model. Text agents run
+with Gemini thinking at `minimal` (`VITE_GEMINI_THINKING_LEVEL` overrides it) to keep latency down.
 
 **How the client reaches the models (via the AI proxy):**
 
@@ -221,14 +232,15 @@ Auth is a Firebase **ID token**, never an API key. Response parsing stays entire
 │  Auth: None (Public API, requires User-Agent header)           │
 │                                                                 │
 │  Endpoints:                                                     │
-│  1. GET /points/{lat},{lon}                                    │
-│     → Get forecast URL & grid data                             │
+│  1. GET /points/{lat},{lon}            (cached per location)    │
+│     → city, hourly forecast URL, nearest stations              │
 │                                                                 │
-│  2. GET /gridpoints/{office}/{x},{y}                           │
-│     → Get detailed forecast periods                            │
+│  2. GET /stations/{id}/observations/latest                     │
+│     → "now": used when under 90 min old (tries 2 stations)     │
 │                                                                 │
-│  3. GET /stations/{id}/observations                            │
-│     → Get current humidity & conditions                        │
+│  3. GET {forecastHourly}                                       │
+│     → "now" fallback (the current hour) + today's outlook      │
+│       (morning / daytime high / evening, local time)           │
 │                                                                 │
 │  Returns: WeatherData                                          │
 │  • temperature (Celsius)                                       │
@@ -237,6 +249,7 @@ Auth is a Firebase **ID token**, never an API key. Response parsing stays entire
 │  • humidity (0-100%)                                           │
 │  • windSpeed (km/h)                                            │
 │  • location (city, state)                                      │
+│  • source ('observation' | 'hourly-forecast') + asOf           │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -287,8 +300,13 @@ User visits app
 │  Today (/)                               │
 │  • Protected Route                       │
 │  • Load user data from Firestore         │
+│  • isWardrobeLoading until the read      │
+│    lands: skeleton, not "closet empty"   │
 └──────────────────────────────────────────┘
 ```
+
+Sign-in errors are mapped to readable messages in `AuthContext` (unauthorized domain, blocked pop-up,
+provider disabled); anything else shows its Firebase error code and is logged to the console.
 
 ### Flow 2: Add Clothing Item (Camera → AI Analysis → Storage)
 
@@ -328,7 +346,8 @@ User taps Camera button in Navigation
 ┌──────────────────────────────────────────┐
 │  Gemini 3.5 Flash-Lite                   │
 │  • Vision + Language model               │
-│  • Analyzes: category, color, pattern    │
+│  • Analyzes: category, name (+material), │
+│    color, season, mood tags, bbox        │
 │  • Returns: JSON with metadata           │
 └──────────────────────────────────────────┘
       │
@@ -357,9 +376,9 @@ User taps Camera button in Navigation
                             │
                             ▼
                 ┌─────────────────────────┐
-                │  Wardrobe Page updates  │
-                │  • New item visible     │
-                │  • Grid re-rendered     │
+                │  Closet updates         │
+                │  • New piece on its rail│
+                │  • "Style it" → Today   │
                 └─────────────────────────┘
 ```
 
@@ -370,99 +389,78 @@ User opens Today (/)
       │
       ▼
 ┌──────────────────────────────────────────┐
-│  Today loads                             │
-│  • Display mood selector                 │
-│  • Load wardrobe from context            │
+│  Today                                   │
+│  • MoodChips: Professional · Casual ·    │
+│    Special day (useMood, session-wide)   │
+│  • useTodayWeather (Flow 5)              │
 └──────────────────────────────────────────┘
       │
-      │ User selects a mood (e.g., "Minimal Chic")
       ▼
 ┌──────────────────────────────────────────┐
-│  setMood(selectedMood)                   │
-│  • Store in WardrobeContext              │
+│  useStylistLooks(mood, weather)          │
+│  • Cache key: day + closet + mood +      │
+│    weather bucket (band on feels-like,   │
+│    wet/dry, snow, wind), so a 1° change  │
+│    doesn't restyle you                   │
+│  • Memory, then localStorage (rest of    │
+│    the day); a hit makes no model call   │
+│  • Waits for the first weather reading;  │
+│    no location → styles without weather  │
 └──────────────────────────────────────────┘
-      │
-      │ Parallel: Fetch weather
-      ├─────────────────────────────────────┐
-      ▼                                     ▼
-┌────────────────────┐         ┌──────────────────────────┐
-│ Get user location  │         │ weatherService           │
-│ • Geolocation API  │────────▶│ .getCurrentWeather()     │
-│ • lat, lon         │         └──────────────────────────┘
-└────────────────────┘                     │
-                                          │ GET /points/{lat},{lon}
-                                          ▼
-                                 ┌──────────────────────────┐
-                                 │ NWS API                  │
-                                 │ • Get forecast URL       │
-                                 │ • Get observation station│
-                                 └──────────────────────────┘
-                                          │
-                                          │ WeatherData
-                                          ▼
-                                 ┌──────────────────────────┐
-                                 │ Store in WardrobeContext │
-                                 │ .weather = weatherData   │
-                                 └──────────────────────────┘
-      │
-      │ Both mood & weather available
+      │ cache miss: card shows "Styling for the best looks…"
       ▼
 ┌──────────────────────────────────────────┐
 │  StylistAgent.generateOutfitSuggestions()│
-│  • Prepare prompt with:                  │
-│    - Wardrobe inventory (IDs, metadata)  │
-│    - Selected mood (name, description)   │
-│    - Weather (temp, condition)           │
+│  1. readWeather → band + rain/snow/wind  │
+│  2. selectMoodCandidates: score every    │
+│     piece for mood (moodFit) and weather │
+│     (weatherFit); drop off-mood and      │
+│     off-weather pieces                   │
+│  3. Prompt: MOOD brief, WEATHER NOW      │
+│     rules (+ raincoat / boot aliases),   │
+│     pieces as short aliases (i1, i2…),   │
+│     wear-more / least-worn priorities    │
 └──────────────────────────────────────────┘
       │
-      │ POST → aiProxy → Gemini generateContent
+      │ POST → aiProxy → Gemini (15s timeout, no retry after a timeout)
       ▼
 ┌──────────────────────────────────────────┐
 │  Gemini 3.5 Flash-Lite                   │
-│  • Generate 3 outfit combinations        │
-│  • Prioritize least-worn items           │
-│  • Return item IDs + explanation copy    │
+│  • 3 outfits: itemIds + explanation      │
 └──────────────────────────────────────────┘
       │
-      │ raw suggestions (itemIds + copy)
       ▼
 ┌──────────────────────────────────────────┐
-│  Map + score in code (agentOutputGuards) │
-│  • Look up each ID in context.clothes    │
-│  • Validate outfit composition           │
-│  • Compute weatherMatch & wearScore       │
-│  • Cache per (items, mood, weather)       │
+│  Map + check in code                     │
+│  • Aliases → real ids; unknown ids drop  │
+│  • Composition (bottoms- or dress-based, │
+│    at most 1 pair of shoes)              │
+│  • applyWeatherNeeds: raincoat + boots   │
+│    in rain, a coat when cold             │
+│  • weatherMatch, wearScore, moodMatch    │
+│  • Best mood match first                 │
+│  On any failure → code-built looks       │
+│  (assembleMoodLooks), flagged isFallback │
 └──────────────────────────────────────────┘
       │
-      │ 3 MirrorCards on Today / Spin targets in Tweak mode
       ▼
 ┌──────────────────────────────────────────┐
-│  User reviews suggestions                │
-│  • See outfit preview                    │
-│  • Read AI explanation                   │
-│  • Click "Wear this"                     │
+│  LooksDeck: swipe right to wear (4s      │
+│  undo), left to skip, up to tweak;       │
+│  tap a piece for a close-up or a swap    │
 └──────────────────────────────────────────┘
-      │
-      │ User confirms outfit
+      │ wear
       ▼
 ┌──────────────────────────────────────────┐
-│  logOutfitWear(outfit)                   │
-│  • Create WearRecord                     │
-│  • Increment wearFrequency for each item │
-│  • Update lastWorn dates                 │
+│  logOutfitWear(itemIds, mood, weather)   │
+│  • WearRecord → /users/{uid}/outfits     │
+│  • wearFrequency + lastWorn per item     │
+│  Skips → suggestionEvents (never-worn,   │
+│  often-skipped pieces are shown less)    │
 └──────────────────────────────────────────┘
-      │
-      │ Parallel operations
-      ├─────────────────────┬────────────────────┐
-      ▼                     ▼                    ▼
-┌─────────────────┐  ┌──────────────────┐  ┌──────────────────────┐
-│ Save to         │  │ Update Firestore │  │ Update Context       │
-│ Firestore       │  │ • Batch update   │  │ • clothes[]          │
-│ /users/{uid}/   │  │   all items      │  │ • outfits[]          │
-│  outfits/{id}   │  │ • wearFrequency  │  │                      │
-│                 │  │ • lastWorn       │  │ Triggers re-render   │
-└─────────────────┘  └──────────────────┘  └──────────────────────┘
 ```
+
+Rules and sample scores: [docs/STYLE_RULES.md](docs/STYLE_RULES.md).
 
 ### Flow 4: Insights Generation (Wear History → AI → Analytics)
 
@@ -471,7 +469,7 @@ User navigates to /insights page
       │
       ▼
 ┌──────────────────────────────────────────┐
-│  Insights Page loads                     │
+│  Style Log (/insights) loads             │
 │  • Check if insights cached in context   │
 │  • If stale, trigger fetchInsights()     │
 └──────────────────────────────────────────┘
@@ -507,91 +505,72 @@ User navigates to /insights page
       │ Trigger re-render with new data
       ▼
 ┌──────────────────────────────────────────┐
-│  Render Insight Visualizations           │
-│  • ColorDistribution chart               │
-│  • WearFrequencyChart                    │
-│  • WeeklyTimeline                        │
-│  • NudgeCard (3 behavioral nudges)       │
-│  • WeeklyOutfitTimeline                  │
+│  Render the Style Log                    │
+│  • WeeklyOutfitTimeline (weeks + streak; │
+│    tap a day to log a forgotten outfit)  │
+│  • Forgotten gems (least worn) + the top │
+│    nudge · Style it                      │
+│  • Your go-tos (2+ wears)                │
+│  • OutfitHistory (past wears, re-wear)   │
 └──────────────────────────────────────────┘
 ```
 
-### Flow 5: Weather Integration
+### Flow 5: Weather Integration (`useTodayWeather`)
 
 ```
-Today loads and requests weather
+Today (or any page) asks for weather
       │
       ▼
 ┌──────────────────────────────────────────┐
-│  Check WardrobeContext.weather           │
-│  • Is cached? (< 30 min old)             │
+│  Reading under 30 min old? → use it      │
+│  (one load shared by every page; the tab │
+│  coming back into view refreshes it)     │
 └──────────────────────────────────────────┘
-      │
-      │ Need fresh weather
+      │ need a fresh reading
       ▼
 ┌──────────────────────────────────────────┐
-│  Request browser geolocation permission  │
+│  Where? in order:                        │
+│  1. Device location (8s timeout)         │
+│  2. The city in Settings                 │
+│  3. Last real device position (≤3 days)  │
+│  4. None → weather: null,                │
+│     "Location off · set your city"       │
+│     (never another city's weather)       │
 └──────────────────────────────────────────┘
       │
-      ├─────── Permission GRANTED ──────┐
-      ▼                                 ▼
-┌─────────────────────┐      ┌─────────────────────────┐
-│ navigator           │      │ weatherService          │
-│ .geolocation        │─────▶│ .getCurrentWeather(     │
-│ .getCurrentPosition │      │   lat, lon              │
-│                     │      │ )                       │
-└─────────────────────┘      └─────────────────────────┘
-                                      │
-                                      │ Step 1: GET /points/{lat},{lon}
-                                      ▼
-                             ┌─────────────────────────┐
-                             │ NWS API                 │
-                             │ • Returns: forecastUrl  │
-                             │ • Returns: station IDs  │
-                             └─────────────────────────┘
-                                      │
-                                      │ Step 2: GET {forecastUrl}
-                                      ▼
-                             ┌─────────────────────────┐
-                             │ NWS Forecast API        │
-                             │ • Current period        │
-                             │ • Temperature           │
-                             │ • Condition             │
-                             └─────────────────────────┘
-                                      │
-                                      │ Step 3: GET /stations/{id}/observations
-                                      ▼
-                             ┌─────────────────────────┐
-                             │ NWS Observation API     │
-                             │ • Humidity              │
-                             │ • Wind speed            │
-                             └─────────────────────────┘
-                                      │
-                                      │ Combine data
-                                      ▼
-                             ┌─────────────────────────┐
-                             │ WeatherData object      │
-                             │ • temperature           │
-                             │ • feelsLike             │
-                             │ • condition             │
-                             │ • humidity              │
-                             │ • windSpeed             │
-                             │ • location              │
-                             └─────────────────────────┘
-                                      │
-                                      ▼
-                             ┌─────────────────────────┐
-                             │ Store in WardrobeContext│
-                             │ .weather = weatherData  │
-                             └─────────────────────────┘
+      ▼
+┌──────────────────────────────────────────┐
+│  weatherService.getTodayWeather(lat,lon) │
+│  • /points (cached) → stations + hourly  │
+│  • Now: latest station observation if    │
+│    under 90 min old, else this hour's    │
+│    forecast; °C and km/h                 │
+│  • Outlook from hourly periods           │
+│  • source + asOf on the reading          │
+└──────────────────────────────────────────┘
       │
-      └─────── Permission DENIED ───────┐
-                                        ▼
-                              ┌─────────────────────────┐
-                              │ Fallback: Use default   │
-                              │ city (San Francisco)    │
-                              │ OR mock weather data    │
-                              └─────────────────────────┘
+      ├── error → keep a real reading under 2h old, else no weather;
+      │           retry after 2 min (no made-up numbers)
+      ▼
+┌──────────────────────────────────────────┐
+│  Header: "9° now · Cloudy"               │
+│  Cheer line (WeatherAgent, Gemini) loads │
+│  in the background; weather never waits  │
+│  for it                                  │
+└──────────────────────────────────────────┘
+```
+
+### Flow 6: Starter Picker (no-photo closet)
+
+```
+"Pick my basics" (Today / Closet / first-week checklist)
+      │ open-starter-picker event (optional category filter)
+      ▼
+StarterPickerOverlay → buildStarterDeck(owned closet) → 22 cards in category order
+      │ "Got it" per card, one item per picked color
+      ▼
+addCatalogItems → one Firestore batch; images stay as /catalog-images/*.webp
+("Stock photo" badge until the user swaps in their own photo)
 ```
 
 ---
@@ -603,18 +582,23 @@ Today loads and requests weather
 ```typescript
 {
   id: string                    // UUID
-  imageUrl: string              // Firebase Cloud Storage URL
-  category: string              // "tops" | "bottoms" | "outerwear" | "dresses" | "shoes"  (accessories/bags = future)
-  subcategory: string           // e.g., "Crew Neck T-Shirt", "Slim Fit Jeans"
-  color: string                 // e.g., "Navy Blue", "Forest Green"
-  colorHex: string              // e.g., "#1B2A4A"
-  pattern: string               // e.g., "solid", "striped", "floral", "geometric"
+  imageUrl: string              // Cloud Storage URL, or /catalog-images/… for starter-picker pieces
+  thumbnailUrl?: string         // Smaller image for lists
+  category: string              // "tops" | "bottoms" | "outerwear" | "dresses" | "shoes"
+  subcategory: string           // e.g., "Slim-Fit Chinos", "Waterproof Rain Jacket" (names the material when visible)
+  color: string                 // Palette color name, e.g., "Navy"
+  colorHex: string              // Snapped to the palette; the raw model color is kept in aiColor
+  aiColor?: { name, hex }       // Model's first color guess (for correction scoring)
+  colorSource?: 'ai' | 'user'
   season: string[]              // ["spring", "summer", "fall", "winter"]
   wearFrequency: number         // Incremented each time worn
   lastWorn: Date | null
   dateAdded: Date
-  aiTags: string[]              // ["casual", "professional", "minimalist"]
-  userNotes?: string            // Optional user-added notes
+  aiTags: string[]              // Mood tags from intake ("professional", "casual", "occasion") + free tags
+  userMoods?: string[]          // Mood ids the user picked
+  userNotes?: string
+  sourceImageUrl?: string       // Full photo when imageUrl is a crop
+  detectionBox?, detectionConfidence?, focusPoint?, focusZoom?, focusRoi?   // crop / framing
 }
 ```
 
@@ -624,11 +608,12 @@ Today loads and requests weather
 {
   id: string                    // UUID generated app-side
   items: ClothingItem[]         // Bottoms-based (top layer(s) + 1 bottom) OR dress-based (1 dress + optional outerwear)
-  weatherMatch: number          // 0-100, COMPUTED IN CODE from item seasons vs. current temperature
+  weatherMatch: number          // 0-100, COMPUTED IN CODE from season tags + the weather rules
   wearScore: number             // 0-100, COMPUTED IN CODE from real wear counts (higher = less worn)
   explanation: string           // "Perfect for 18°C sunny weather..." (from the model, sanitized)
   mood: FashionMood             // The selected mood object
   isFallback?: boolean          // true when these are code-assembled picks (AI stylist unavailable)
+  moodMatch?: number            // 0-100, COMPUTED IN CODE: mean mood fit of the pieces
 }
 ```
 
@@ -663,8 +648,9 @@ Today loads and requests weather
   condition: string             // "Sunny", "Partly Cloudy", "Rainy", "Windy", "Snow"
   humidity: number              // 0-100, percentage
   windSpeed: number             // km/h
-  location: string              // "San Francisco, CA", "New York, NY"
+  location: string              // "Seattle, WA"
 }
+// The weather hook returns LiveWeather = WeatherData + { source: 'observation' | 'hourly-forecast', asOf: ISO time }
 ```
 
 ### WearRecord
@@ -673,9 +659,10 @@ Today loads and requests weather
 {
   id: string                    // UUID
   date: Date                    // When outfit was worn
-  items: ClothingItem[]         // Array of items in outfit
-  mood: string                  // Mood at time of wearing
-  weather: WeatherData          // Weather conditions that day
+  outfitItems: string[]         // Item ids in the outfit
+  mood: string                  // Mood id at the time (old records may say "creative", "sporty", "romantic")
+  weather: WeatherData | null   // Weather that day (null when unavailable)
+  favorite?: boolean            // Marked to re-wear
 }
 ```
 
@@ -734,9 +721,10 @@ Indexes:
 - **Firebase Auth errors** → Translate to user-friendly messages in AuthContext
 - **Firestore failures** → Retry with exponential backoff (built-in SDK)
 - **Cloud Storage quota** → Compress images before upload, show error if quota exceeded
-- **Model API timeout** → Show "AI is thinking..." with 30s timeout, retry once
-- **NWS API failure** → Fallback to mock weather data (San Francisco, 18°C, Sunny)
-- **Geolocation denied** → Use default city coordinates (San Francisco)
+- **Model API timeout** → 30s timeout, one retry (Stylist: 15s, no retry after a timeout); then code-built fallbacks (see AGENTS.md)
+- **NWS API failure** → Keep a real reading under 2h old; otherwise show no weather and retry after 2 min. No made-up numbers.
+- **Geolocation denied** → The city from Settings, then the last real position (≤3 days), then "Location off · set your city"
+- **Today's looks** → Cached in localStorage for the day, so a reload or brief outage still shows them
 - **No internet** → Show cached data from context (no auto-refresh)
 
 ---
@@ -768,11 +756,12 @@ Indexes:
 | Component | State Source | External API | Responsibility |
 |-----------|-------------|--------------|----------------|
 | **Login** | AuthContext | Firebase Auth | Email/password/Google auth UI |
-| **Home** | WardrobeContext + local | NWS API, Gemini | Weather display, quick suggestion |
-| **Wardrobe** | WardrobeContext | None | Item browsing, filtering, detail view |
-| **Suggest** | WardrobeContext | NWS, Gemini | Outfit suggestions by mood |
-| **Insights** | WardrobeContext | Gemini | Analytics & behavioral nudges |
-| **CameraScannerOverlay** | Local state | Gemini (via IntakeAgent) | Image capture & AI analysis |
+| **Today** | WardrobeContext + useTodayWeather + useStylistLooks | NWS API, Gemini | Weather, mood, outfit swipe deck, Tweak mode |
+| **Wardrobe ("Closet")** | WardrobeContext | None | Rails by type, item detail, "Wear more" |
+| **Insights ("Style Log")** | WardrobeContext | Gemini | Wear log, streaks, analytics & behavioral nudges |
+| **CameraScannerOverlay** | Local state | Gemini (via IntakeAgent) | Image capture & AI analysis (several pieces per photo) |
+| **BulkUploadOverlay** | Local state | Gemini (via IntakeAgent) | Several gallery photos at once |
+| **StarterPickerOverlay** | WardrobeContext | None | No-photo closet from catalog basics |
 
 ---
 
@@ -810,22 +799,27 @@ Indexes:
 ```typescript
 {
   clothes: ClothingItem[]
-  outfits: WearRecord[]
+  outfits: WearRecord[]               // last 90 days
   bookmarkedItems: string[]
+  tryItItemIds: string[]              // "Wear more" pieces
+  suggestionEvents: SuggestionEvent[] // skips / regenerations
   currentMood: FashionMood | null
-  weather: WeatherData | null
   insights: UserInsight | null
   userSettings: UserSettings | null
   isLoading: boolean
+  isWardrobeLoading: boolean          // until the signed-in user's closet is read
   error: string | null
 
   // Methods
-  addClothingItem, updateClothingItem, deleteClothingItem
+  addClothingItem, addCatalogItems, updateClothingItem, deleteClothingItem
+  correctItemColor, replaceItemPhoto
   incrementWearCount, decrementWearCount
-  logOutfitWear
-  setMood, refreshWeather
-  fetchInsights, populateDemoData
+  logOutfitWear, toggleOutfitFavorite, logSuggestionEvent
+  addTryItItem, removeTryItItem
+  fetchInsights
   bookmarkItem, unbookmarkItem
   updateUserSettings
 }
 ```
+
+Weather comes from `useTodayWeather` (one reading shared across pages) and the selected mood from `useMood`.

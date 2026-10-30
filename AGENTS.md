@@ -23,8 +23,9 @@ Stylemax uses **three specialized AI agents**, all powered by **Google Gemini 3.
 │   temp: 0.85      │     21-day wear history → insights + nudges
 └───────────────────┘
         │
-        ├── leastWornItemIds ──────────┐
-        │                              │
+        │  leastWornItemIds are        │
+        │  computed in code from the   │
+        │  same wear history ──────────┤
         │  User tags "Wear more"       │
         ├── tryItItemIds ──────────────┤
         │                              ▼
@@ -42,7 +43,7 @@ Stylemax uses **three specialized AI agents**, all powered by **Google Gemini 3.
               (next Insights refresh reflects new wear data)
 ```
 
-**Key insight:** StylistAgent receives a `BehavioralContext` object describing which items to prioritize. The `leastWornItemIds` in that context are computed **deterministically in code** (`computeSeasonalLeastWornIds` — least-worn, in-season, owned 3+ weeks) directly from wear history, so the wear-history priority hint is available on **every** Suggest request, whether or not the Insights page has been opened this session. BehavioralAgent is the copywriter for the Insights page; it does not gate the Stylist.
+**Key insight:** StylistAgent receives a `BehavioralContext` object describing which items to prioritize. The `leastWornItemIds` in that context are computed **deterministically in code** (`computeSeasonalLeastWornIds` — least-worn, in-season, owned 3+ weeks) directly from wear history, so the wear-history priority hint is available on **every** Stylist request on Today, whether or not the Style Log has been opened this session. BehavioralAgent is the copywriter for the Style Log; it does not gate the Stylist.
 
 ***
 
@@ -60,18 +61,24 @@ Stylemax uses **three specialized AI agents**, all powered by **Google Gemini 3.
 
 * Text prompt requesting JSON output in a defined schema
 
-**Output (**`ClothingItem`**&#x20;metadata):**
+**Output (one entry per detected piece; becomes `ClothingItem` metadata):**
 
 ```json
 {
+  "isRestricted": false,
   "category": "outerwear",
-  "subcategory": "Denim Jacket",
-  "color": "Medium Wash Blue",
-  "colorHex": "#5B7C99",
-  "season": ["spring", "summer", "fall"],
-  "aiTags": ["casual", "streetwear", "weekend"]
+  "subcategory": "Waterproof Rain Jacket",
+  "color": "Navy Blue",
+  "colorHex": "#1B2A4A",
+  "season": ["spring", "fall", "winter"],
+  "mood": ["casual"],
+  "hasNoisyBackground": false,
+  "bbox": { "x": 0.2, "y": 0.1, "width": 0.5, "height": 0.75 },
+  "confidence": 0.91
 }
 ```
+
+The color is snapped to the app palette (the raw guess is kept as `aiColor`), the mood array becomes `aiTags` / `userMoods`, and the bbox is used to crop each piece out of a photo that holds several.
 
 **Design decisions:**
 
@@ -95,7 +102,7 @@ Stylemax uses **three specialized AI agents**, all powered by **Google Gemini 3.
 
 **File:** `src/services/agents/StylistAgent.ts`
 
-**Trigger:** When Today needs looks for the selected mood and today's weather. One batch is fetched per (wardrobe items, mood, weather bucket) and cached for the rest of the day (`useStylistLooks`: memory, then `localStorage`; the weather part of the key is wet/dry + the temperature band `computeWeatherMatch` scores against (≤5 / ≤15 / ≤24 / >24 °C), so the 30-minute "now" refresh does not re-run the model or reset the swipe stack; code-assembled fallback batches are never persisted and expire from memory after 60s). Weather is optional: with no location and no city, looks are generated without it (the prompt says so and `computeWeatherMatch` scores against the calendar season); while the first reading is still loading, the hook waits for it instead of making two calls. After a mood switch the previous mood's looks are not shown while the new batch loads; instead the hook offers `previewLooks`, code-assembled mood looks (`buildCodeLooks`, flagged `isFallback`, stable ids) available from first paint, before weather or the model answer, which the UI can show while the AI looks load (Today currently shows a "Styling for the best looks…" card instead). The AI batch: Today shows it as a swipe stack, and Tweak mode's **Spin** lands the hanger rails on it (respecting locked pieces), then falls back to code-assembled combinations once the batch is used up.
+**Trigger:** When Today needs looks for the selected mood and today's weather. One batch is fetched per (wardrobe items, mood, weather bucket) and cached for the rest of the day (`useStylistLooks`: memory, then `localStorage`; the weather part of the key is `weatherCacheBucket`: the temperature band on "feels like" (≤5 / ≤15 / ≤24 / >24 °C) plus wet/dry, snow and wind, so the 30-minute "now" refresh does not re-run the model or reset the swipe stack; code-assembled fallback batches are never persisted and expire from memory after 60s). Weather is optional: with no location and no city, looks are generated without it (the prompt says so and `computeWeatherMatch` scores against the calendar season); while the first reading is still loading, the hook waits for it instead of making two calls. After a mood switch the previous mood's looks are not shown while the new batch loads; instead the hook offers `previewLooks`, code-assembled mood looks (`buildCodeLooks`, flagged `isFallback`, stable ids) available from first paint, before weather or the model answer, which the UI can show while the AI looks load (Today currently shows a "Styling for the best looks…" card instead). The AI batch: Today shows it as a swipe stack, and Tweak mode's **Spin** lands the hanger rails on it (respecting locked pieces), then falls back to code-assembled combinations once the batch is used up.
 
 **What it does:** Scores every piece for the selected mood in code, drops the pieces that clash with it, and sends the rest (as a condensed JSON array, best fit first, each labeled `"fit": "high" | "ok"`) together with a **mood brief** (what the mood means in garments), the current weather (or "unknown"), and a `BehavioralContext` from BehavioralAgent. Gemini reasons about which combinations work together — mood first, then weather practicality, composition, wear-history priorities and color — and returns three distinct outfits with explanations. The looks are re-ranked by a computed `moodMatch` so the best mood fit leads the swipe stack.
 
@@ -182,7 +189,7 @@ Items the user **repeatedly skips and has never worn** (3+ times, from `suggesti
 
 **What it does:** Analyzes the user's 21-day (3-week) wear history against their full wardrobe composition, filtered to the current season. Gemini identifies patterns — overused items, neglected items, color biases, day-of-week habits — and generates three personalized behavioral nudges alongside analytics data.
 
-**Its output also feeds into StylistAgent** — the `leastWornItems` list becomes `leastWornItemIds` in the `BehavioralContext`, and any items the user tags "Wear more" become `tryItItemIds`. This creates a feedback loop where insights directly influence the next outfit suggestion.
+**How it relates to StylistAgent** — the Stylist does not wait for this agent. Its `leastWornItemIds` come from the same wear history, computed in code (`computeSeasonalLeastWornIds`: least worn, in season, owned 3+ weeks), and items the user tags "Wear more" become `tryItItemIds`. So the Style Log and Today agree on what is neglected, and a wear logged on Today shows up in both.
 
 **Input:**
 
@@ -233,6 +240,12 @@ wearHistory: WearRecord[]      (last 21 days of logged outfits)
 
 ***
 
+## Helper: WeatherAgent
+
+**File:** `src/services/agents/WeatherAgent.ts` — writes the one-sentence weather cheer under Today's weather (JSON `{"cheerLine"}`, same provider and proxy). It is decoration: `useTodayWeather` publishes the reading first and swaps the line in when it arrives, reuses the previous line when the weather barely changed, and falls back to a fixed line on failure. It never affects outfits.
+
+***
+
 ## Why Three Agents Instead of One?
 
 The single-agent approach would collapse all three responsibilities into one mega-prompt, hurting each task:
@@ -255,7 +268,7 @@ Style Log                                  Today
 ─────────                                  ─────
 BehavioralAgent.generateInsights()
         │
-        ├─→ insights.leastWornItems ──────→ behavioralContext.leastWornItemIds
+        │   computeSeasonalLeastWornIds (code) ──→ behavioralContext.leastWornItemIds
         │                                          │
         │   User tags "Wear more" (scan / Closet)  │
         ├─→ tryItItemIds (saved to Firestore) ──→ behavioralContext.tryItItemIds
@@ -272,7 +285,7 @@ BehavioralAgent.generateInsights()
                   Next refresh picks up new wear data
 ```
 
-This creates a **virtuous cycle**: BehavioralAgent surfaces neglected items → StylistAgent incorporates them into outfits → user wears them → wear history updates → BehavioralAgent no longer flags them as neglected.
+This creates a **virtuous cycle**: neglected items are flagged (in code) and named in the Style Log nudges → StylistAgent works them into outfits that fit the mood and weather → user wears them → wear history updates → they are no longer flagged.
 
 ***
 
@@ -280,7 +293,7 @@ This creates a **virtuous cycle**: BehavioralAgent surfaces neglected items → 
 
 * **Malformed JSON from the model** — the provider adapter (`geminiProvider.ts`, via `extractJsonFromText` in `bedrockClient.ts`) strips markdown code fences and attempts `JSON.parse`. If it fails, the agent throws a typed error and the calling page displays a user-facing error banner.
 
-* **Model API timeout** — 30-second timeout with one automatic retry (StylistAgent: 15 seconds, no retry after a timeout, because Today is waiting on it). If both fail, IntakeAgent falls back to a default placeholder item (flagged `usedFallback`); StylistAgent returns code-assembled fallback outfits flagged `isFallback: true` (rendered as "quick picks — AI stylist unavailable"), built by `assembleMoodLooks` from mood fit first, then weather fit and wear priorities (an outer layer when it is cool, shoes when there are any), with **real, computed** scores (never fabricated numbers); BehavioralAgent returns computed analytics with pre-written nudge copy.
+* **Model API timeout** — 30-second timeout with one automatic retry (StylistAgent: 15 seconds, no retry after a timeout, because Today is waiting on it). If both fail, IntakeAgent falls back to a default placeholder item (flagged `usedFallback`); StylistAgent returns code-assembled fallback outfits flagged `isFallback: true` (labelled "Quick picks while your stylist takes a break."), built by `assembleMoodLooks` from mood fit first, then weather fit and wear priorities, with shoes when there are any and the same weather requirements as AI looks (`applyWeatherNeeds`: raincoat and boots in rain, a coat when cold), with **real, computed** scores (never fabricated numbers); BehavioralAgent returns computed analytics with pre-written nudge copy.
 
 * **Item ID hallucination (StylistAgent)** — After parsing, each returned item ID is validated against `context.clothes`. Any ID not found is silently dropped; if the surviving items can't form a valid bottoms-based or dress-based outfit, that outfit is discarded.
 
