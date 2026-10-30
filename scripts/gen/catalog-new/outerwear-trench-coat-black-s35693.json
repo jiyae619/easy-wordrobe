@@ -1,0 +1,18 @@
+{
+  "expectedCategory": "outerwear",
+  "expectedColorHex": "#000000",
+  "subcategoryKeywords": [
+    "trench",
+    "trench coat",
+    "coat"
+  ],
+  "expectedMoods": [
+    "professional",
+    "casual"
+  ],
+  "expectedSeasons": [
+    "spring",
+    "fall"
+  ],
+  "notes": "black classic belted trench coat, front view, on a wooden hanger, studio bg, seed 35693"
+}
