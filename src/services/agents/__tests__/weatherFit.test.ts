@@ -4,7 +4,8 @@ import { MOODS } from "../../../data/moods";
 import { computeWeatherMatch } from "../agentOutputGuards";
 import { buildCodeLooks } from "../StylistAgent";
 import { selectMoodCandidates } from "../moodFit";
-import { OFF_WEATHER_THRESHOLD, applyWeatherNeeds, itemWeatherFit, readWeather } from "../weatherFit";
+import { OFF_WEATHER_THRESHOLD, applyWeatherNeeds, isWeatherproofOuter, itemWeatherFit, readWeather } from "../weatherFit";
+import { STARTER_CATALOG, buildCatalogItem } from "../../../data/starterCatalog";
 import { weatherCacheBucket } from "../../../hooks/useStylistLooks";
 
 const ALL = [Season.Spring, Season.Summer, Season.Fall, Season.Winter];
@@ -169,5 +170,17 @@ describe("weather in the stylist pipeline", () => {
     it("keys cached looks on wind and feels-like too", () => {
         expect(weatherCacheBucket(weather(14, "Cloudy", { windSpeed: 40 }))).not.toBe(weatherCacheBucket(weather(14, "Cloudy")));
         expect(weatherCacheBucket(weather(8, "Cloudy", { feelsLike: 3 }))).not.toBe(weatherCacheBucket(weather(8, "Cloudy")));
+    });
+});
+
+describe("starter catalog rain gear", () => {
+    it("ships a rain jacket and a trench coat that the rain rules treat as weatherproof layers", () => {
+        for (const slug of ["outerwear-rain-jacket", "outerwear-trench-coat"]) {
+            const entry = STARTER_CATALOG.find((e) => e.slug === slug);
+            expect(entry, slug).toBeDefined();
+            const item = buildCatalogItem(entry!);
+            expect(isWeatherproofOuter(item), slug).toBe(true);
+            expect(itemWeatherFit(item, readWeather(weather(9, "Rain")))).toBeGreaterThanOrEqual(0.8);
+        }
     });
 });
