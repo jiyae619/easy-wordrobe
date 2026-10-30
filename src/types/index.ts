@@ -193,6 +193,8 @@ export interface OutfitSuggestion {
     wearScore: number;
     /** True when these are code-assembled fallback picks (the AI stylist was unavailable) */
     isFallback?: boolean;
+    /** Score (0-100) for how well the pieces suit the mood, computed in code (services/agents/moodFit) */
+    moodMatch?: number;
 }
 
 /**
@@ -261,8 +263,13 @@ export interface WardrobeContextType {
     /** Current weather data */
     weather: WeatherData | null;
 
-    /** Loading state for async operations */
+    /** Loading state for async operations (includes the first closet load after sign-in) */
     isLoading: boolean;
+    /**
+     * True from sign-in until the signed-in user's closet has been read from Firestore. While it is,
+     * an empty `clothes` means "not loaded yet": show a loading state, not the empty-closet prompts.
+     */
+    isWardrobeLoading: boolean;
     /** Error message if any operation fails */
     error: string | null;
     /** Clear the error message */

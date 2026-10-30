@@ -30,6 +30,8 @@
 //   --height/-h <px>  default 1024
 //   --noisy-frac <f>  fraction [0..1] of images with a cluttered background (default 0)
 //   --category <cat>  generate only this category (e.g. shoes) — filters the sampled matrix
+//   --sub <slug>      generate exactly this subcategory (e.g. rain-jacket) in every --colors
+//   --colors <list>   comma-separated palette colors for --sub (default: the full PALETTE)
 //   --limit <n>       stop after n images (smoke test)
 //   --until <epoch>   stop before starting any image past this UNIX time (seconds) —
 //                     time-bounded run; pair with a large --count so the clock is the limit
@@ -40,7 +42,7 @@
 import { mkdir, writeFile, appendFile, access, rm } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { bakeoffMatrix, sampleMatrix, perCategoryMatrix } from "./matrix.mjs";
+import { bakeoffMatrix, sampleMatrix, perCategoryMatrix, fullGrid } from "./matrix.mjs";
 import { buildPrompt, buildLabel, stemFor } from "./prompt.mjs";
 import { getEngine } from "./engines/index.mjs";
 
@@ -78,6 +80,8 @@ function parseArgs(argv) {
             case "--height": case "-h": a.height = Number(next()); break;
             case "--noisy-frac": a.noisyFrac = Number(next()); break;
             case "--category": a.category = next(); break;
+            case "--sub": a.sub = next(); break;
+            case "--colors": a.colors = next().split(",").map((c) => c.trim().toLowerCase()).filter(Boolean); break;
             case "--limit": a.limit = Number(next()); break;
             case "--until": a.until = Number(next()) * 1000; break; // epoch SECONDS
             case "--max-consec-fails": a.maxConsecFails = Number(next()); break;
@@ -105,7 +109,10 @@ function isNoisy(index, frac) {
 
 async function main() {
     const args = parseArgs(process.argv.slice(2));
-    const allCombos = args.bakeoff
+    // --sub: an exact set (one subcategory x chosen colors), for adding a catalog card.
+    const allCombos = args.sub
+        ? fullGrid(args.colors?.length ? args.colors : undefined).filter((c) => c.subSlug === args.sub)
+        : args.bakeoff
         ? bakeoffMatrix()
         : args.perCategory
             ? perCategoryMatrix({ total: args.count })

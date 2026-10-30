@@ -32,7 +32,7 @@ The JSON sidecar is the ground truth the eval scores against.
 | `expectedCategory` | yes | One of `tops`, `bottoms`, `outerwear`, `dresses` |
 | `expectedColorHex` | yes | Ground truth dominant color hex — scored as RGB Euclidean distance, lower is better |
 | `subcategoryKeywords` | yes | Any of these words in the model's `subcategory` string scores as a hit (case-insensitive) |
-| `expectedMoods` | optional | Subset of `professional`, `casual`, `sporty`, `creative`, `romantic`. Scored as Jaccard overlap |
+| `expectedMoods` | optional | Subset of `professional`, `casual`, `sporty`, `romantic` (`creative` was retired). Scored as Jaccard overlap |
 | `expectedSeasons` | optional | Subset of `spring`, `summer`, `fall`, `winter`. Scored as Jaccard overlap |
 | `notes` | optional | Human notes for your own reference |
 

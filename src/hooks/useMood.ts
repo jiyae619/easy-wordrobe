@@ -1,5 +1,5 @@
 import { useCallback, useSyncExternalStore } from 'react';
-import { MOODS } from '../data/moods';
+import { MOODS, resolveMoodId } from '../data/moods';
 import { useWardrobe } from '../context/WardrobeContext';
 import type { FashionMood } from '../types';
 
@@ -18,14 +18,19 @@ function subscribe(cb: () => void) {
 
 /**
  * The mood selected for styling, shared by Today and Picks for the session. Falls back to the
- * user's preferred vibe, then "casual".
+ * user's preferred vibe, then "casual". Each source is validated on its own, so a retired mood
+ * still stored somewhere (e.g. "creative") falls through to the next source instead of to a
+ * mood the user never picked; a retired mood with a successor (romantic → occasion) maps to it;
+ * unknown ids (a stale deep link) are never stored.
  */
 export function useMood(): [FashionMood, (id: string) => void] {
     const { userSettings } = useWardrobe();
     const stored = useSyncExternalStore(subscribe, read, () => null);
-    const id = stored || userSettings?.preferredVibe || 'casual';
+    const id = [stored, userSettings?.preferredVibe].map(resolveMoodId).find(Boolean) ?? 'casual';
     const mood = MOODS.find((m) => m.id === id) || MOODS.find((m) => m.id === 'casual') || MOODS[0];
-    const setMood = useCallback((next: string) => {
+    const setMood = useCallback((requested: string) => {
+        const next = resolveMoodId(requested);
+        if (!next) return;
         memory = next;
         try { sessionStorage.setItem(MOOD_KEY, next); } catch { /* storage unavailable — memory still holds it */ }
         listeners.forEach((l) => l());

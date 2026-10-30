@@ -75,11 +75,14 @@ If the image is safe, identify up to 3 distinct clothing items visible in the im
 FIELD RULES:
 - "category": must be exactly one of: "tops", "bottoms", "outerwear", "dresses", "shoes"
   A one-piece garment that covers the torso and continues into a skirt (slip dress, sundress, shirt dress, wrap dress, any dress) is ALWAYS "dresses", never "tops", even if it is thin-strapped, short, or shown folded or on a hanger.
-- "subcategory": a specific descriptive label, e.g. "Slim-Fit Chinos", "Oversized Hoodie", "Wrap Dress"
+- "subcategory": a specific descriptive label that names the main material when you can see it, e.g. "Slim-Fit Chinos", "Oversized Hoodie", "Wrap Dress", "Leather Biker Jacket", "Wool Knit Sweater", "Waterproof Rain Jacket", "Suede Ankle Boots"
 - "color": the dominant color name in plain English, e.g. "Olive Green", "Cream", "Burgundy"
 - "colorHex": a valid 6-digit hex code matching the color, e.g. "#6B7C45"
 - "season": a JSON array containing one or more of: "spring", "summer", "fall", "winter"
-- "mood": a JSON array with 1–3 values from: "professional", "casual", "sporty", "creative", "romantic"
+- "mood": a JSON array with 1–2 values from: "professional", "casual", "occasion". Tag a mood only if the piece clearly belongs in it:
+  "professional" = tailored or office ready (blazers, shirts and blouses, trousers, pencil skirts, sheath dresses, loafers, pumps);
+  "casual" = relaxed everyday, athleisure included (tees, sweatshirts, hoodies, jeans, chinos, joggers, leggings, shorts, sneakers, sundresses);
+  "occasion" = dressed up for a celebration, dinner, date or event, for anyone (silk or satin shirts and blouses, dress shirts, blazers and suits, tailored trousers, cocktail, slip, wrap and midi dresses, heels, loafers and dress shoes)
 - "hasNoisyBackground": true if the background is cluttered or distracting, otherwise false
 - "bbox": normalized location of the item in the image with x,y,width,height in range 0..1
 - "confidence": confidence for the detection in range 0..1

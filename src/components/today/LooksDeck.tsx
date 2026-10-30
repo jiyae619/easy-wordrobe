@@ -1,21 +1,22 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { X, Check, Loader2, RefreshCw, Sparkles, SlidersHorizontal } from 'lucide-react';
 import { useWardrobe } from '../../context/WardrobeContext';
-import { type ClothingItem, type OutfitSuggestion } from '../../types';
+import { ClothingCategory, type ClothingItem, type OutfitSuggestion } from '../../types';
 import {
     computeSeasonalLeastWornIds,
     computeWearScore,
     computeWeatherMatch,
-    describeOutfitReason,
     getWardrobeReadiness,
 } from '../../services/agents/agentOutputGuards';
 import { useMood } from '../../hooks/useMood';
 import { useTodayWeather } from '../../hooks/useTodayWeather';
 import { useStylistLooks } from '../../hooks/useStylistLooks';
+import { readWeather } from '../../services/agents/weatherFit';
 import { usePendingWear } from '../../hooks/usePendingWear';
-import { picksDoneLine, stylistLoadingLine, wearSavedLine } from '../../copy/voice';
+import { picksDoneLine, wearSavedLine } from '../../copy/voice';
 import { WearToast } from '../common/WearToast';
 import { MirrorCard } from '../picks/MirrorCard';
+import { PieceSheet } from '../picks/PieceSheet';
 import { SwipeDeck, type SwipeDeckHandle, type SwipeDir } from '../picks/SwipeDeck';
 import { daysIdle, buildReelOptions, itemsFromSlots, slotsFromItems, type OutfitSlots, type SlotId } from '../../utils/outfitSlots';
 import { wornToday } from '../../utils/wearLog';
@@ -23,10 +24,18 @@ import { wornToday } from '../../utils/wearLog';
 interface DeckState {
     key: string;
     index: number;
-    /** Per-look piece swaps made in the mirror. */
+    /** Per-look piece swaps made from the piece sheet. */
     overrides: Record<string, Partial<OutfitSlots>>;
     wornLook: number | null;
 }
+
+const SLOT_LABEL: Partial<Record<ClothingCategory, string>> = {
+    [ClothingCategory.Outerwear]: 'Layer',
+    [ClothingCategory.Tops]: 'Top',
+    [ClothingCategory.Bottoms]: 'Bottom',
+    [ClothingCategory.Dresses]: 'Dress',
+    [ClothingCategory.Shoes]: 'Shoes',
+};
 
 const freshDeck = (key: string): DeckState => ({ key, index: 0, overrides: {}, wornLook: null });
 
@@ -38,10 +47,10 @@ interface LooksDeckProps {
 /**
  * Today's default view: the stylist's 3 looks as a stack of mirror cards. Swipe right to wear (4s
  * undo), left to skip (logged as a rejection signal for the Stylist), up to tweak the look on the
- * rails. Tap a piece in the mirror to swap it for another of the same kind.
+ * rails. Tap a piece in the mirror to see it up close, and swap it there for another of the same kind.
  */
 export const LooksDeck: React.FC<LooksDeckProps> = ({ onTweak }) => {
-    const { clothes, outfits, tryItItemIds, logSuggestionEvent } = useWardrobe();
+    const { clothes, outfits, logSuggestionEvent } = useWardrobe();
     const [mood] = useMood();
     const { weather, isLoading: weatherLoading } = useTodayWeather();
     const readiness = getWardrobeReadiness(clothes);
@@ -57,13 +66,15 @@ export const LooksDeck: React.FC<LooksDeckProps> = ({ onTweak }) => {
     const updateDeck = (patch: Partial<DeckState>) => setDeck({ ...current, ...patch });
 
     const options = useMemo(() => buildReelOptions(clothes), [clothes]);
-    const leastWornIds = useMemo(() => computeSeasonalLeastWornIds(clothes, outfits), [clothes, outfits]);
     const dustyDays = useMemo(() => {
         const byId = new Map(clothes.map((c) => [c.id, c]));
         const ids = computeSeasonalLeastWornIds(clothes, outfits, clothes.length);
         return new Map(ids.map((id) => [id, byId.get(id) ? daysIdle(byId.get(id)!) : 0] as const));
     }, [clothes, outfits]);
     const [savedText, setSavedText] = useState<string | undefined>();
+    /** The piece open in the sheet: which look, which slot. */
+    const [inspecting, setInspecting] = useState<{ lookId: string; slot: SlotId } | null>(null);
+    const closeSheet = useCallback(() => setInspecting(null), []);
 
     const effective = (look: OutfitSuggestion): OutfitSuggestion => {
         const o = overrides[look.id];
@@ -72,7 +83,7 @@ export const LooksDeck: React.FC<LooksDeckProps> = ({ onTweak }) => {
         return {
             ...look,
             items,
-            weatherMatch: weather ? computeWeatherMatch(items, weather.temperature) : look.weatherMatch,
+            weatherMatch: weather ? computeWeatherMatch(items, weather.temperature, readWeather(weather)) : look.weatherMatch,
             wearScore: computeWearScore(items, clothes),
         };
     };
@@ -81,15 +92,8 @@ export const LooksDeck: React.FC<LooksDeckProps> = ({ onTweak }) => {
     const alternatives = (slot: SlotId, current: ClothingItem | undefined): ClothingItem[] =>
         options[slot].filter((o): o is ClothingItem => Boolean(o) && (!current || o!.category === current.category));
 
-    const swap = (look: OutfitSuggestion, slot: SlotId) => {
-        const eff = effective(look);
-        const ids = slotsFromItems(eff.items);
-        const current = eff.items.find((i) => i.id === ids[slot]);
-        const alts = alternatives(slot, current);
-        if (alts.length < 2) return;
-        const next = alts[(alts.findIndex((a) => a.id === ids[slot]) + 1) % alts.length];
-        updateDeck({ overrides: { ...overrides, [look.id]: { ...overrides[look.id], [slot]: next.id } } });
-    };
+    const swap = (look: OutfitSuggestion, slot: SlotId, id: string) =>
+        updateDeck({ overrides: { ...overrides, [look.id]: { ...overrides[look.id], [slot]: id } } });
 
     const onSwipe = (key: string, dir: SwipeDir) => {
         const lookIndex = looks.findIndex((l) => l.id === key);
@@ -134,13 +138,7 @@ export const LooksDeck: React.FC<LooksDeckProps> = ({ onTweak }) => {
                     look={eff}
                     index={index + j}
                     total={looks.length}
-                    reason={look.isFallback ? null : describeOutfitReason(eff, { tryItItemIds, leastWornItemIds: leastWornIds }, weather ?? undefined)}
-                    onSwap={j === 0 ? (slot) => swap(look, slot) : undefined}
-                    canSwap={(slot) => {
-                        const ids = slotsFromItems(eff.items);
-                        const current = eff.items.find((i) => i.id === ids[slot]);
-                        return Boolean(current) && alternatives(slot, current).length > 1;
-                    }}
+                    onInspect={j === 0 ? (slot) => setInspecting({ lookId: look.id, slot }) : undefined}
                 />
             ),
         };
@@ -168,7 +166,7 @@ export const LooksDeck: React.FC<LooksDeckProps> = ({ onTweak }) => {
                     <div className="h-[80%] aspect-[0.8] rounded-t-[999px] rounded-b-2xl skeleton" />
                 </div>
                 <p className="flex items-center justify-center gap-2 text-sm font-semibold text-ink/60">
-                    <Loader2 className="w-4 h-4 animate-spin" /> {stylistLoadingLine(mood.name, weather)}
+                    <Loader2 className="w-4 h-4 animate-spin" /> Styling for the best looks…
                 </p>
             </div>
         );
@@ -203,6 +201,27 @@ export const LooksDeck: React.FC<LooksDeckProps> = ({ onTweak }) => {
         body = <SwipeDeck ref={deckRef} cards={cards} onSwipe={onSwipe} stamps={{ right: 'WEAR', left: 'SKIP', up: 'TWEAK' }} />;
     }
 
+    // The open piece, only while its look is still the top card.
+    const inspectLook = inspecting && looks[index]?.id === inspecting.lookId ? looks[index] : null;
+    let sheet: React.ReactNode = null;
+    if (inspecting && inspectLook) {
+        const eff = effective(inspectLook);
+        const itemId = slotsFromItems(eff.items)[inspecting.slot];
+        const item = eff.items.find((i) => i.id === itemId);
+        if (item) {
+            sheet = (
+                <PieceSheet
+                    item={item}
+                    label={SLOT_LABEL[item.category] ?? 'Piece'}
+                    alternatives={alternatives(inspecting.slot, item)}
+                    stylistPickId={slotsFromItems(inspectLook.items)[inspecting.slot]}
+                    onPick={(id) => swap(inspectLook, inspecting.slot, id)}
+                    onClose={closeSheet}
+                />
+            );
+        }
+    }
+
     const deckActive = !loading && !done && looks.length > 0 && readiness.canMakeOutfit && !(error && looks.length === 0);
 
     return (
@@ -225,9 +244,11 @@ export const LooksDeck: React.FC<LooksDeckProps> = ({ onTweak }) => {
 
             {deckActive && (
                 <p className="[@media(max-height:760px)]:hidden text-center text-[11px] text-ink/50">
-                    Right: wear · Left: skip · Up: tweak · Tap a piece to swap
+                    Right: wear · Left: skip · Up: tweak · Tap a piece to see or swap it
                 </p>
             )}
+
+            {sheet}
 
             <WearToast isPending={isPending} logged={logged} notice={notice} savedText={savedText} onUndo={() => { undo(); updateDeck({ wornLook: null }); }} />
         </div>

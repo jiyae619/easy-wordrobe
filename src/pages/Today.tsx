@@ -43,12 +43,12 @@ interface BuildMode {
  * hanger-rail builder (lock + Spin) on the same batch. Also where a past day gets logged.
  */
 const Today: React.FC = () => {
-    const { clothes } = useWardrobe();
+    const { clothes, isWardrobeLoading } = useWardrobe();
     const location = useLocation();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const [mood, setMood] = useMood();
-    const { weather, outlook, cheer, isLoading: weatherLoading, usingDefaultLocation } = useTodayWeather();
+    const { weather, outlook, cheer, isLoading: weatherLoading, usingDefaultLocation, locationSource } = useTodayWeather();
     const readiness = getWardrobeReadiness(clothes);
     const [showWeather, setShowWeather] = useState(false);
 
@@ -73,7 +73,7 @@ const Today: React.FC = () => {
         if (routeState) navigate(location.pathname + location.search, { replace: true, state: null });
     }, [routeState, navigate, location.pathname, location.search]);
 
-    // Deep links like /?mood=romantic still work.
+    // Deep links like /?mood=occasion still work (and the old /?mood=romantic maps to it).
     const moodParam = searchParams.get('mood');
     useEffect(() => {
         if (moodParam) setMood(moodParam);
@@ -106,14 +106,19 @@ const Today: React.FC = () => {
                     >
                         {format(new Date(), 'EEE d MMM')} ·
                         <WeatherIcon condition={weather?.condition} />
-                        <span>{weather ? `${Math.round(weather.temperature)}° ${weather.condition}` : weatherLoading ? 'Checking the sky…' : 'No weather right now'}</span>
+                        <span>{weather ? `${Math.round(weather.temperature)}° now · ${weather.condition}` : weatherLoading ? 'Checking the sky…' : usingDefaultLocation ? 'Location off · set your city' : 'No weather right now'}</span>
                         <ChevronDown className={`w-3.5 h-3.5 flex-none transition-transform ${showWeather ? 'rotate-180' : ''}`} />
                     </button>
                 }
             >
                 {showWeather && (
                     <div className="p-3 rounded-2xl bg-white border-[1.5px] border-ink animate-fade-in-up">
-                        {weather?.location && <p className="text-[11px] font-extrabold uppercase tracking-wide text-ink/50 mb-2">{weather.location}</p>}
+                        {weather?.location && (
+                            <p className="text-[11px] font-extrabold uppercase tracking-wide text-ink/50 mb-2">
+                                {weather.location}
+                                {locationSource === 'city' ? ' · your city' : locationSource === 'last-known' ? ' · last known location' : ''}
+                            </p>
+                        )}
                         {outlook.length > 0 && (
                             <div className="grid grid-cols-3 gap-2">
                                 {outlook.map((slot) => (
@@ -130,9 +135,9 @@ const Today: React.FC = () => {
                             <button
                                 type="button"
                                 onClick={() => window.dispatchEvent(new CustomEvent('open-settings'))}
-                                className="mt-2 text-[11px] font-semibold text-ink underline underline-offset-2"
+                                className="mt-2 text-[11px] font-semibold text-ink"
                             >
-                                Location is off. Set your city for local weather.
+                                Location is off, so there's no weather. Set your city for local weather.
                             </button>
                         )}
                     </div>
@@ -141,7 +146,10 @@ const Today: React.FC = () => {
 
             {!build?.logDate && <MoodChips value={mood.id} onChange={setMood} />}
 
-            {!readiness.canMakeOutfit ? (
+            {isWardrobeLoading ? (
+                // The closet is still on its way: don't tell a returning user it's empty.
+                <div role="status" className="skeleton h-[420px] w-full rounded-[28px] border-2 border-dashed border-ink/40" aria-busy="true" aria-label="Loading your closet" />
+            ) : !readiness.canMakeOutfit ? (
                 <section className="rounded-[28px] border-2 border-dashed border-ink/40 p-5">
                     <h2 className="font-display text-xl font-extrabold text-ink">
                         {clothes.length === 0 ? 'Your closet is empty' : 'Almost ready'}

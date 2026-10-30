@@ -7,7 +7,9 @@ import { STARTER_CATALOG, buildCatalogItem, buildStarterDeck, catalogImageUrl } 
 import { drainAgentMetricTally, recordPickerEvent } from "../agentTelemetry";
 import { extractJsonFromText } from "../../bedrockClient";
 import {
+    StylistAliases,
     VALID_MOODS,
+    computeWeatherMatch,
     clampSentences,
     computeDeprioritizedItemIds,
     computeLeastWornItems,
@@ -21,6 +23,8 @@ import {
     normalizeIntakeResponse,
     setSeasonLatitude,
 } from "../agentOutputGuards";
+
+const ALL_SEASONS_FOR_TEST = [Season.Spring, Season.Summer, Season.Fall, Season.Winter];
 
 const mood: FashionMood = {
     id: "casual",
@@ -208,6 +212,13 @@ describe("deterministic outfit scoring", () => {
             summerWardrobe, mood, () => "o", 0 // winter temperature — neither item suits it
         );
         expect(cold.suggestions[0].weatherMatch).toBe(50);
+    });
+
+    it("scores against the calendar season when there is no weather", () => {
+        const inSeason = [item("top-1", ClothingCategory.Tops, [getCurrentSeason()])];
+        const offSeason = [item("top-2", ClothingCategory.Tops, ALL_SEASONS_FOR_TEST.filter((s) => s !== getCurrentSeason()))];
+        expect(computeWeatherMatch(inSeason, null)).toBe(100);
+        expect(computeWeatherMatch(offSeason, null)).toBe(50);
     });
 
     it("scores less-worn outfits higher on rotation", () => {
@@ -550,5 +561,31 @@ describe("outfit explanation length cap (design: max 2 sentences)", () => {
         const { suggestions } = mapStylistSuggestions(parsed, clothes, mood, () => "id-1", 20);
         expect(suggestions).toHaveLength(1);
         expect(suggestions[0].explanation).toBe("Sentence one is great. Sentence two seals it.");
+    });
+});
+
+describe("stylist id aliases (prompt token savings)", () => {
+    const clothes = [
+        item("8f14e45f-ceea-467a-9b1e-2f7c1a7d3c01", ClothingCategory.Tops),
+        item("c9f0f895-fb98-4b91-9f6e-5d1d2b5a7e02", ClothingCategory.Bottoms),
+    ];
+
+    it("sends short aliases and maps the model's answer back to real ids", () => {
+        const aliases = new StylistAliases(clothes);
+        expect(aliases.toAlias(clothes[0].id)).toBe("i1");
+        expect(aliases.toAliases([clothes[1].id, "not-in-wardrobe"])).toEqual(["i2"]);
+
+        const resolved = aliases.resolveSuggestionIds([{ itemIds: ["i1", " i2 ", "i9"], explanation: "Nice." }]);
+        const { suggestions, invalidIdsDropped } = mapStylistSuggestions(resolved, clothes, mood, () => "o1", 20);
+        expect(suggestions).toHaveLength(1);
+        expect(suggestions[0].items.map((i) => i.id)).toEqual([clothes[0].id, clothes[1].id]);
+        // An alias the prompt never issued is still treated as a hallucinated id and dropped.
+        expect(invalidIdsDropped).toBe(1);
+    });
+
+    it("also resolves wrapped answers and real ids echoed back", () => {
+        const aliases = new StylistAliases(clothes);
+        const resolved = aliases.resolveSuggestionIds({ outfits: [{ itemIds: [clothes[0].id, "i2"] }] });
+        expect(resolved).toEqual({ outfits: [{ itemIds: [clothes[0].id, clothes[1].id] }] });
     });
 });
