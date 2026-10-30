@@ -1,0 +1,18 @@
+{
+  "expectedCategory": "outerwear",
+  "expectedColorHex": "#eab308",
+  "subcategoryKeywords": [
+    "rain jacket",
+    "raincoat",
+    "waterproof"
+  ],
+  "expectedMoods": [
+    "casual"
+  ],
+  "expectedSeasons": [
+    "spring",
+    "fall",
+    "winter"
+  ],
+  "notes": "yellow hooded waterproof rain jacket with a full zip, front view, on a wooden hanger, studio bg, seed 65757"
+}
