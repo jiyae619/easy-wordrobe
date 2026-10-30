@@ -5,7 +5,7 @@
  * Each type represents a core data structure for managing the wardrobe, outfits, weather, and user insights.
  */
 
-import { type UserSettings } from '../services/firestoreService';
+import type { UserSettings } from '../services/firestoreService';
 
 // ==========================================
 // 1. Enums & Constants

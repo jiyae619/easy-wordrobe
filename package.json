@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "test:agents": "vitest run src/services/agents/__tests__/agentQuality.test.ts",
+    "docs:style-rules": "UPDATE_STYLE_RULES_DOC=1 vitest run src/data/__tests__/styleRulesDoc.test.ts",
     "preview": "vite preview"
   },
   "dependencies": {
