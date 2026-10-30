@@ -41,7 +41,7 @@ const { Spring, Summer, Fall, Winter } = Season;
  * segmented category progress bar reads truthfully — contiguous groups are load-bearing
  * for that UI and locked by a test. Within each group, most-common staples come first;
  * the first Tops card + first Bottoms card alone satisfy the Stylist's composition rules.
- * Shoes cards join when their assets ship.
+ * Shoes and rain gear cards joined once their assets shipped.
  */
 export const STARTER_CATALOG: StarterCatalogEntry[] = [
     // --- Tops ---
@@ -62,6 +62,8 @@ export const STARTER_CATALOG: StarterCatalogEntry[] = [
     { slug: 'outerwear-blazer', label: 'Blazer', category: ClothingCategory.Outerwear, subcategory: 'Blazer', colors: ['Black', 'Navy', 'Beige', 'Grey'], season: [Spring, Fall, Winter], moods: ['professional'] },
     { slug: 'outerwear-wool-coat', label: 'Wool Coat', category: ClothingCategory.Outerwear, subcategory: 'Wool Coat', colors: ['Beige', 'Black', 'Grey', 'Navy'], season: [Fall, Winter], moods: ['professional'] },
     { slug: 'outerwear-puffer-parka', label: 'Puffer Jacket', category: ClothingCategory.Outerwear, subcategory: 'Puffer Parka', colors: ['Black', 'Olive', 'Cream', 'Brown'], season: [Winter], moods: ['casual'] },
+    { slug: 'outerwear-trench-coat', label: 'Trench Coat', category: ClothingCategory.Outerwear, subcategory: 'Trench Coat', colors: ['Beige', 'Navy', 'Black'], season: [Spring, Fall], moods: ['professional', 'casual'] },
+    { slug: 'outerwear-rain-jacket', label: 'Rain Jacket', category: ClothingCategory.Outerwear, subcategory: 'Waterproof Rain Jacket', colors: ['Navy', 'Black', 'Olive', 'Yellow'], season: [Spring, Fall, Winter], moods: ['casual'] },
     // --- Dresses ---
     { slug: 'dresses-wrap-dress', label: 'Wrap Dress', category: ClothingCategory.Dresses, subcategory: 'Wrap Dress', colors: ['Black', 'Navy', 'Olive', 'Pink'], season: [Spring, Summer, Fall], moods: ['occasion', 'professional'] },
     { slug: 'dresses-sundress', label: 'Sundress', category: ClothingCategory.Dresses, subcategory: 'Sundress', colors: ['White', 'Blue', 'Pink', 'Cream'], season: [Spring, Summer], moods: ['casual', 'occasion'] },
